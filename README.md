@@ -1,8 +1,8 @@
-# Supierior Rules
+# suPIerior Rules
 
-Supierior Rules is a monorepo for Pi-focused rules/context packages and extensions.
+suPIerior Rules is a monorepo for Pi-focused rules/context packages and extensions.
 
-The name intentionally inserts **pi** into **superior**.
+The brand name intentionally inserts **PI** into **superior**. Published package names use the lowercase npm scope `@supierior` because npm package names/scopes should remain lowercase.
 
 ## Packages
 
@@ -12,7 +12,7 @@ The name intentionally inserts **pi** into **superior**.
 
 - `@supierior/rules-engine` — future Pi-independent core rules engine extracted from `@supierior/pi-rules`.
 - `@supierior/tui-tools` — future utility functions for making Pi TUI workflows easier to build and manage.
-- Reviewer extension package — future Pi reviewer extension that uses the rules injection system.
+- `@supierior/rulviewer` — future rules-aware code reviewer that uses the rules injection system.
 
 ## Development
 

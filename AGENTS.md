@@ -1,12 +1,13 @@
-# Supierior Rules
+# suPIerior Rules
 
-Monorepo for Supierior Pi rules extensions and packages.
+Monorepo for suPIerior Pi rules extensions and packages.
 
 ## Structure
 
 - `packages/pi-rules` — current Pi package/extension for `.pi/rules` context discovery, injection, commands, skills, and background rule maintenance.
 - Future `packages/rules-engine` — Pi-independent core rules engine extracted from `pi-rules`.
-- Future Pi UI/helper and reviewer packages should be separate packages under `packages/`.
+- Future `packages/tui-tools` — utility functions for making Pi TUI workflows easier to build and manage.
+- Future `packages/rulviewer` — rules-aware code reviewer package that uses the rules injection system.
 
 ## Development commands
 
