@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["extension-src/pi-rules/*"],
+      "@app/*": ["extension-src/pi-rules/app/*"],
+      "@pi/*": ["extension-src/pi-rules/pi/*"],
+      "@domain/*": ["extension-src/pi-rules/domain/*"],
+      "@features/*": ["extension-src/pi-rules/features/*"],
+      "@shared/*": ["extension-src/pi-rules/shared/*"]
+    },
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["extensions/**/*.ts", "extension-src/**/*.ts", "tests/**/*.ts"]
+}

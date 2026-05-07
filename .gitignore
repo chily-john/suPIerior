@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+.pi/.pi-rules/
+packages/*/.pi/.pi-rules/
+NUL
+package-lock.json

@@ -1,0 +1,21 @@
+{
+  "name": "supierior-rules",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for Supierior Pi rules extensions and packages.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.0.8",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.2"
+  }
+}
