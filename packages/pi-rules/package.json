@@ -49,7 +49,7 @@
   },
   "pi": {
     "extensions": [
-      "./dist/extensions"
+      "./dist/extensions/pi-rules.mjs"
     ],
     "skills": [
       "./skills"
