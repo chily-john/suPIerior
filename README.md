@@ -8,11 +8,6 @@ The brand name intentionally inserts **PI** into **superior**. Published package
 
 - [`@supierior/pi-rules`](./packages/pi-rules) — current Pi package for `.pi/rules` discovery, context injection, commands, skills, and background rule maintenance.
 
-## Planned packages
-
-- `@supierior/rules-engine` — future Pi-independent core rules engine extracted from `@supierior/pi-rules`.
-- `@supierior/tui-tools` — future utility functions for making Pi TUI workflows easier to build and manage.
-- `@supierior/rulviewer` — future rules-aware code reviewer that uses the rules injection system.
 
 ## Development
 
