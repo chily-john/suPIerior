@@ -1,0 +1,59 @@
+name: Chore
+about: Track maintenance, documentation, CI, or repository tasks
+title: "chore: "
+labels: ["type:chore", "agent-ready"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What maintenance work is needed?
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / problem
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+  - type: input
+    id: scope
+    attributes:
+      label: Scope / package
+      placeholder: package:pi-rules, package:dev-workflow, package:repo
+  - type: textarea
+    id: areas
+    attributes:
+      label: Affected files or areas
+  - type: dropdown
+    id: conflict-risk
+    attributes:
+      label: Conflict risk
+      options:
+        - Unknown
+        - Low
+        - Medium
+        - High
+  - type: dropdown
+    id: release-impact
+    attributes:
+      label: Release impact
+      options:
+        - None
+        - Patch
+        - Minor
+        - Major
+        - Unknown
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: agent-notes
+    attributes:
+      label: Notes for agents

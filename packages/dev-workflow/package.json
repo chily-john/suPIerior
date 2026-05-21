@@ -1,0 +1,14 @@
+{
+  "name": "@supierior/dev-workflow",
+  "version": "0.1.0-beta.0",
+  "private": true,
+  "description": "Workflow docs, templates, and future automation for suPIerior development.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "echo \"No build for dev-workflow yet\"",
+    "test": "echo \"No tests for dev-workflow yet\"",
+    "typecheck": "echo \"No typecheck for dev-workflow yet\"",
+    "lint": "echo \"No lint for dev-workflow yet\"",
+    "clean": "rimraf dist coverage .turbo || true"
+  }
+}

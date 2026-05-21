@@ -1,0 +1,61 @@
+name: Feature
+about: Propose a new capability or workflow improvement
+title: "feat: "
+labels: ["type:feature", "agent-ready"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Briefly describe the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / problem
+      description: What problem does this solve?
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+      description: What should be true when this is done?
+  - type: input
+    id: scope
+    attributes:
+      label: Scope / package
+      placeholder: package:pi-rules, package:dev-workflow, package:repo
+  - type: textarea
+    id: areas
+    attributes:
+      label: Affected files or areas
+  - type: dropdown
+    id: conflict-risk
+    attributes:
+      label: Conflict risk
+      options:
+        - Unknown
+        - Low
+        - Medium
+        - High
+  - type: dropdown
+    id: release-impact
+    attributes:
+      label: Release impact
+      options:
+        - None
+        - Patch
+        - Minor
+        - Major
+        - Unknown
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: agent-notes
+    attributes:
+      label: Notes for agents

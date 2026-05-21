@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://supierior.dev/schemas/future-task.schema.json",
+  "title": "Future local task coordination record",
+  "description": "Placeholder schema for a possible future ignored local coordination format. GitHub Issues remain the source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "issueNumber": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "issueUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "package": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Todo", "In Progress", "Review", "Blocked", "Done", "Released"]
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}
