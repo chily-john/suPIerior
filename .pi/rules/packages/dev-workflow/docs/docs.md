@@ -21,3 +21,4 @@ Enter here when changing how contributors and agents coordinate work. These docs
 - Agent guidance should tell agents to check for dirty worktrees and ask before overwriting human changes.
 - Include a changeset only for user-facing package behavior, APIs, commands, or documented behavior that belongs in a changelog.
 - Do not imply npm publishing is enabled without explicit approval.
+- Keep owner-authored PRs mergeable after CI while `@chily-john` is the only collaborator.

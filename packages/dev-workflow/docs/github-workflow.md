@@ -51,11 +51,11 @@ Strict conventional commits are not enforced initially.
 `main` should require:
 
 - A pull request before merging.
-- At least one approval.
-- Code owner review from `@chily-john`.
 - Passing CI checks for `typecheck`, `lint`, and `build`.
 
-`.github/CODEOWNERS` assigns all files to `@chily-john`.
+Approval is intentionally not required while `@chily-john` is the only repository collaborator. This allows owner-authored PRs to merge after CI without creating a separate bot identity. If additional collaborators gain write access, revisit branch protection before relying on this policy.
+
+`.github/CODEOWNERS` assigns all files to `@chily-john` for ownership visibility, but code owner approval is not currently a blocking branch-protection requirement.
 
 ## CI
 
