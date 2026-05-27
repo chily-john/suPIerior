@@ -52,9 +52,10 @@ describe("askQuestion", () => {
 });
 
 describe("beginQuestionLoading", () => {
-  it("clears the editor, renders prior context with a loading widget, and consumes terminal input until stopped", () => {
+  it("clears the editor, renders prior context, starts Pi working state, and consumes terminal input until stopped", () => {
     let handler: ((data: string) => { consume?: boolean } | undefined) | undefined;
     const calls: string[] = [];
+    const working: string[] = [];
     const widgets: Array<PiWidgetFactory | string[] | undefined> = [];
     const ui: PiQuestionUi = {
       input: async () => undefined,
@@ -63,6 +64,9 @@ describe("beginQuestionLoading", () => {
       setStatus: () => undefined,
       setEditorText: (text) => calls.push(`text:${text}`),
       setWidget: (_key, content) => widgets.push(content),
+      setWorkingIndicator: () => working.push("indicator"),
+      setWorkingMessage: (message) => working.push(`message:${message ?? "default"}`),
+      setWorkingVisible: (visible) => working.push(`visible:${visible}`),
       onTerminalInput: (nextHandler) => {
         handler = nextHandler;
         return () => {
@@ -79,24 +83,23 @@ describe("beginQuestionLoading", () => {
     expect(calls).toEqual(["text:"]);
     expect(handler?.("typed")).toEqual({ consume: true });
     expect(typeof widgets[0]).toBe("function");
-    const widget = typeof widgets[0] === "function" ? widgets[0]({ requestRender: () => undefined }, {}) : undefined;
+    const widget =
+      typeof widgets[0] === "function" ? widgets[0]({ requestRender: () => undefined }, {}) : undefined;
     expect(widget?.render(80)).toEqual([
       "What should we build?",
       "",
       "Answer: A better loader",
-      "",
-      "",
-      "⠋ Thinking…",
     ]);
-    widget?.dispose?.();
+    expect(working).toEqual(["indicator", "message:Thinking…", "visible:true"]);
 
     stop();
 
     expect(handler).toBeUndefined();
     expect(widgets.at(-1)).toBeUndefined();
+    expect(working.slice(-3)).toEqual(["visible:false", "message:default", "indicator"]);
   });
 
-  it("falls back to Pi working state when extension widgets are unavailable", () => {
+  it("uses Pi working state when extension widgets are unavailable", () => {
     let handler: ((data: string) => { consume?: boolean } | undefined) | undefined;
     const calls: string[] = [];
     const ui: PiQuestionUi = {

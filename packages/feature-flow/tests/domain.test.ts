@@ -265,6 +265,55 @@ describe("workflow", () => {
     }
   });
 
+  it("shows the submitted answer in the default loading state until the next prompt is ready", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
+    let promptCount = 0;
+    let workingVisible = false;
+    let widgetRender: ((width: number) => string[]) | undefined;
+    const adapter = {
+      prompts: [] as string[],
+      async complete(prompt: string): Promise<string> {
+        this.prompts.push(prompt);
+        promptCount += 1;
+        if (promptCount === 1) {
+          return JSON.stringify({
+            readyToGenerate: false,
+            questions: [{ id: "q1", text: "What problem should this solve?" }],
+          });
+        }
+        if (promptCount === 2) {
+          expect(workingVisible).toBe(true);
+          expect(widgetRender?.(80)).toEqual([
+            "What problem should this solve?",
+            "",
+            "Answer: It should help users plan work.",
+          ]);
+          return JSON.stringify({ readyToGenerate: true, questions: [] });
+        }
+        return "# Feature: generated\n";
+      },
+    };
+    const ctx = createContext(dir, ["It should help users plan work."], adapter);
+    ctx.ui.setWorkingVisible = (visible) => {
+      workingVisible = visible;
+    };
+    ctx.ui.setWidget = (_key, content) => {
+      if (typeof content !== "function") {
+        widgetRender = undefined;
+        return;
+      }
+      const widget = content({}, {});
+      widgetRender = (width) => widget.render(width);
+    };
+    try {
+      await mkdir(join(dir, ".pi"));
+      await runFeatureWorkflow("Build demo", ctx);
+      expect(workingVisible).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("publishes global busy state around processing and clears it when complete", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
     const adapter = new MockAdapter([JSON.stringify({ readyToGenerate: true, questions: [] })]);
