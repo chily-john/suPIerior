@@ -1,6 +1,6 @@
 {
   "name": "@supierior/tui-tools",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "Reusable Pi TUI question primitives for guided workflows.",
   "keywords": [
     "pi",

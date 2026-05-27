@@ -1,6 +1,6 @@
 {
   "name": "@supierior/kanban-converters",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "Kanban converter contracts and built-in GitHub issue publishing for Pi feature workflows.",
   "keywords": [
     "pi",

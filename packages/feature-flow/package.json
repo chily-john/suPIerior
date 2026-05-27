@@ -1,6 +1,6 @@
 {
   "name": "@supierior/feature-flow",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0-beta.1",
   "description": "Pi workflow package for guided feature discovery and feature/plan artifact generation.",
   "keywords": [
     "pi-package",
