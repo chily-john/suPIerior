@@ -7,8 +7,6 @@ import type { PiQuestionUi, PiWidgetComponent } from "./models/pi-question-ui";
 
 const promptWidgetKey = "feature-flow-question";
 const defaultLoadingMessage = "Thinking…";
-const defaultLoaderFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const defaultLoaderIntervalMs = 80;
 
 export interface QuestionLoadingOptions {
   message?: string;
@@ -68,28 +66,23 @@ export function beginQuestionLoading(
   ui.setEditorText?.("");
 
   const widgetKey = loading.widgetKey ?? promptWidgetKey;
-  if (ui.setWidget) {
-    ui.setWidget(
-      widgetKey,
-      (tui, theme) => new QuestionLoadingWidget(loading, tui, theme),
-      { placement: "aboveEditor" },
-    );
-  } else {
-    ui.setWorkingIndicator?.();
-    ui.setWorkingMessage?.(loading.message);
-    ui.setWorkingVisible?.(true);
+  if (ui.setWidget && renderLoadingContext(loading, 80).length > 0) {
+    ui.setWidget(widgetKey, () => new QuestionContextWidget(loading), {
+      placement: "aboveEditor",
+    });
   }
+
+  ui.setWorkingIndicator?.();
+  ui.setWorkingMessage?.(loading.message);
+  ui.setWorkingVisible?.(true);
 
   const unsubscribe = ui.onTerminalInput?.(() => ({ consume: true }));
   return () => {
     unsubscribe?.();
-    if (ui.setWidget) {
-      ui.setWidget(widgetKey, undefined);
-    } else {
-      ui.setWorkingVisible?.(false);
-      ui.setWorkingMessage?.();
-      ui.setWorkingIndicator?.();
-    }
+    ui.setWidget?.(widgetKey, undefined);
+    ui.setWorkingVisible?.(false);
+    ui.setWorkingMessage?.();
+    ui.setWorkingIndicator?.();
   };
 }
 
@@ -158,45 +151,18 @@ class QuestionPromptWidget implements PiWidgetComponent {
   }
 }
 
-class QuestionLoadingWidget implements PiWidgetComponent {
-  private frameIndex = 0;
-  private readonly intervalId: ReturnType<typeof setInterval> | undefined;
-  private readonly requestRender: (() => void) | undefined;
-  private readonly colorAccent: (value: string) => string;
-  private readonly colorMuted: (value: string) => string;
-
+class QuestionContextWidget implements PiWidgetComponent {
   constructor(
     private readonly options: Required<Pick<QuestionLoadingOptions, "message">> &
       Omit<QuestionLoadingOptions, "message">,
-    tui: unknown,
-    theme: unknown,
-  ) {
-    this.requestRender = getRequestRender(tui);
-    this.colorAccent = getThemeColor(theme, "accent");
-    this.colorMuted = getThemeColor(theme, "muted");
-    this.intervalId = setInterval(() => {
-      this.frameIndex = (this.frameIndex + 1) % defaultLoaderFrames.length;
-      this.requestRender?.();
-    }, defaultLoaderIntervalMs);
-  }
+  ) {}
 
   render(width: number): string[] {
-    const lines = renderLoadingContext(this.options, width);
-    const frame = defaultLoaderFrames[this.frameIndex] ?? "";
-    return [
-      ...lines,
-      ...(lines.length > 0 ? [""] : []),
-      "",
-      `${this.colorAccent(frame)} ${this.colorMuted(this.options.message)}`,
-    ];
+    return renderLoadingContext(this.options, width);
   }
 
   invalidate(): void {
-    // The interval asks the TUI to re-render as the loader advances.
-  }
-
-  dispose(): void {
-    if (this.intervalId) clearInterval(this.intervalId);
+    // Stateless; nothing to invalidate.
   }
 }
 
@@ -215,20 +181,6 @@ function renderLoadingContext(
   const lines = prompt ? wrapPrompt(prompt, width) : [];
   if (options.answer !== undefined) lines.push("", `Answer: ${formatAnswer(options.answer)}`);
   return lines;
-}
-
-function getRequestRender(tui: unknown): (() => void) | undefined {
-  return typeof tui === "object" && tui !== null && "requestRender" in tui
-    ? (tui as { requestRender?: () => void }).requestRender
-    : undefined;
-}
-
-function getThemeColor(theme: unknown, key: "accent" | "muted"): (value: string) => string {
-  if (typeof theme === "object" && theme !== null && "fg" in theme) {
-    const fg = (theme as { fg?: (color: string, value: string) => string }).fg;
-    if (typeof fg === "function") return (value) => fg(key, value);
-  }
-  return (value) => value;
 }
 
 function wrapPrompt(prompt: string, width: number): string[] {

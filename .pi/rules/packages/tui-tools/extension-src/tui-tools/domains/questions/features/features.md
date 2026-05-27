@@ -17,7 +17,7 @@ Enter here when changing executable question-domain behavior rather than shared 
 ## Patterns & Conventions
 
 - Keep feature-to-feature dependencies rare and intentional. `asking` may use `queue`, but only through `features/queue/index.ts`.
-- Use `beginQuestionLoading` for model-thinking pauses that should clear editor text, show an above-editor loading widget when available, optionally preserve prior question/answer context, fall back to Pi working state, and temporarily consume terminal input.
+- Use `beginQuestionLoading` for model-thinking pauses that should clear editor text, show submitted question/answer context above the editor when present, publish Pi working state, and temporarily consume terminal input.
 - Render text and multi-choice prompts with an above-editor widget when using the multiline editor so prompts are not truncated.
 - Use `PiWidgetFactory`/`PiWidgetComponent` for dynamic widgets that render against terminal width or handle input.
 - Keep `QuestionQueue.rebase` for model-revised unanswered question sets; preserve answer records and progress adjustment indicators.
