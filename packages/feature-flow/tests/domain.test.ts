@@ -11,6 +11,7 @@ import {
 } from "../extension-src/feature-flow/domain/discovery/state";
 import { resolveArtifactPaths } from "../extension-src/feature-flow/domain/paths";
 import { proposeSlug, sanitizeSlug } from "../extension-src/feature-flow/domain/slug";
+import { runDiscoveryLoop } from "../extension-src/feature-flow/app/discovery-loop";
 import {
   runFeatureWorkflow,
   type FeatureWorkflowContext,
@@ -27,6 +28,14 @@ class MockAdapter {
     }
     if (response === undefined) throw new Error("No mock model response queued.");
     return response;
+  }
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+  const started = Date.now();
+  while (!predicate()) {
+    if (Date.now() - started > timeoutMs) throw new Error("Timed out waiting for condition.");
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
 
@@ -320,10 +329,24 @@ describe("workflow", () => {
     const states: Array<string | undefined> = [];
     const working: boolean[] = [];
     const ctx = createContext(dir, [], adapter);
+    let currentState: string | undefined;
+    let workingVisible = false;
     ctx.ui.setStatus = (key, value) => {
-      if (key === "feature-flow-state") states.push(value);
+      if (key === "feature-flow-state") {
+        currentState = value;
+        states.push(value);
+      }
     };
-    ctx.ui.setWorkingVisible = (visible) => working.push(visible);
+    ctx.ui.setWorkingVisible = (visible) => {
+      workingVisible = visible;
+      working.push(visible);
+    };
+    ctx.ui.notify = (message) => {
+      if (message.startsWith("Feature artifacts written:")) {
+        expect(currentState).toBe("Rendering final feature-flow output…");
+        expect(workingVisible).toBe(true);
+      }
+    };
     try {
       await mkdir(join(dir, ".pi"));
       await runFeatureWorkflow("Build demo", ctx);
@@ -335,6 +358,79 @@ describe("workflow", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it("keeps loading visible and input unavailable after answer submission until the next question is ready", async () => {
+    let completeCount = 0;
+    let editorText = "";
+    let terminalHandler: ((data: string) => { consume?: boolean } | undefined) | undefined;
+    let currentWidget: ((width: number) => string[]) | undefined;
+    let workingVisible = false;
+
+    const adapter = {
+      async complete(): Promise<string> {
+        completeCount += 1;
+        if (completeCount === 1) {
+          return JSON.stringify({
+            readyToGenerate: false,
+            questions: [{ id: "q1", text: "First question" }],
+          });
+        }
+        if (completeCount === 2) {
+          expect(workingVisible).toBe(true);
+          expect(terminalHandler?.("typed while loading")).toEqual({ consume: true });
+          expect(currentWidget?.(80)).toEqual(["First question", "", "Answer: answer 1"]);
+          return JSON.stringify({
+            readyToGenerate: false,
+            questions: [{ id: "q2", text: "Second question" }],
+          });
+        }
+        return JSON.stringify({ readyToGenerate: true, questions: [] });
+      },
+    };
+    const ctx = createContext(".", [], adapter);
+    ctx.ui.setEditorText = (text) => {
+      editorText = text;
+    };
+    ctx.ui.getEditorText = () => editorText;
+    ctx.ui.onTerminalInput = (handler) => {
+      terminalHandler = handler;
+      return () => {
+        if (terminalHandler === handler) terminalHandler = undefined;
+      };
+    };
+    ctx.ui.setWorkingVisible = (visible) => {
+      workingVisible = visible;
+    };
+    ctx.ui.setWidget = (_key, content) => {
+      if (typeof content !== "function") {
+        currentWidget = undefined;
+        return;
+      }
+      const widget = content({}, {});
+      currentWidget = (width) => widget.render(width);
+    };
+
+    const run = runDiscoveryLoop({
+      description: "Build demo",
+      slug: "build-demo",
+      ctx,
+      config: mergeConfig({}),
+      modelAdapter: adapter,
+    });
+
+    await waitFor(() => currentWidget?.(80)[0] === "First question");
+    editorText = "answer 1";
+    expect(terminalHandler?.("\r")).toEqual({ consume: true });
+
+    await waitFor(() => currentWidget?.(80)[0] === "Second question");
+    expect(workingVisible).toBe(false);
+    expect(terminalHandler?.("typed into ready input")).toBeUndefined();
+    editorText = "answer 2";
+    expect(terminalHandler?.("\r")).toEqual({ consume: true });
+
+    await run;
+    expect(workingVisible).toBe(false);
   });
 
   it("fails clearly when no Pi model adapter factory is provided", async () => {

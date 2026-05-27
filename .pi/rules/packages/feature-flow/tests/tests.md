@@ -11,7 +11,7 @@ triggers:
 
 # tests
 
-Enter here when adding or updating tests for feature-flow behavior. Current coverage focuses on domain helpers, feature-flow phase state, discovery model parsing/repair, and the workflow's artifact-writing lifecycle.
+Enter here when adding or updating tests for feature-flow behavior. Current coverage focuses on domain helpers, feature-flow phase state, discovery model parsing/repair, workflow loading/input locking, and the workflow's artifact-writing lifecycle.
 
 ## Patterns & Conventions
 
