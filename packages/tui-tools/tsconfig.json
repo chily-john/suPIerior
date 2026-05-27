@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["extension-src/tui-tools/*"]
+    },
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["extension-src/**/*.ts", "tests/**/*.ts"]
+}

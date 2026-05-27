@@ -20,6 +20,61 @@ importers:
 
   packages/dev-workflow: {}
 
+  packages/feature-flow:
+    dependencies:
+      '@mariozechner/pi-ai':
+        specifier: '*'
+        version: 0.73.0(ws@8.20.0)(zod@4.4.3)
+      '@mariozechner/pi-coding-agent':
+        specifier: '*'
+        version: 0.73.0(ws@8.20.0)(zod@4.4.3)
+      '@supierior/kanban-converters':
+        specifier: workspace:*
+        version: link:../kanban-converters
+      '@supierior/tui-tools':
+        specifier: workspace:*
+        version: link:../tui-tools
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.19.17
+      dependency-cruiser:
+        specifier: ^16.10.4
+        version: 16.10.4
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.1.2
+        version: 3.2.4(@types/node@22.19.17)(yaml@2.8.4)
+
+  packages/kanban-converters:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.19.17
+      dependency-cruiser:
+        specifier: ^16.10.4
+        version: 16.10.4
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.1.2
+        version: 3.2.4(@types/node@22.19.17)(yaml@2.8.4)
+
   packages/pi-rules:
     dependencies:
       '@mariozechner/pi-coding-agent':
@@ -28,6 +83,31 @@ importers:
       typebox:
         specifier: '*'
         version: 1.1.38
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.19.17
+      dependency-cruiser:
+        specifier: ^16.10.4
+        version: 16.10.4
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.1.2
+        version: 3.2.4(@types/node@22.19.17)(yaml@2.8.4)
+
+  packages/tui-tools:
+    dependencies:
+      '@mariozechner/pi-coding-agent':
+        specifier: '*'
+        version: 0.73.0(ws@8.20.0)(zod@4.4.3)
     devDependencies:
       '@types/node':
         specifier: ^22.15.0

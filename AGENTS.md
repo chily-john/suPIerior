@@ -12,6 +12,8 @@ Use injected `.pi/rules` context as the first source of project-specific guidanc
 
 ├── packages/ # Workspace packages; enter before changing package-specific runtime, docs, or workflow assets
 │ ├── pi-rules/ # Pi package for hierarchical rules discovery, injection, commands, skills, and maintainer runtime
+│ ├── tui-tools/ # Reusable Pi TUI primitives for guided workflow packages
+│ ├── feature-flow/ # Pi package for the `/feature` guided discovery workflow and generated artifacts
 │ └── dev-workflow/ # Repository workflow docs, schemas, and reusable GitHub issue/PR templates
 ├── .changeset/ # Changesets release configuration; enter only for release/versioning workflow changes
 ├── package.json # Root workspace scripts delegated through Turborepo
