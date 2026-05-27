@@ -1,0 +1,11 @@
+{
+  "featureFlow": {
+    "nextStep": {
+      "type": "kanban-converter",
+      "converter": "github-issue"
+    }
+  },
+  "kanbanConverters": {
+    "githubIssue": {}
+  }
+}

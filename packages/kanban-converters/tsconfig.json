@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["extension-src/kanban-converters/*"],
+      "@domain/*": ["extension-src/kanban-converters/domain/*"],
+      "@github/*": ["extension-src/kanban-converters/github/*"]
+    },
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["extension-src/**/*.ts"]
+}

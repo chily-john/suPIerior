@@ -1,0 +1,57 @@
+{
+  "name": "@supierior/feature-flow",
+  "version": "0.1.0-beta.0",
+  "description": "Pi workflow package for guided feature discovery and feature/plan artifact generation.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "feature",
+    "workflow"
+  ],
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "pnpm run lint:deps",
+    "lint:deps": "depcruise extension-src --config scripts/.dependency-cruiser.cjs",
+    "clean": "rimraf dist coverage .turbo",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "@supierior/kanban-converters": "workspace:*",
+    "@supierior/tui-tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "dependency-cruiser": "^16.10.4",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/extensions/feature-flow.mjs"
+    ]
+  }
+}
