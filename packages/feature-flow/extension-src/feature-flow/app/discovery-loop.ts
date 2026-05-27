@@ -1,5 +1,6 @@
-import { askQuestion, beginQuestionLoading, QuestionQueue } from "@supierior/tui-tools";
+import { askQuestion, QuestionQueue } from "@supierior/tui-tools";
 import type { PiQuestionUi } from "@supierior/tui-tools";
+import { createFeatureFlowStateController, type FeatureFlowStateController } from "@app/flow-state";
 import type { FeatureFlowConfig } from "@domain/config";
 import type { DiscoveryModelAdapter } from "@domain/discovery/adapter";
 import { parseDiscoveryModelResponse } from "@domain/discovery/parse-response";
@@ -21,6 +22,7 @@ export interface RunDiscoveryLoopInput {
   };
   config: FeatureFlowConfig;
   modelAdapter: DiscoveryModelAdapter;
+  flowState?: FeatureFlowStateController;
 }
 
 export async function runDiscoveryLoop(input: RunDiscoveryLoopInput): Promise<DiscoveryState> {
@@ -30,38 +32,41 @@ export async function runDiscoveryLoop(input: RunDiscoveryLoopInput): Promise<Di
     showAdjustmentIndicator: input.config.questions.showAdjustmentIndicator,
   });
 
-  let stopLoading: (() => void) | undefined;
+  const flowState = input.flowState ?? createFeatureFlowStateController(input.ctx.ui);
   try {
     while (true) {
-      const response = await completeAndParseWithRepair(
-        input.modelAdapter,
-        renderDiscoveryPrompt(state, input.config),
-        input.config,
-      ).finally(() => {
-        stopLoading?.();
-        stopLoading = undefined;
-      });
+      const response = await flowState.busy("Analyzing feature discovery…", () =>
+        completeAndParseWithRepair(
+          input.modelAdapter,
+          renderDiscoveryPrompt(state, input.config),
+          input.config,
+        ),
+      );
 
       state.lastModelMessage = response.message;
       state.turns += 1;
       if (response.message) input.ctx.ui.notify?.(response.message, "info");
 
-      queue.rebase(response.questions.map(toQuestionDefinition));
+      await flowState.rendering("Rendering next discovery prompt…", async () => {
+        queue.rebase(response.questions.map(toQuestionDefinition));
+      });
       if (response.readyToGenerate) break;
 
       const active = queue.active;
       if (!active) throw new Error("Discovery model returned no active question while not ready.");
 
       input.ctx.ui.setStatus("feature-flow", queue.getProgress().statusText);
+      flowState.inputReady(queue.getProgress().statusText);
       const answer = await askQuestion(input.ctx.ui, active);
-      stopLoading = beginQuestionLoading(input.ctx.ui);
-      const record = await queue.resolveActive(answer);
+      const record = await flowState.busy("Recording discovery answer…", () =>
+        queue.resolveActive(answer),
+      );
       state.answers.push(toDiscoveryAnswer(record));
     }
     return state;
   } finally {
-    stopLoading?.();
     input.ctx.ui.setStatus("feature-flow", undefined);
+    if (!input.flowState) flowState.dispose();
   }
 }
 

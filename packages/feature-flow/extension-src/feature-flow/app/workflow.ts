@@ -2,6 +2,7 @@ import { rm, writeFile } from "node:fs/promises";
 import { createDefaultKanbanConverterRegistry } from "@supierior/kanban-converters";
 import type { PiQuestionUi } from "@supierior/tui-tools";
 import { runDiscoveryLoop } from "@app/discovery-loop";
+import { createFeatureFlowStateController, type FeatureFlowStateController } from "@app/flow-state";
 import { loadFeatureFlowConfig, type FeatureFlowConfig } from "@domain/config";
 import {
   defaultFeatureTemplateLabel,
@@ -44,89 +45,157 @@ export async function runFeatureWorkflow(
 ): Promise<FeatureWorkflowResult | undefined> {
   let description = rawDescription.trim();
   if (!description) {
-    description =
-      (await ctx.ui.input("Feature idea", "Describe the feature to plan"))?.trim() ?? "";
+    const flowState = createFeatureFlowStateController(ctx.ui);
+    flowState.inputReady("Waiting for feature idea");
+    try {
+      description =
+        (await ctx.ui.input("Feature idea", "Describe the feature to plan"))?.trim() ?? "";
+    } finally {
+      flowState.dispose();
+    }
   }
   if (!description) {
     ctx.ui.notify?.("Feature workflow cancelled: no description provided.", "warning");
     return undefined;
   }
 
-  const initialPaths = await resolveArtifactPaths(ctx.cwd, proposeSlug(description));
-  const config = await loadFeatureFlowConfig(initialPaths.piRoot);
-  const slug = await chooseSlug(ctx, description);
-  const paths = await resolveArtifactPaths(ctx.cwd, slug);
-
-  if (await featureDirExists(paths)) {
-    const replace = await ctx.ui.confirm(
-      "Replace existing feature?",
-      `.pi/features/${slug} already exists. Replace its feature artifacts?`,
+  const flowState = createFeatureFlowStateController(ctx.ui);
+  try {
+    const initialPaths = await flowState.busy("Resolving feature-flow configuration…", () =>
+      resolveArtifactPaths(ctx.cwd, proposeSlug(description)),
     );
-    if (!replace) {
-      const revised = sanitizeSlug(
-        (await ctx.ui.input("Feature slug", `${slug}-2`)) ?? `${slug}-2`,
+    const config = await flowState.busy("Loading feature-flow configuration…", () =>
+      loadFeatureFlowConfig(initialPaths.piRoot),
+    );
+    const slug = await chooseSlug(ctx, description, flowState);
+    const paths = await flowState.busy("Resolving feature artifact paths…", () =>
+      resolveArtifactPaths(ctx.cwd, slug),
+    );
+
+    if (
+      await flowState.busy("Checking existing feature artifacts…", () => featureDirExists(paths))
+    ) {
+      flowState.inputReady("Waiting for replace confirmation");
+      const replace = await ctx.ui.confirm(
+        "Replace existing feature?",
+        `.pi/features/${slug} already exists. Replace its feature artifacts?`,
       );
-      return runFeatureWorkflowWithSlug(description, revised, ctx);
+      if (!replace) {
+        flowState.inputReady("Waiting for revised feature slug");
+        const revised = sanitizeSlug(
+          (await ctx.ui.input("Feature slug", `${slug}-2`)) ?? `${slug}-2`,
+        );
+        return runFeatureWorkflowWithSlug(description, revised, ctx, flowState);
+      }
     }
+
+    await flowState.busy("Preparing feature directory…", () => ensureFeatureDir(paths));
+    const modelAdapter = createDiscoveryModelAdapter(ctx);
+    const discoveryState = await runDiscoveryLoop({
+      description,
+      slug,
+      ctx,
+      config,
+      modelAdapter,
+      flowState,
+    });
+    const discovery = summarizeDiscovery(description, slug, discoveryState);
+
+    const draft = await flowState.rendering("Rendering feature draft…", async () =>
+      renderDraft(discovery),
+    );
+    const featureTemplate = await chooseFeatureTemplate(ctx, paths.piRoot, flowState);
+    const featureDocument = await flowState.busy("Generating feature document…", () =>
+      generateFeatureDocument(modelAdapter, discovery, featureTemplate),
+    );
+    await flowState.busy("Writing feature artifacts…", async () => {
+      await writeFile(paths.draftPath, draft, "utf8");
+      await writeFile(paths.featurePath, featureDocument, "utf8");
+      await writeFile(paths.planPath, renderPlan(discovery), "utf8");
+      await rm(paths.draftPath, { force: true });
+    });
+
+    const featurePath = relativeArtifactPath(ctx.cwd, paths.featurePath);
+    const planPath = relativeArtifactPath(ctx.cwd, paths.planPath);
+    await flowState.rendering("Rendering final feature-flow output…", async () => {
+      ctx.ui.notify?.(`Feature artifacts written: ${featurePath}, ${planPath}`, "info");
+    });
+    await runConfiguredNextStep(config, { ctx, paths, modelAdapter, flowState });
+    flowState.complete();
+    return { slug, featurePath, planPath };
+  } finally {
+    flowState.dispose();
   }
-
-  await ensureFeatureDir(paths);
-  const modelAdapter = createDiscoveryModelAdapter(ctx);
-  const discoveryState = await runDiscoveryLoop({ description, slug, ctx, config, modelAdapter });
-  const discovery = summarizeDiscovery(description, slug, discoveryState);
-
-  const draft = renderDraft(discovery);
-  const featureTemplate = await chooseFeatureTemplate(ctx, paths.piRoot);
-  const featureDocument = await generateFeatureDocument(modelAdapter, discovery, featureTemplate);
-  await writeFile(paths.draftPath, draft, "utf8");
-  await writeFile(paths.featurePath, featureDocument, "utf8");
-  await writeFile(paths.planPath, renderPlan(discovery), "utf8");
-  await rm(paths.draftPath, { force: true });
-
-  const featurePath = relativeArtifactPath(ctx.cwd, paths.featurePath);
-  const planPath = relativeArtifactPath(ctx.cwd, paths.planPath);
-  ctx.ui.notify?.(`Feature artifacts written: ${featurePath}, ${planPath}`, "info");
-  await runConfiguredNextStep(config, { ctx, paths, modelAdapter });
-  return { slug, featurePath, planPath };
 }
 
 async function runFeatureWorkflowWithSlug(
   description: string,
   slug: string,
   ctx: FeatureWorkflowContext,
+  flowState?: FeatureFlowStateController,
 ): Promise<FeatureWorkflowResult | undefined> {
-  const paths = await resolveArtifactPaths(ctx.cwd, slug);
-  if (await featureDirExists(paths)) {
-    const replace = await ctx.ui.confirm(
-      "Replace existing feature?",
-      `.pi/features/${slug} already exists. Replace its feature artifacts?`,
+  const ownsFlowState = !flowState;
+  flowState ??= createFeatureFlowStateController(ctx.ui);
+  try {
+    const paths = await flowState.busy("Resolving feature artifact paths…", () =>
+      resolveArtifactPaths(ctx.cwd, slug),
     );
-    if (!replace) return undefined;
+    if (
+      await flowState.busy("Checking existing feature artifacts…", () => featureDirExists(paths))
+    ) {
+      flowState.inputReady("Waiting for replace confirmation");
+      const replace = await ctx.ui.confirm(
+        "Replace existing feature?",
+        `.pi/features/${slug} already exists. Replace its feature artifacts?`,
+      );
+      if (!replace) return undefined;
+    }
+    await flowState.busy("Preparing feature directory…", () => ensureFeatureDir(paths));
+    const config = await flowState.busy("Loading feature-flow configuration…", () =>
+      loadFeatureFlowConfig(paths.piRoot),
+    );
+    const modelAdapter = createDiscoveryModelAdapter(ctx);
+    const discoveryState = await runDiscoveryLoop({
+      description,
+      slug,
+      ctx,
+      config,
+      modelAdapter,
+      flowState,
+    });
+    const discovery = summarizeDiscovery(description, slug, discoveryState);
+    const featureTemplate = await chooseFeatureTemplate(ctx, paths.piRoot, flowState);
+    const featureDocument = await flowState.busy("Generating feature document…", () =>
+      generateFeatureDocument(modelAdapter, discovery, featureTemplate),
+    );
+    await flowState.busy("Writing feature artifacts…", async () => {
+      await writeFile(paths.draftPath, renderDraft(discovery), "utf8");
+      await writeFile(paths.featurePath, featureDocument, "utf8");
+      await writeFile(paths.planPath, renderPlan(discovery), "utf8");
+      await rm(paths.draftPath, { force: true });
+    });
+    await runConfiguredNextStep(config, { ctx, paths, modelAdapter, flowState });
+    flowState.complete();
+    return {
+      slug,
+      featurePath: relativeArtifactPath(ctx.cwd, paths.featurePath),
+      planPath: relativeArtifactPath(ctx.cwd, paths.planPath),
+    };
+  } finally {
+    if (ownsFlowState) flowState.dispose();
   }
-  await ensureFeatureDir(paths);
-  const config = await loadFeatureFlowConfig(paths.piRoot);
-  const modelAdapter = createDiscoveryModelAdapter(ctx);
-  const discoveryState = await runDiscoveryLoop({ description, slug, ctx, config, modelAdapter });
-  const discovery = summarizeDiscovery(description, slug, discoveryState);
-  const featureTemplate = await chooseFeatureTemplate(ctx, paths.piRoot);
-  const featureDocument = await generateFeatureDocument(modelAdapter, discovery, featureTemplate);
-  await writeFile(paths.draftPath, renderDraft(discovery), "utf8");
-  await writeFile(paths.featurePath, featureDocument, "utf8");
-  await writeFile(paths.planPath, renderPlan(discovery), "utf8");
-  await rm(paths.draftPath, { force: true });
-  await runConfiguredNextStep(config, { ctx, paths, modelAdapter });
-  return {
-    slug,
-    featurePath: relativeArtifactPath(ctx.cwd, paths.featurePath),
-    planPath: relativeArtifactPath(ctx.cwd, paths.planPath),
-  };
 }
 
 async function chooseFeatureTemplate(
   ctx: FeatureWorkflowContext,
   piRoot: string,
+  flowState?: FeatureFlowStateController,
 ): Promise<SelectedFeatureTemplate> {
-  const customOptions = await discoverFeatureTemplateOptions(piRoot);
+  const customOptions = flowState
+    ? await flowState.busy("Loading feature templates…", () =>
+        discoverFeatureTemplateOptions(piRoot),
+      )
+    : await discoverFeatureTemplateOptions(piRoot);
   if (customOptions.length === 0) {
     return loadSelectedFeatureTemplate(piRoot, undefined, defaultFeatureDocumentTemplate);
   }
@@ -135,6 +204,7 @@ async function chooseFeatureTemplate(
     { label: defaultFeatureTemplateLabel },
     ...customOptions,
   ];
+  flowState?.inputReady("Waiting for feature template selection");
   const selectedLabel = await ctx.ui.select(
     "Feature document template",
     options.map((option) => option.label),
@@ -155,13 +225,19 @@ async function generateFeatureDocument(
   return `${trimmed || "# Feature\n\nNo feature document was generated."}\n`;
 }
 
-async function chooseSlug(ctx: FeatureWorkflowContext, description: string): Promise<string> {
+async function chooseSlug(
+  ctx: FeatureWorkflowContext,
+  description: string,
+  flowState?: FeatureFlowStateController,
+): Promise<string> {
   const proposed = proposeSlug(description);
+  flowState?.inputReady("Waiting for feature slug confirmation");
   const ok = await ctx.ui.confirm(
     "Feature slug",
     `Use '${proposed}' for .pi/features/${proposed}?`,
   );
   if (ok) return proposed;
+  flowState?.inputReady("Waiting for feature slug");
   return sanitizeSlug((await ctx.ui.input("Feature slug", proposed)) ?? proposed);
 }
 
@@ -171,6 +247,7 @@ async function runConfiguredNextStep(
     ctx: FeatureWorkflowContext;
     paths: Awaited<ReturnType<typeof resolveArtifactPaths>>;
     modelAdapter: DiscoveryModelAdapter;
+    flowState?: FeatureFlowStateController;
   },
 ): Promise<void> {
   const nextStep = config.nextStep;
@@ -183,6 +260,7 @@ async function runConfiguredNextStep(
   }
 
   const featurePath = relativeArtifactPath(input.ctx.cwd, input.paths.featurePath);
+  input.flowState?.inputReady("Waiting for kanban conversion confirmation");
   const proceed = await input.ctx.ui.confirm(
     "Convert feature to kanban work items?",
     `Generate reviewable kanban work items from ${featurePath} using '${nextStep.converter}'?`,
@@ -192,16 +270,23 @@ async function runConfiguredNextStep(
     return;
   }
 
+  const converterId = nextStep.converter;
   const registry = createDefaultKanbanConverterRegistry();
-  const converter = registry.resolve(nextStep.converter);
-  await converter.convert({
-    cwd: input.ctx.cwd,
-    featureDir: input.paths.featureDir,
-    featurePath: input.paths.featurePath,
-    modelAdapter: input.modelAdapter,
-    ui: input.ctx.ui,
-    config: converterConfig(config, nextStep.converter),
-  });
+  const converter = registry.resolve(converterId);
+  const convert = () =>
+    converter.convert({
+      cwd: input.ctx.cwd,
+      featureDir: input.paths.featureDir,
+      featurePath: input.paths.featurePath,
+      modelAdapter: input.modelAdapter,
+      ui: input.ctx.ui,
+      config: converterConfig(config, converterId),
+    });
+  if (input.flowState) {
+    await input.flowState.busy("Converting feature to kanban work items…", convert);
+  } else {
+    await convert();
+  }
 }
 
 function converterConfig(config: FeatureFlowConfig, converterId: string): unknown {

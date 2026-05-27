@@ -4,6 +4,11 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { mergeConfig } from "../extension-src/feature-flow/domain/config";
 import { parseDiscoveryModelResponse } from "../extension-src/feature-flow/domain/discovery/parse-response";
+import {
+  createInitialFeatureFlowState,
+  isFeatureFlowProcessing,
+  transitionFeatureFlowState,
+} from "../extension-src/feature-flow/domain/discovery/state";
 import { resolveArtifactPaths } from "../extension-src/feature-flow/domain/paths";
 import { proposeSlug, sanitizeSlug } from "../extension-src/feature-flow/domain/slug";
 import {
@@ -64,6 +69,26 @@ describe("paths", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("feature flow state", () => {
+  it("distinguishes input-ready, busy, rendering, and complete phases", () => {
+    const initial = createInitialFeatureFlowState();
+    expect(initial.phase).toBe("input-ready");
+    expect(isFeatureFlowProcessing(initial)).toBe(false);
+
+    const busy = transitionFeatureFlowState(initial, "busy", "Processing");
+    expect(busy).toMatchObject({ phase: "busy", isProcessing: true });
+
+    const rendering = transitionFeatureFlowState(busy, "rendering", "Rendering");
+    expect(rendering).toMatchObject({ phase: "rendering", isProcessing: true });
+
+    const ready = transitionFeatureFlowState(rendering, "input-ready", "Waiting");
+    expect(ready).toMatchObject({ phase: "input-ready", isProcessing: false });
+
+    const complete = transitionFeatureFlowState(ready, "complete");
+    expect(complete).toMatchObject({ phase: "complete", isProcessing: false });
   });
 });
 
@@ -240,6 +265,29 @@ describe("workflow", () => {
     }
   });
 
+  it("publishes global busy state around processing and clears it when complete", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
+    const adapter = new MockAdapter([JSON.stringify({ readyToGenerate: true, questions: [] })]);
+    const states: Array<string | undefined> = [];
+    const working: boolean[] = [];
+    const ctx = createContext(dir, [], adapter);
+    ctx.ui.setStatus = (key, value) => {
+      if (key === "feature-flow-state") states.push(value);
+    };
+    ctx.ui.setWorkingVisible = (visible) => working.push(visible);
+    try {
+      await mkdir(join(dir, ".pi"));
+      await runFeatureWorkflow("Build demo", ctx);
+      expect(states).toContain("Resolving feature-flow configuration…");
+      expect(states).toContain("Rendering final feature-flow output…");
+      expect(states).toContain(undefined);
+      expect(working).toContain(true);
+      expect(working.at(-1)).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("fails clearly when no Pi model adapter factory is provided", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
     const ctx = createContext(dir, []);
@@ -264,8 +312,8 @@ function createContext(
     cwd: dir,
     discoveryModelAdapter,
     ui: {
-      input: async (prompt) => {
-        asked.push(prompt);
+      input: async (prompt, placeholder) => {
+        asked.push(prompt || placeholder || "");
         return inputs.shift() ?? "";
       },
       select: async () => undefined,
