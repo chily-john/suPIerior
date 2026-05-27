@@ -12,7 +12,7 @@ triggers:
 
 # tests
 
-Enter here when adding or updating tests for reusable TUI primitives. Test paths should mirror source domains and features.
+Enter here when adding or updating tests for reusable TUI primitives, including question prompt/loading widget behavior. Test paths should mirror source domains and features.
 
 ## Patterns & Conventions
 
