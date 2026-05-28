@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/skills/init-advanced/**/*'
+  - "packages/pi-rules/skills/init-advanced/**/*"
 summary: Interactive skill for bootstrapping `AGENTS.md` and mirrored `.pi/rules/` documentation.
 triggers:
   - init advanced

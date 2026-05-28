@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/shared/**/*'
+  - "extension-src/pi-rules/shared/**/*"
 summary: Small cross-module helpers for JSON, project paths, and prompt text normalization.
 triggers:
   - shared helper

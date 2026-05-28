@@ -24,9 +24,9 @@ This package is the Pi-aware implementation for hierarchical project rules. The 
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `extension-src/` | Changing TypeScript extension runtime behavior. |
-| `scripts/` | Changing reconnaissance or package helper scripts used by skills/workflows. |
-| `skills/` | Changing Pi skills that bootstrap or maintain rules documentation. |
-| `tests/` | Updating Vitest coverage for maintainer parsing, git-status, and activity tracking helpers. |
+| Directory        | When to enter                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| `extension-src/` | Changing TypeScript extension runtime behavior.                                             |
+| `scripts/`       | Changing reconnaissance or package helper scripts used by skills/workflows.                 |
+| `skills/`        | Changing Pi skills that bootstrap or maintain rules documentation.                          |
+| `tests/`         | Updating Vitest coverage for maintainer parsing, git-status, and activity tracking helpers. |

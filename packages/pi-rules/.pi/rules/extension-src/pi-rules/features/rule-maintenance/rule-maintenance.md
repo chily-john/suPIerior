@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/features/rule-maintenance/**/*'
+  - "extension-src/pi-rules/features/rule-maintenance/**/*"
 summary: Background rules-maintainer sub-agent queueing, locking, launch, logs, and prompts.
 triggers:
   - rules maintainer

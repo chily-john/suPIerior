@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/tests/**/*'
+  - "packages/pi-rules/tests/**/*"
 summary: Vitest coverage for pi-rules runtime helpers and maintainer behavior.
 triggers:
   - maintainer tests
@@ -15,6 +15,6 @@ Enter here when adding or updating package tests. Existing tests focus on rule-m
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory     | When to enter                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
 | `maintainer/` | Testing changed-file detection, bash path parsing, git-status parsing, or turn activity aggregation. |

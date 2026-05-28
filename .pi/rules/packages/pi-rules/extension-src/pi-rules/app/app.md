@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/app/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/app/**/*"
 summary: Composition-level configuration defaults and shared runtime state.
 triggers:
   - pi-rules app config

@@ -26,7 +26,10 @@ export const githubIssueConverter: KanbanConverter = {
       `Review ${issuesPath}, then approve to create ${parsedGenerated.length} GitHub issues with gh. If you decline, the feature folder will be left intact.`,
     );
     if (!approved) {
-      ctx.ui.notify?.("GitHub issue publishing skipped; generated feature folder was left intact.", "info");
+      ctx.ui.notify?.(
+        "GitHub issue publishing skipped; generated feature folder was left intact.",
+        "info",
+      );
       return { issuesPath, published: false, createdUrls: [], cleanedUp: false };
     }
 
@@ -63,13 +66,18 @@ export const githubIssueConverter: KanbanConverter = {
     }
 
     await rm(ctx.featureDir, { recursive: true, force: true });
-    ctx.ui.notify?.(`Created ${createdUrls.length} GitHub issue(s) and removed ${ctx.featureDir}.`, "info");
+    ctx.ui.notify?.(
+      `Created ${createdUrls.length} GitHub issue(s) and removed ${ctx.featureDir}.`,
+      "info",
+    );
     return { issuesPath, published: true, createdUrls, cleanedUp: true };
   },
 };
 
 function withDependencyUrls(issue: IssueItem, createdByTitle: Map<string, string>): IssueItem {
-  const dependencyRefs = issue.blockedBy.map((dependency) => createdByTitle.get(dependency) ?? dependency);
+  const dependencyRefs = issue.blockedBy.map(
+    (dependency) => createdByTitle.get(dependency) ?? dependency,
+  );
   if (dependencyRefs.length === 0) return issue;
   const blockedBySection = `## Blocked by\n${dependencyRefs.map((dependency) => `- ${dependency}`).join("\n")}`;
   const body = /## Blocked by[\s\S]*?(?=\n## |\s*$)/i.test(issue.body)
@@ -86,7 +94,8 @@ function orderByDependencies(issues: IssueItem[]): IssueItem[] {
 
   function visit(issue: IssueItem): void {
     if (visited.has(issue.title)) return;
-    if (visiting.has(issue.title)) throw new Error(`Circular issue dependency involving '${issue.title}'.`);
+    if (visiting.has(issue.title))
+      throw new Error(`Circular issue dependency involving '${issue.title}'.`);
     visiting.add(issue.title);
     for (const dependency of issue.blockedBy) {
       const blocker = byTitle.get(dependency);

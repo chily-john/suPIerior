@@ -28,7 +28,7 @@ Rules files should use:
 ---
 kind: rules
 paths:
-  - 'src/path/**/*'
+  - "src/path/**/*"
 summary: One sentence routing summary.
 triggers:
   - natural language task phrase

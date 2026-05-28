@@ -3,15 +3,10 @@ import * as path from "node:path";
 import type { HierRulesConfig } from "@app/config";
 import { AnyContext, HierRulesPresenter, Level } from "@pi/ui/types";
 
-export function createPresenter(
-  ctx: AnyContext,
-  config: HierRulesConfig,
-): HierRulesPresenter {
-  const notify = (message: string, level: Level) =>
-    ctx.ui.notify(message, level);
+export function createPresenter(ctx: AnyContext, config: HierRulesConfig): HierRulesPresenter {
+  const notify = (message: string, level: Level) => ctx.ui.notify(message, level);
   const setMaintainerStatus = (status: string | undefined) => {
-    if (config.ui.showMaintainerStatus)
-      ctx.ui.setStatus("pi-rules-maintainer", status);
+    if (config.ui.showMaintainerStatus) ctx.ui.setStatus("pi-rules-maintainer", status);
   };
   const clearMaintainerStatusSoon = (delayMs: number) => {
     const timer = setTimeout(() => setMaintainerStatus(undefined), delayMs);
@@ -21,9 +16,7 @@ export function createPresenter(
   return {
     rulesSelected(selection) {
       if (!config.ui.showRuleStatus) return;
-      const ruleNames = selection.fullRules.map((rule) =>
-        path.basename(rule.relativePath, ".md"),
-      );
+      const ruleNames = selection.fullRules.map((rule) => path.basename(rule.relativePath, ".md"));
       ctx.ui.setStatus(
         "pi-rules",
         ruleNames.length > 0 ? `Rules: ${ruleNames.join(",")}` : "Rules: none",
@@ -53,10 +46,7 @@ export function createPresenter(
       } else {
         setMaintainerStatus("Maintainer: error");
         clearMaintainerStatusSoon(15_000);
-        notify(
-          `Hier-rules maintainer failed. See ${result.logPath}`,
-          "warning",
-        );
+        notify(`Hier-rules maintainer failed. See ${result.logPath}`, "warning");
       }
     },
     maintainerKilled(message) {

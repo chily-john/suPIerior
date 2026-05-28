@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/pi/ui/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/pi/ui/**/*"
 summary: Presentation layer for notifications and Pi status indicators.
 triggers:
   - UI presenter

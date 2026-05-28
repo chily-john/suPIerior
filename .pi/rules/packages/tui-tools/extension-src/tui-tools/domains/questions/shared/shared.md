@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/extension-src/tui-tools/domains/questions/shared/**/*'
+  - "packages/tui-tools/extension-src/tui-tools/domains/questions/shared/**/*"
 summary: Feature-neutral question-domain models and helpers used by queue and asking features.
 triggers:
   - QuestionDefinition
@@ -23,7 +23,7 @@ triggers:
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `models/` | Changing public question, answer, or queue-summary contracts. |
+| Directory  | When to enter                                                                                   |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| `models/`  | Changing public question, answer, or queue-summary contracts.                                   |
 | `helpers/` | Changing reusable formatting, validation, answer-record creation, or question projection logic. |

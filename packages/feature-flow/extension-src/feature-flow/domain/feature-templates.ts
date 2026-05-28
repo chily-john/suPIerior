@@ -15,7 +15,9 @@ export interface SelectedFeatureTemplate {
   fileName?: string;
 }
 
-export async function discoverFeatureTemplateOptions(piRoot: string): Promise<FeatureTemplateOption[]> {
+export async function discoverFeatureTemplateOptions(
+  piRoot: string,
+): Promise<FeatureTemplateOption[]> {
   const templateRoot = join(piRoot, "feature-templates");
   try {
     const entries = await readdir(templateRoot, { withFileTypes: true });

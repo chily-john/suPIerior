@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/extension-src/tui-tools/domains/questions/**/*'
+  - "packages/tui-tools/extension-src/tui-tools/domains/questions/**/*"
 summary: Questions domain for reusable guided-question queues, asking helpers, models, and public exports.
 triggers:
   - QuestionQueue
@@ -27,7 +27,7 @@ The questions domain owns reusable primitives for guided workflows that ask orde
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `features/` | Changing user-facing question capabilities such as asking questions or managing a queue. |
-| `shared/` | Changing question contracts, answer records, queue summaries, validation, formatting, or other feature-neutral helpers. |
+| Directory   | When to enter                                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `features/` | Changing user-facing question capabilities such as asking questions or managing a queue.                                |
+| `shared/`   | Changing question contracts, answer records, queue summaries, validation, formatting, or other feature-neutral helpers. |

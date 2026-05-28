@@ -72,8 +72,8 @@ npm run lint # ESLint
 
 ## Gotchas
 
--   <Non-obvious constraint or pattern that affects the whole codebase>
--   <Common mistake that would break things silently>
+- <Non-obvious constraint or pattern that affects the whole codebase>
+- <Common mistake that would break things silently>
 
 <Omit this section if there are no project-wide gotchas. Do not document things obvious from the code.>
 ```
@@ -82,13 +82,13 @@ npm run lint # ESLint
 
 ## Rules for This File
 
--   **Commands are mandatory** if the project has a non-standard build, a clean step, or project-specific scripts an agent will need.
--   **Environment is mandatory** if the project has required env vars that aren't obvious from `.env.example` or aren't all public.
--   **Gotchas are mandatory** if there are cross-cutting constraints that would cause an agent to make the wrong decision silently (e.g. "never call the external API from client components").
--   **Project structure must use inline comments** — every line in the tree should explain _why_ a directory exists, not just restate its name.
--   **No code patterns, no naming conventions, no style rules.** Those live in path-scoped child rules files.
--   The "When to enter" column in subdirectory tables must answer _when_, not _what_:
-    -   ❌ "Contains all UI components"
-    -   ✅ "Building, editing, or reviewing any UI component"
--   Do not include tooling directories (`.github/`, `scripts/`, `config/`) unless agents regularly work inside them.
--   If the project has a non-obvious architecture (monorepo, micro-frontends, etc.), one sentence explaining the structure is acceptable.
+- **Commands are mandatory** if the project has a non-standard build, a clean step, or project-specific scripts an agent will need.
+- **Environment is mandatory** if the project has required env vars that aren't obvious from `.env.example` or aren't all public.
+- **Gotchas are mandatory** if there are cross-cutting constraints that would cause an agent to make the wrong decision silently (e.g. "never call the external API from client components").
+- **Project structure must use inline comments** — every line in the tree should explain _why_ a directory exists, not just restate its name.
+- **No code patterns, no naming conventions, no style rules.** Those live in path-scoped child rules files.
+- The "When to enter" column in subdirectory tables must answer _when_, not _what_:
+  - ❌ "Contains all UI components"
+  - ✅ "Building, editing, or reviewing any UI component"
+- Do not include tooling directories (`.github/`, `scripts/`, `config/`) unless agents regularly work inside them.
+- If the project has a non-obvious architecture (monorepo, micro-frontends, etc.), one sentence explaining the structure is acceptable.

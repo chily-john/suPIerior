@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/**/*'
+  - "packages/pi-rules/extension-src/**/*"
 summary: Runtime TypeScript extension source for the pi-rules package.
 triggers:
   - extension source
@@ -15,6 +15,6 @@ Enter here when changing runtime behavior for the Pi extension. Keep package ent
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory   | When to enter                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- |
 | `pi-rules/` | Changing hierarchical rules injection, commands, background maintenance, status tooling, or shared runtime state. |

@@ -84,12 +84,10 @@ describe("beginQuestionLoading", () => {
     expect(handler?.("typed")).toEqual({ consume: true });
     expect(typeof widgets[0]).toBe("function");
     const widget =
-      typeof widgets[0] === "function" ? widgets[0]({ requestRender: () => undefined }, {}) : undefined;
-    expect(widget?.render(80)).toEqual([
-      "What should we build?",
-      "",
-      "Answer: A better loader",
-    ]);
+      typeof widgets[0] === "function"
+        ? widgets[0]({ requestRender: () => undefined }, {})
+        : undefined;
+    expect(widget?.render(80)).toEqual(["What should we build?", "", "Answer: A better loader"]);
     expect(working).toEqual(["indicator", "message:Thinking…", "visible:true"]);
 
     stop();
@@ -97,6 +95,34 @@ describe("beginQuestionLoading", () => {
     expect(handler).toBeUndefined();
     expect(widgets.at(-1)).toBeUndefined();
     expect(working.slice(-3)).toEqual(["visible:false", "message:default", "indicator"]);
+  });
+
+  it("wraps submitted answer context to the widget width", () => {
+    const widgets: Array<PiWidgetFactory | string[] | undefined> = [];
+    const ui: PiQuestionUi = {
+      input: async () => undefined,
+      select: async () => undefined,
+      confirm: async () => true,
+      setStatus: () => undefined,
+      setWidget: (_key, content) => widgets.push(content),
+    };
+
+    beginQuestionLoading(ui, {
+      question: "Question?",
+      answer: "This answer is long enough to wrap safely in a narrow terminal.",
+    });
+
+    const widget = typeof widgets[0] === "function" ? widgets[0]({}, {}) : undefined;
+    const rendered = widget?.render(37) ?? [];
+
+    expect(rendered).toEqual([
+      "Question?",
+      "",
+      "Answer: This answer is long enough",
+      "to wrap safely in a narrow",
+      "terminal.",
+    ]);
+    expect(rendered.every((line) => line.length <= 37)).toBe(true);
   });
 
   it("uses Pi working state when extension widgets are unavailable", () => {

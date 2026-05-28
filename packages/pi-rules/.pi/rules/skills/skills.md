@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'skills/**/*'
+  - "skills/**/*"
 summary: Pi skills that bootstrap and maintain rules documentation.
 triggers:
   - Pi skill
@@ -22,7 +22,7 @@ Skills in this package are documentation workflows, not application implementati
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `init-advanced/` | Changing the interactive bootstrap workflow, interview steps, or documentation templates. |
-| `rules-maintainer/` | Changing the hidden post-edit rules update workflow or significance threshold. |
+| Directory           | When to enter                                                                             |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `init-advanced/`    | Changing the interactive bootstrap workflow, interview steps, or documentation templates. |
+| `rules-maintainer/` | Changing the hidden post-edit rules update workflow or significance threshold.            |

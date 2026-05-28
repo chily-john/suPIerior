@@ -25,8 +25,8 @@ triggers:
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory        | When to enter                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `extension-src/` | Changing runtime package exports, command registration, workflow orchestration, domain rules, or artifact templates. |
-| `scripts/` | Changing dependency-boundary lint rules for this package. |
-| `tests/` | Adding or updating tests for feature-flow domain behavior and workflow orchestration. |
+| `scripts/`       | Changing dependency-boundary lint rules for this package.                                                            |
+| `tests/`         | Adding or updating tests for feature-flow domain behavior and workflow orchestration.                                |

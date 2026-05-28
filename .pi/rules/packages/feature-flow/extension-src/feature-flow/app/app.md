@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/extension-src/feature-flow/app/**/*'
+  - "packages/feature-flow/extension-src/feature-flow/app/**/*"
 summary: Feature-flow workflow orchestration that connects UI questions, domain helpers, and artifact writes.
 triggers:
   - runFeatureWorkflow

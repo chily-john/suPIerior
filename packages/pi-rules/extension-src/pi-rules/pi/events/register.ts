@@ -4,6 +4,6 @@ import { registerInjectionEvents } from "@pi/events/injection";
 import { registerMaintainerEvents } from "@pi/events/maintainer";
 
 export function registerEvents(pi: ExtensionAPI, state: HierRulesState) {
-	registerInjectionEvents(pi, state);
-	registerMaintainerEvents(pi, state);
+  registerInjectionEvents(pi, state);
+  registerMaintainerEvents(pi, state);
 }

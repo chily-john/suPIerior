@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/pi/events/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/pi/events/**/*"
 summary: Pi lifecycle event handlers for rule injection and background maintenance triggers.
 triggers:
   - before agent start

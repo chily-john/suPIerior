@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/runtime/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/runtime/**/*"
 summary: Maintainer subprocess launch, Pi CLI resolution, output parsing, and process lifecycle.
 triggers:
   - maintainer subprocess

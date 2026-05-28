@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/extension-src/**/*'
+  - "packages/tui-tools/extension-src/**/*"
 summary: Source tree for reusable TUI domains and package public exports.
 triggers:
   - tui-tools source
@@ -15,6 +15,6 @@ Enter here for runtime source changes in `@supierior/tui-tools`. The package roo
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory    | When to enter                                                |
+| ------------ | ------------------------------------------------------------ |
 | `tui-tools/` | Changing package root exports or reusable TUI domain source. |

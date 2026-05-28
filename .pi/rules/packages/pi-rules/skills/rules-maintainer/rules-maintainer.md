@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/skills/rules-maintainer/**/*'
+  - "packages/pi-rules/skills/rules-maintainer/**/*"
 summary: Hidden skill for updating existing `.pi/rules` files after significant source changes.
 triggers:
   - rules maintainer skill

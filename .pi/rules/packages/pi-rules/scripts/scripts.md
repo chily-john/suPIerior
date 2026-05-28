@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/scripts/**/*'
+  - "packages/pi-rules/scripts/**/*"
 summary: Helper scripts used by documentation skills and package validation.
 triggers:
   - scan project script

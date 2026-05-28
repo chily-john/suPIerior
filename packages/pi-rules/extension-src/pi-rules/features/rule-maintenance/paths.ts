@@ -16,7 +16,9 @@ export function maintainerLogPath(cwd: string): string {
   return path.join(projectStateDir(cwd), "maintainer.log");
 }
 function moduleDir(): string {
-  return typeof __dirname !== "undefined" ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+  return typeof __dirname !== "undefined"
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url));
 }
 
 export function maintainerSkillPath(): string {

@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/domain/rule-context/routing/**/*'
+  - "extension-src/pi-rules/domain/rule-context/routing/**/*"
 summary: Prompt intent detection, glob matching, rule scoring, and selection policy.
 triggers:
   - rule routing

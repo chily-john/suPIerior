@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/extension-src/**/*'
+  - "packages/feature-flow/extension-src/**/*"
 summary: Source tree for the feature-flow Pi extension package.
 triggers:
   - feature-flow source
@@ -15,6 +15,6 @@ Enter here for runtime source changes in `@supierior/feature-flow`. The source t
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory       | When to enter                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `feature-flow/` | Changing the package entrypoint, `/feature` command behavior, workflow implementation, domain helpers, or templates. |

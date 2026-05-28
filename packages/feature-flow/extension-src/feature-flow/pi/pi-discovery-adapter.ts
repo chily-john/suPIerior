@@ -41,8 +41,7 @@ export class PiDiscoveryModelAdapter implements DiscoveryModelAdapter {
 
     if (message.stopReason === "error" || message.stopReason === "aborted") {
       throw new Error(
-        message.errorMessage ??
-          `Pi model request failed with stop reason '${message.stopReason}'.`,
+        message.errorMessage ?? `Pi model request failed with stop reason '${message.stopReason}'.`,
       );
     }
 

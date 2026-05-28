@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/pi/tools/**/*'
+  - "extension-src/pi-rules/pi/tools/**/*"
 summary: Model-callable tools registered by the pi-rules extension.
 triggers:
   - hier rules status tool

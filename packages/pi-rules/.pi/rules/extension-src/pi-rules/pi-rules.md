@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/**/*'
+  - "extension-src/pi-rules/**/*"
 summary: Core pi-rules extension wiring, configuration, and module boundaries.
 triggers:
   - pi-rules extension
@@ -23,13 +23,13 @@ This module wires the extension together: app state/config, domain rule context,
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `app/` | Changing extension config defaults or shared runtime state. |
-| `domain/rule-context/` | Changing `.pi/rules` discovery, routing, selection, or injected context formatting. |
+| Directory                    | When to enter                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `app/`                       | Changing extension config defaults or shared runtime state.                                              |
+| `domain/rule-context/`       | Changing `.pi/rules` discovery, routing, selection, or injected context formatting.                      |
 | `features/rule-maintenance/` | Changing background maintenance detection, queueing, protected scopes, prompts, logs, or process launch. |
-| `pi/commands/` | Adding or changing slash commands exposed by the extension. |
-| `pi/events/` | Changing lifecycle hooks for rule indexing, injection, changed-file tracking, or maintainer startup. |
-| `pi/tools/` | Adding or changing model-callable tools registered by the extension. |
-| `pi/ui/` | Changing notifications or status indicators shown through Pi UI APIs. |
-| `shared/` | Changing cross-module JSON, path, or text helpers. |
+| `pi/commands/`               | Adding or changing slash commands exposed by the extension.                                              |
+| `pi/events/`                 | Changing lifecycle hooks for rule indexing, injection, changed-file tracking, or maintainer startup.     |
+| `pi/tools/`                  | Adding or changing model-callable tools registered by the extension.                                     |
+| `pi/ui/`                     | Changing notifications or status indicators shown through Pi UI APIs.                                    |
+| `shared/`                    | Changing cross-module JSON, path, or text helpers.                                                       |

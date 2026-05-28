@@ -7,6 +7,7 @@ export const discoveryPrompt = `Ask challenging but bounded discovery questions.
 export function renderDiscoveryPrompt(state: DiscoveryState, config: FeatureFlowConfig): string {
   return [
     "You are conducting feature discovery as a thoughtful product and implementation partner.",
+    "Your task is to grill the user relentlessly until you come to a complete understanding of the feature.",
     "Ask rich natural-language question blocks that uncover intent, scope, constraints, risks, expected outputs, and validation needs.",
     "Remain kind and collaborative, but push back when the request or an answer is clearly contradictory, technically inconsistent, or points toward an obviously worse approach.",
     "When a simpler, safer, or more effective alternative is clearly available, briefly recommend it inside the next question block and ask the user to confirm or correct that direction.",
@@ -65,10 +66,10 @@ export function renderFeatureDocumentPrompt(
     "Generate the final feature handoff artifact as Markdown for another coding agent to implement.",
     "Use the selected document template as the output structure and follow it semantically.",
     "Synthesize only from the discovery context below. Do not interview the user or ask new questions.",
-    "Use this repository's terminology. Do not mention GitHub issue creation, issue trackers, triage labels, or Matt Pocock.",
     "When describing implementation, identify likely modules, interfaces, architectural choices, contracts, and interactions without using brittle file paths or code snippets unless they encode a decision more precisely than prose.",
     "When describing testing, prefer external behavior over implementation details. If validation is user-owned or manual, record that clearly.",
     "Return only the final Markdown artifact; do not wrap it in fences or explain your process.",
+    "Be very detailed on every section, include all information and context that is relevant.",
     `Selected template: ${template.label}${template.source === "custom" ? " (custom .pi/feature-templates file)" : " (built-in default)"}`,
     "Template:",
     template.content.trim(),

@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/**/*"
 summary: Core extension wiring, configuration, domain modules, feature workflows, and Pi adapters.
 triggers:
   - pi-rules extension
@@ -22,10 +22,10 @@ This module wires app state, rule-context domain functions, rule-maintenance fea
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `app/` | Changing extension config defaults or shared runtime state. |
-| `domain/rule-context/` | Changing `.pi/rules` discovery, routing, selection, or injected context formatting. |
+| Directory                    | When to enter                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `app/`                       | Changing extension config defaults or shared runtime state.                                              |
+| `domain/rule-context/`       | Changing `.pi/rules` discovery, routing, selection, or injected context formatting.                      |
 | `features/rule-maintenance/` | Changing background maintenance detection, queueing, protected scopes, prompts, logs, or process launch. |
-| `pi/` | Changing Pi API adapters for commands, lifecycle events, tools, or UI. |
-| `shared/` | Changing cross-module JSON, path, or text helpers. |
+| `pi/`                        | Changing Pi API adapters for commands, lifecycle events, tools, or UI.                                   |
+| `shared/`                    | Changing cross-module JSON, path, or text helpers.                                                       |

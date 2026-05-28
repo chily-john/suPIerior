@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/extension-src/feature-flow/**/*'
+  - "packages/feature-flow/extension-src/feature-flow/**/*"
 summary: Main source module for the `/feature` workflow extension.
 triggers:
   - runFeatureWorkflow
@@ -21,9 +21,9 @@ The package entrypoint registers the Pi extension and re-exports selected workfl
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `app/` | Changing end-to-end workflow sequencing, model-backed discovery, UI prompts, artifact writes, replacement behavior, or coordination with `tui-tools`. |
-| `domain/` | Changing configuration, slug, path, discovery model, model-response parsing, or summary behavior. |
-| `pi/` | Changing Pi command registration or command gating behavior. |
-| `templates/` | Changing generated `feature.draft.md`, `feature.md`, `plan.md`, or prompt text. |
+| Directory    | When to enter                                                                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`       | Changing end-to-end workflow sequencing, model-backed discovery, UI prompts, artifact writes, replacement behavior, or coordination with `tui-tools`. |
+| `domain/`    | Changing configuration, slug, path, discovery model, model-response parsing, or summary behavior.                                                     |
+| `pi/`        | Changing Pi command registration or command gating behavior.                                                                                          |
+| `templates/` | Changing generated `feature.draft.md`, `feature.md`, `plan.md`, or prompt text.                                                                       |

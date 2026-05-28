@@ -13,7 +13,7 @@ Your only job is documentation. You do not write application code, refactor file
 
 ## Available Scripts
 
--   **`../../scripts/scan_project.sh`** — Scans the project files
+- **`../../scripts/scan_project.sh`** — Scans the project files
 
 ## The System You're Building
 
@@ -27,9 +27,9 @@ Every agent session has a finite context window. Documentation an agent doesn't 
 
 **Path mapping:**
 
--   Source `src/components/` → Rules `.pi/rules/components/components.md`
--   Source `src/components/` inventory → `.pi/rules/components/inventory.md`
--   Source `src/custom-types/components/` → Rules `.pi/rules/custom-types/components/components.md`
+- Source `src/components/` → Rules `.pi/rules/components/components.md`
+- Source `src/components/` inventory → `.pi/rules/components/inventory.md`
+- Source `src/custom-types/components/` → Rules `.pi/rules/custom-types/components/components.md`
 
 Each rules file must have YAML frontmatter with `kind: rules`, `paths:`, `summary:`, and `triggers:` fields. The Pi extension uses this metadata to inject the most relevant child rules into context. Large tables of reusable items belong in sibling `inventory.md` files with `kind: inventory`, not in the main rules file.
 
@@ -67,9 +67,9 @@ Proceed?
 
 ### Step 3 — Read Source Files
 
--   Component directories: read **every** component file only when creating or updating a sibling `inventory.md`. Keep inventories out of the main rules file.
--   Other directories: read enough to identify patterns, constraints, and non-obvious decisions. You don't need every file — focus on the module's contract and conventions.
--   **Before writing any rules file, read its parent rules file** (and the root AGENTS.md). Facts already documented in a parent must not be repeated in the child — restating them wastes context and creates drift when one gets updated but the other doesn't. The parent is the source of truth for anything cross-cutting.
+- Component directories: read **every** component file only when creating or updating a sibling `inventory.md`. Keep inventories out of the main rules file.
+- Other directories: read enough to identify patterns, constraints, and non-obvious decisions. You don't need every file — focus on the module's contract and conventions.
+- **Before writing any rules file, read its parent rules file** (and the root AGENTS.md). Facts already documented in a parent must not be repeated in the child — restating them wastes context and creates drift when one gets updated but the other doesn't. The parent is the source of truth for anything cross-cutting.
 
 ### Step 3.5 — Targeted Interview
 
@@ -77,19 +77,19 @@ After reading source files, identify questions that cannot be answered from code
 
 Only ask about:
 
--   **Why** a pattern was chosen over the obvious alternative
--   **External system behaviors** that affect how agents should interact with an API or service — including failure modes, rate limits, and error behaviors that aren't visible in the client code
--   **Business rules** embedded in what looks like arbitrary constants, conditionals, or flags
--   **Stability signals** — which areas are actively changing vs. settled and safe to touch
--   **Intentional "bad" code** — commented-out blocks, deliberately incomplete interfaces, or patterns that look wrong but are correct (e.g. a fragment that only fetches a subset of fields by design)
+- **Why** a pattern was chosen over the obvious alternative
+- **External system behaviors** that affect how agents should interact with an API or service — including failure modes, rate limits, and error behaviors that aren't visible in the client code
+- **Business rules** embedded in what looks like arbitrary constants, conditionals, or flags
+- **Stability signals** — which areas are actively changing vs. settled and safe to touch
+- **Intentional "bad" code** — commented-out blocks, deliberately incomplete interfaces, or patterns that look wrong but are correct (e.g. a fragment that only fetches a subset of fields by design)
 
 Format as a numbered list. The developer can answer inline or type "skip" for any question.
 
 **Do not ask about:**
 
--   Anything obvious from the code, naming, or existing comments
--   Configuration values you can read directly
--   Things that are just descriptions of what the code already clearly does
+- Anything obvious from the code, naming, or existing comments
+- Configuration values you can read directly
+- Things that are just descriptions of what the code already clearly does
 
 Example:
 
@@ -112,18 +112,18 @@ Before I write, a few things I couldn't determine from the code:
 
 Use the templates in `assets/` for each file type:
 
--   `assets/root-template.md` → for `AGENTS.md`
--   `assets/module-template.md` → for module rules files and sibling inventory files
+- `assets/root-template.md` → for `AGENTS.md`
+- `assets/module-template.md` → for module rules files and sibling inventory files
 
 **Quality checklist before saving each file:**
 
--   [ ] No content duplicated from a parent rules file
--   [ ] Every subdirectory entry answers "when" not "what"
--   [ ] No implementation details (those belong in source code comments)
--   [ ] Component inventory, if created as sibling `inventory.md`, has an entry for every component in the directory
--   [ ] Component Usage entries are opinionated — they tell an agent what to do
--   [ ] As short as possible while still being complete
--   [ ] Root AGENTS.md includes Commands, Environment, Gotchas, and a soft rule to prefer injected `.pi/rules` context before broad source-code exploration
+- [ ] No content duplicated from a parent rules file
+- [ ] Every subdirectory entry answers "when" not "what"
+- [ ] No implementation details (those belong in source code comments)
+- [ ] Component inventory, if created as sibling `inventory.md`, has an entry for every component in the directory
+- [ ] Component Usage entries are opinionated — they tell an agent what to do
+- [ ] As short as possible while still being complete
+- [ ] Root AGENTS.md includes Commands, Environment, Gotchas, and a soft rule to prefer injected `.pi/rules` context before broad source-code exploration
 
 ### Step 5 — Report
 
@@ -146,8 +146,8 @@ Use the templates in `assets/` for each file type:
 
 ## Output Quality Rules
 
--   **Never hallucinate props or APIs.** If unsure, ask the user.
--   **Err toward brevity.** If unsure whether to include something, leave it out.
--   **Don't document the obvious.** `formatDate(date: Date)` doesn't need explaining.
--   **Update, don't replace.** Preserve accurate content in existing rules files.
--   **Flag stale content.** If a rules file describes something that no longer exists, report it in Step 5 — don't silently delete it.
+- **Never hallucinate props or APIs.** If unsure, ask the user.
+- **Err toward brevity.** If unsure whether to include something, leave it out.
+- **Don't document the obvious.** `formatDate(date: Date)` doesn't need explaining.
+- **Update, don't replace.** Preserve accurate content in existing rules files.
+- **Flag stale content.** If a rules file describes something that no longer exists, report it in Step 5 — don't silently delete it.

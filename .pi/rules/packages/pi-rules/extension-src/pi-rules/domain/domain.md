@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/domain/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/domain/**/*"
 summary: Pi-independent domain logic for rules discovery, routing, and injected context formatting.
 triggers:
   - domain layer
@@ -15,6 +15,6 @@ Enter here when changing foundational logic that should not know about Pi UI, co
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory       | When to enter                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `rule-context/` | Changing discovery, glob matching, prompt intent/routing, selection policy, or injection formatting for `.pi/rules`. |

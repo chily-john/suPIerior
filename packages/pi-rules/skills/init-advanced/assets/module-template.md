@@ -13,7 +13,7 @@ For rules files:
 ---
 kind: rules
 paths:
-  - 'src/path/to/directory/**/*'
+  - "src/path/to/directory/**/*"
 summary: One sentence describing when this directory is relevant.
 triggers:
   - natural language phrase users might say
@@ -27,7 +27,7 @@ For inventory files:
 ---
 kind: inventory
 paths:
-  - 'src/path/to/directory/**/*'
+  - "src/path/to/directory/**/*"
 summary: Table of contents for reusable items in this directory.
 ---
 ```
@@ -112,14 +112,14 @@ Directories that usually do NOT get sibling inventories (module context only):
 ---
 kind: inventory
 paths:
-  - 'src/path/to/directory/**/*'
+  - "src/path/to/directory/**/*"
 summary: Table of contents for reusable items in this directory.
 ---
 
 # <Directory Name> Inventory
 
 | Name | File | Purpose |
-| --- | --- | --- |
+| ---- | ---- | ------- |
 ```
 
 ## Indexable Entry Types by Category

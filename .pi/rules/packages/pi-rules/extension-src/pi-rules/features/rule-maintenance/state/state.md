@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/state/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/state/**/*"
 summary: Persistent maintainer queue, active-run, lock, and log state under `.pi/.pi-rules/`.
 triggers:
   - maintainer queue state

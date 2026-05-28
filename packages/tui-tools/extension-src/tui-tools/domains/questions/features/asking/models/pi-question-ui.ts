@@ -4,7 +4,10 @@ export interface PiWidgetComponent {
   handleInput?(data: string): void;
 }
 
-export type PiWidgetFactory = (tui: unknown, theme: unknown) => PiWidgetComponent & {
+export type PiWidgetFactory = (
+  tui: unknown,
+  theme: unknown,
+) => PiWidgetComponent & {
   dispose?(): void;
 };
 

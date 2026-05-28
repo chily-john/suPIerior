@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/pi/**/*'
+  - "extension-src/pi-rules/pi/**/*"
 summary: Pi extension API adapters for commands, lifecycle events, tools, and UI presentation.
 triggers:
   - Pi adapter

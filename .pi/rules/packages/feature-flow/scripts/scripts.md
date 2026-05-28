@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/scripts/**/*'
+  - "packages/feature-flow/scripts/**/*"
 summary: Package-local scripts for feature-flow validation and dependency-boundary rules.
 triggers:
   - feature-flow dependency-cruiser

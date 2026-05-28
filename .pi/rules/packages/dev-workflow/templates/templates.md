@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/dev-workflow/templates/**/*'
+  - "packages/dev-workflow/templates/**/*"
 summary: Reusable GitHub issue and pull request body templates.
 triggers:
   - issue template

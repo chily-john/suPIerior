@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/domain/rule-context/injection/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/domain/rule-context/injection/**/*"
 summary: Formatting selected rule files into injected system-prompt context.
 triggers:
   - injected project rules prompt
