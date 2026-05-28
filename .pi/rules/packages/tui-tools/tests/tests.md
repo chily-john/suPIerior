@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/tests/**/*'
+  - "packages/tui-tools/tests/**/*"
 summary: Vitest coverage for reusable tui-tools domain features.
 triggers:
   - tui-tools tests
@@ -22,6 +22,6 @@ Enter here when adding or updating tests for reusable TUI primitives, including 
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory  | When to enter                                    |
+| ---------- | ------------------------------------------------ |
 | `domains/` | Testing behavior owned by a reusable TUI domain. |

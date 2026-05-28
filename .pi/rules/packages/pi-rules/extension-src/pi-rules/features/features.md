@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/features/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/features/**/*"
 summary: Operational extension workflows that sit above domain logic and below Pi adapters.
 triggers:
   - feature workflow
@@ -15,6 +15,6 @@ Enter here for behavior that orchestrates domain logic into an operational workf
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory           | When to enter                                                                                                         |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `rule-maintenance/` | Changing background rules-maintainer detection, queueing, prompts, protected scopes, logs, process launch, or status. |

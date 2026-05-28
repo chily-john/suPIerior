@@ -1,7 +1,4 @@
-import type {
-  ExtensionContext,
-  ExtensionCommandContext,
-} from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { Selection } from "@domain/rule-context";
 
 export type AnyContext = ExtensionContext | ExtensionCommandContext;

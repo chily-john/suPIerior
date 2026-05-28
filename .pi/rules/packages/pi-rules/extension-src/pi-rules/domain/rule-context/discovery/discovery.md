@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/domain/rule-context/discovery/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/domain/rule-context/discovery/**/*"
 summary: Indexing, parsing, and reporting for `.pi/rules/**/*.md` files.
 triggers:
   - rule index

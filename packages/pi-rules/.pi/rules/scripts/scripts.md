@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'scripts/**/*'
+  - "scripts/**/*"
 summary: Helper scripts used by documentation skills for project reconnaissance.
 triggers:
   - scan project script

@@ -86,7 +86,8 @@ function stringValue(value: unknown): string {
 }
 
 function arrayValue(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === "string");
+  if (Array.isArray(value))
+    return value.filter((entry): entry is string => typeof entry === "string");
   if (typeof value === "string" && value.trim()) return [value.trim()];
   return [];
 }
@@ -103,7 +104,10 @@ function quoteYaml(value: string): string {
 function unquoteYaml(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
     try {
       return JSON.parse(trimmed);
     } catch {

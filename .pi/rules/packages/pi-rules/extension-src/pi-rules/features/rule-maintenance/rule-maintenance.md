@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/**/*"
 summary: Background rules-maintainer sub-agent queueing, locking, launch, logs, and prompts.
 triggers:
   - rules maintainer
@@ -29,8 +29,8 @@ This feature owns the background documentation-maintenance runner. It filters ch
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `reporting/` | Changing user-facing maintainer status or log-tail reporting. |
-| `runtime/` | Changing Pi process resolution, process-tree lifecycle, JSON output parsing, or maintainer subprocess launch. |
-| `state/` | Changing persisted queue, active-run, legacy lock, or log-file state under `.pi/.pi-rules/`. |
+| Directory    | When to enter                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------- |
+| `reporting/` | Changing user-facing maintainer status or log-tail reporting.                                                 |
+| `runtime/`   | Changing Pi process resolution, process-tree lifecycle, JSON output parsing, or maintainer subprocess launch. |
+| `state/`     | Changing persisted queue, active-run, legacy lock, or log-file state under `.pi/.pi-rules/`.                  |

@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/extension-src/feature-flow/templates/**/*'
+  - "packages/feature-flow/extension-src/feature-flow/templates/**/*"
 summary: Text renderers for generated feature-flow artifacts and prompts.
 triggers:
   - feature.md template

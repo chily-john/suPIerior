@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/extension-src/tui-tools/domains/**/*'
+  - "packages/tui-tools/extension-src/tui-tools/domains/**/*"
 summary: Reusable TUI capabilities organized as independently exported domains.
 triggers:
   - tui-tools domain
@@ -21,6 +21,6 @@ Each major reusable TUI capability belongs in a domain directory. Enter here whe
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory    | When to enter                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------- |
 | `questions/` | Changing reusable guided-question queues, ask helpers, question models, or answer formatting. |

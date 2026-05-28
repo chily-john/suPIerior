@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/pi/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/pi/**/*"
 summary: Pi extension API adapters for commands, lifecycle events, tools, and UI presentation.
 triggers:
   - Pi adapter
@@ -21,9 +21,9 @@ Pi modules adapt extension APIs to app state, rule-context domain functions, rul
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `commands/` | Adding or changing slash commands exposed by the extension. |
-| `events/` | Changing lifecycle hooks for rule indexing, injection, changed-file tracking, or maintainer startup. |
-| `tools/` | Adding or changing model-callable tools registered by the extension. |
-| `ui/` | Changing notifications or status indicators shown through Pi UI APIs. |
+| Directory   | When to enter                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------- |
+| `commands/` | Adding or changing slash commands exposed by the extension.                                          |
+| `events/`   | Changing lifecycle hooks for rule indexing, injection, changed-file tracking, or maintainer startup. |
+| `tools/`    | Adding or changing model-callable tools registered by the extension.                                 |
+| `ui/`       | Changing notifications or status indicators shown through Pi UI APIs.                                |

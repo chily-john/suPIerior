@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/reporting/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/features/rule-maintenance/reporting/**/*"
 summary: User-facing maintainer status and log-tail formatting.
 triggers:
   - maintainer status

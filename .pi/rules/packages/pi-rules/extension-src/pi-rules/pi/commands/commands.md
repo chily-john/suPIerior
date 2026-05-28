@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/pi/commands/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/pi/commands/**/*"
 summary: Slash command registration for initialization, status, context inspection, and maintainer control.
 triggers:
   - pi-rules command

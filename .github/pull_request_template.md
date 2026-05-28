@@ -10,11 +10,13 @@
 
 -
 
-## Validation performed
+## Validation
 
 - [ ] `pnpm typecheck`
+- [ ] `pnpm test`
 - [ ] `pnpm lint`
 - [ ] `pnpm build`
+- [ ] `pnpm format:check`
 
 ## Screenshots / logs
 

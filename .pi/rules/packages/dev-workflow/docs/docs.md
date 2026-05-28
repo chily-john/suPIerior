@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/dev-workflow/docs/**/*'
+  - "packages/dev-workflow/docs/**/*"
 summary: Human and agent workflow guidance for GitHub, projects, PRs, and beta releases.
 triggers:
   - agent workflow

@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extension-src/pi-rules/domain/rule-context/**/*'
+  - "extension-src/pi-rules/domain/rule-context/**/*"
 summary: Foundational rule context domain for discovery, routing, and prompt injection formatting.
 triggers:
   - rule context domain

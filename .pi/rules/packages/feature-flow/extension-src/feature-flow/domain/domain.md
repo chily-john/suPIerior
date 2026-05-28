@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/extension-src/feature-flow/domain/**/*'
+  - "packages/feature-flow/extension-src/feature-flow/domain/**/*"
 summary: Feature-flow domain rules for config, artifact paths, slugs, discovery models, and summaries.
 triggers:
   - feature-flow config

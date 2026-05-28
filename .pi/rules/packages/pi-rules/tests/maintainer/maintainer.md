@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/tests/maintainer/**/*'
+  - "packages/pi-rules/tests/maintainer/**/*"
 summary: Focused tests for maintainer path/activity parsing and aggregation helpers.
 triggers:
   - bash path tests

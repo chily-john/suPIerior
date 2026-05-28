@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/scripts/**/*'
+  - "packages/tui-tools/scripts/**/*"
 summary: Package-local scripts for tui-tools validation and dependency-boundary rules.
 triggers:
   - tui-tools dependency-cruiser

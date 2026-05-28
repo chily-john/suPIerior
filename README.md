@@ -8,7 +8,6 @@ The brand name intentionally inserts **PI** into **superior**. Published package
 
 - [`@supierior/pi-rules`](./packages/pi-rules) — current Pi package for `.pi/rules` discovery, context injection, commands, skills, and background rule maintenance.
 
-
 ## Development
 
 This repo uses pnpm workspaces and Turborepo.

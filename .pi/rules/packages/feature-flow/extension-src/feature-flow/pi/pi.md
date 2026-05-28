@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/extension-src/feature-flow/pi/**/*'
+  - "packages/feature-flow/extension-src/feature-flow/pi/**/*"
 summary: Pi adapter layer for registering the feature-flow command.
 triggers:
   - registerFeatureCommand

@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/extension-src/tui-tools/domains/questions/features/**/*'
+  - "packages/tui-tools/extension-src/tui-tools/domains/questions/features/**/*"
 summary: Question-domain feature implementations for asking questions and managing queues.
 triggers:
   - askQueue implementation
@@ -25,7 +25,7 @@ Enter here when changing executable question-domain behavior rather than shared 
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory | When to enter                                                                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `asking/` | Changing how questions are rendered through a Pi-like UI, loading-state helpers, how queue progress status is set, or how UI answers are converted. |
-| `queue/` | Changing queue mutation, rebase behavior, answer resolution, progress summaries, active-question selection, or completed answer records. |
+| `queue/`  | Changing queue mutation, rebase behavior, answer resolution, progress summaries, active-question selection, or completed answer records.            |

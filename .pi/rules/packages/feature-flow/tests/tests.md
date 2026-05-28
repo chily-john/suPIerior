@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/feature-flow/tests/**/*'
+  - "packages/feature-flow/tests/**/*"
 summary: Vitest coverage for feature-flow domain helpers and workflow behavior.
 triggers:
   - feature-flow tests

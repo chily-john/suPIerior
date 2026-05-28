@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'extensions/**/*'
+  - "extensions/**/*"
 summary: Thin package entrypoints for Pi extension exports.
 triggers:
   - extension entrypoint

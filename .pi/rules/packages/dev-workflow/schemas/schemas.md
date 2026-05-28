@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/dev-workflow/schemas/**/*'
+  - "packages/dev-workflow/schemas/**/*"
 summary: Placeholder schemas for possible future local workflow coordination.
 triggers:
   - workflow schema

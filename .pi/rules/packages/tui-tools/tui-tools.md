@@ -22,8 +22,8 @@ triggers:
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory        | When to enter                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------------- |
 | `extension-src/` | Adding or changing reusable TUI domains, public exports, or internal source organization. |
-| `scripts/` | Updating dependency-cruiser rules that enforce TUI domain boundaries. |
-| `tests/` | Adding or updating tests for reusable TUI primitives. |
+| `scripts/`       | Updating dependency-cruiser rules that enforce TUI domain boundaries.                     |
+| `tests/`         | Adding or updating tests for reusable TUI primitives.                                     |

@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/pi-rules/extension-src/pi-rules/domain/rule-context/**/*'
+  - "packages/pi-rules/extension-src/pi-rules/domain/rule-context/**/*"
 summary: Foundational rule context domain for discovery, routing, and prompt injection formatting.
 triggers:
   - rule context domain
@@ -21,8 +21,8 @@ This domain owns `.pi/rules` discovery, route selection, glob matching, and inje
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `discovery/` | Changing markdown discovery, frontmatter parsing, rule index caching, or status reports. |
-| `injection/` | Changing how selected rules are appended to the system prompt. |
-| `routing/` | Changing prompt intent detection, glob matching, scoring, parent summaries, or inventory selection. |
+| Directory    | When to enter                                                                                       |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| `discovery/` | Changing markdown discovery, frontmatter parsing, rule index caching, or status reports.            |
+| `injection/` | Changing how selected rules are appended to the system prompt.                                      |
+| `routing/`   | Changing prompt intent detection, glob matching, scoring, parent summaries, or inventory selection. |

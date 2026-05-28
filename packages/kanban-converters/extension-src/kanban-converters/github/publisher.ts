@@ -22,7 +22,11 @@ export async function publishIssue(
 ): Promise<PublishResult> {
   const args = buildGhIssueCreateArgs(issue, config);
   const { stdout } = await execFileAsync("gh", args, { encoding: "utf8" });
-  const url = stdout.trim().split(/\r?\n/).find((line) => line.trim())?.trim();
+  const url = stdout
+    .trim()
+    .split(/\r?\n/)
+    .find((line) => line.trim())
+    ?.trim();
   if (!url) throw new Error(`gh did not return a created issue URL for '${issue.title}'.`);
   return { issue, url };
 }

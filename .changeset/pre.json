@@ -8,7 +8,5 @@
     "@supierior/pi-rules": "0.1.0-beta.0",
     "@supierior/tui-tools": "0.1.0-beta.0"
   },
-  "changesets": [
-    "feature-flow-beta-release"
-  ]
+  "changesets": ["feature-flow-beta-release"]
 }

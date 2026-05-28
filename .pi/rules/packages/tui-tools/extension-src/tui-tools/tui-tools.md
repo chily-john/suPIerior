@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/tui-tools/extension-src/tui-tools/**/*'
+  - "packages/tui-tools/extension-src/tui-tools/**/*"
 summary: Main source module for reusable TUI domains and root exports.
 triggers:
   - tui-tools root exports
@@ -20,6 +20,6 @@ The package root is the public aggregation point for reusable TUI domains. Enter
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
+| Directory  | When to enter                                                   |
+| ---------- | --------------------------------------------------------------- |
 | `domains/` | Adding or changing reusable TUI capabilities grouped by domain. |

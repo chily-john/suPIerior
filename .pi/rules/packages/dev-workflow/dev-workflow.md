@@ -1,7 +1,7 @@
 ---
 kind: rules
 paths:
-  - 'packages/dev-workflow/**/*'
+  - "packages/dev-workflow/**/*"
 summary: Repository collaboration workflow documentation and reusable GitHub templates.
 triggers:
   - dev workflow
@@ -24,8 +24,8 @@ This package owns repository process documentation, not Pi extension behavior. G
 
 ## Subdirectories
 
-| Directory | When to enter |
-| --- | --- |
-| `docs/` | Changing agent operating checklists, GitHub collaboration flow, project-board guidance, or release/version policy. |
-| `schemas/` | Designing future local task coordination formats while preserving GitHub as the current source of truth. |
-| `templates/` | Updating reusable issue or pull request body templates. |
+| Directory    | When to enter                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `docs/`      | Changing agent operating checklists, GitHub collaboration flow, project-board guidance, or release/version policy. |
+| `schemas/`   | Designing future local task coordination formats while preserving GitHub as the current source of truth.           |
+| `templates/` | Updating reusable issue or pull request body templates.                                                            |
