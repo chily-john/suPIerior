@@ -30,6 +30,34 @@ describe("createQuestionUiHarness", () => {
     );
   });
 
+  it("renders a readable screen preview and omits cleared sections", () => {
+    const harness = createQuestionUiHarness({ editorText: "draft answer" });
+
+    harness.ui.setWidget?.("feature-flow-question", ["What should we build?"], {
+      placement: "aboveEditor",
+    });
+    harness.ui.setStatus("feature-flow-help", "Explain the answer");
+
+    expect(harness.screen(80)).toBe(
+      [
+        "Above editor:",
+        "What should we build?",
+        "",
+        "Editor:",
+        "draft answer",
+        "",
+        "Status:",
+        "feature-flow-help: Explain the answer",
+      ].join("\n"),
+    );
+
+    harness.ui.setWidget?.("feature-flow-question", undefined);
+    harness.ui.setEditorText?.("");
+    harness.ui.setStatus("feature-flow-help", undefined);
+
+    expect(harness.screen(80)).toBe("");
+  });
+
   it("clears recorded events without resetting editor text", () => {
     const harness = createQuestionUiHarness({ editorText: "kept" });
 

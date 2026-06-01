@@ -19,7 +19,8 @@ triggers:
 - Keep the package Pi-aware through peer types, but keep reusable primitives independent from a specific workflow package where possible.
 - Public API should remain available from the package root; add domain-level subpath exports only for coherent domains.
 - Prefer structural changes that preserve behavior unless the user explicitly asks for behavior changes.
-- For question UI lifecycle coverage, use `packages/tui-tools/tests/support/createQuestionUiHarness()` to exercise public question behavior and inspect ordered timeline events.
+- For question UI lifecycle coverage, use `packages/tui-tools/tests/support/createQuestionUiHarness()` to exercise public question behavior.
+- Use `timelineText()` for lifecycle-order assertions and `screen(width)` for human-readable visible-state assertions; prefer asserting both when loading/working state must be visible during an active period.
 
 ## Subdirectories
 

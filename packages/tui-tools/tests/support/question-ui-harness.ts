@@ -13,6 +13,7 @@ export interface QuestionUiHarness {
   input(data: string): { consume?: boolean; data?: string } | undefined;
   events(): string[];
   timelineText(): string;
+  screen(width: number): string;
   clearEvents(): void;
 }
 
@@ -22,6 +23,10 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
   let terminalHandler:
     | ((data: string) => { consume?: boolean; data?: string } | undefined)
     | undefined;
+  const statuses = new Map<string, string>();
+  const aboveEditorWidgets = new Map<string, string[] | PiWidgetFactory>();
+  let workingMessage: string | undefined;
+  let workingVisible = false;
 
   const record = (event: string): void => {
     recordedEvents.push(event);
@@ -41,6 +46,8 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
       return true;
     },
     setStatus: (key, value) => {
+      if (value === undefined) statuses.delete(key);
+      else statuses.set(key, value);
       record(`setStatus ${key}=${value ?? "cleared"}`);
     },
     setEditorText: (text) => {
@@ -53,11 +60,14 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
     },
     setWidget: (key, content, widgetOptions) => {
       if (content === undefined) {
+        aboveEditorWidgets.delete(key);
         record(`setWidget ${key} cleared`);
         return;
       }
       const placement = widgetOptions?.placement ?? "default";
-      record(`setWidget ${key} ${placement} ${describeWidgetContent(content)}`);
+      if (placement === "aboveEditor") aboveEditorWidgets.set(key, content);
+      const rendered = renderWidgetContent(content, 80);
+      record(`setWidget ${key} ${placement} ${describeRenderedContent(content, rendered)}`);
     },
     onTerminalInput: (handler) => {
       terminalHandler = handler;
@@ -68,13 +78,15 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
       };
     },
     setWorkingIndicator: () => {
-      record("setWorkingIndicator");
+      record("working:indicator");
     },
     setWorkingMessage: (message) => {
-      record(`setWorkingMessage ${message ?? "default"}`);
+      workingMessage = message;
+      record(`working:message ${message ?? "default"}`);
     },
     setWorkingVisible: (visible) => {
-      record(`setWorkingVisible ${visible}`);
+      workingVisible = visible;
+      record(`working:visible ${visible}`);
     },
   };
 
@@ -93,17 +105,61 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
     input: sendInput,
     events: () => [...recordedEvents],
     timelineText: () => recordedEvents.map((event, index) => `${index + 1}. ${event}`).join("\n"),
+    screen: (width) =>
+      renderScreen({
+        aboveEditorWidgets,
+        editorText,
+        statuses,
+        width,
+        workingMessage,
+        workingVisible,
+      }),
     clearEvents: () => {
       recordedEvents.length = 0;
     },
   };
 }
 
-function describeWidgetContent(content: string[] | PiWidgetFactory): string {
-  if (Array.isArray(content)) return `lines:${content.join(" | ")}`;
+function renderScreen({
+  aboveEditorWidgets,
+  editorText,
+  statuses,
+  width,
+  workingMessage,
+  workingVisible,
+}: {
+  aboveEditorWidgets: Map<string, string[] | PiWidgetFactory>;
+  editorText: string;
+  statuses: Map<string, string>;
+  width: number;
+  workingMessage: string | undefined;
+  workingVisible: boolean;
+}): string {
+  const sections: string[] = [];
+
+  const aboveEditor = Array.from(aboveEditorWidgets.values()).flatMap((content) =>
+    renderWidgetContent(content, width),
+  );
+  if (aboveEditor.length > 0) sections.push(["Above editor:", ...aboveEditor].join("\n"));
+  if (editorText) sections.push(["Editor:", editorText].join("\n"));
+
+  const statusLines = Array.from(statuses.entries()).map(([key, value]) => `${key}: ${value}`);
+  if (statusLines.length > 0) sections.push(["Status:", ...statusLines].join("\n"));
+  if (workingVisible) sections.push(["Working:", workingMessage ?? "default"].join("\n"));
+
+  return sections.join("\n\n");
+}
+
+function describeRenderedContent(content: string[] | PiWidgetFactory, rendered: string[]): string {
+  if (Array.isArray(content)) return `lines:${rendered.join(" | ")}`;
+  return `widget:${rendered.join(" | ")}`;
+}
+
+function renderWidgetContent(content: string[] | PiWidgetFactory, width: number): string[] {
+  if (Array.isArray(content)) return content;
 
   const widget = content({}, {});
-  const rendered = widget.render(80);
+  const rendered = widget.render(width);
   widget.dispose?.();
-  return `widget:${rendered.join(" | ")}`;
+  return rendered;
 }
