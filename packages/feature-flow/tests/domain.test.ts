@@ -360,6 +360,99 @@ describe("workflow", () => {
     }
   });
 
+  it("shows loading while the next generated question is pending after an answer", async () => {
+    const harness = createWorkflowUiHarness();
+    const secondModelResponse = createDeferred<string>();
+    const secondModelStarted = createDeferred<void>();
+    let completeCount = 0;
+    const widgetWaiters: Array<() => void> = [];
+    const originalSetWidget = harness.ui.setWidget?.bind(harness.ui) as
+      | ((
+          key: string,
+          content: unknown,
+          options?: { placement?: "aboveEditor" | "belowEditor" },
+        ) => void)
+      | undefined;
+    harness.ui.setWidget = (key, content, options) => {
+      originalSetWidget?.(key, content, options);
+      for (const notify of [...widgetWaiters]) notify();
+    };
+    const waitForWidgetText = (text: string): Promise<void> =>
+      new Promise((resolve) => {
+        const notify = () => {
+          if (harness.renderWidget("feature-flow-question", 80).join("\n").includes(text)) {
+            const index = widgetWaiters.indexOf(notify);
+            if (index >= 0) widgetWaiters.splice(index, 1);
+            resolve();
+          }
+        };
+        widgetWaiters.push(notify);
+        notify();
+      });
+
+    const adapter = {
+      async complete(): Promise<string> {
+        completeCount += 1;
+        if (completeCount === 1) {
+          return JSON.stringify({
+            readyToGenerate: false,
+            questions: [{ id: "q1", text: "First question" }],
+          });
+        }
+        if (completeCount === 2) {
+          secondModelStarted.resolve();
+          return secondModelResponse.promise;
+        }
+        return JSON.stringify({ readyToGenerate: true, questions: [] });
+      },
+    };
+    const firstQuestionVisible = waitForWidgetText("First question");
+    const ctx = createContext(".", [], adapter);
+    ctx.ui = harness.ui;
+
+    const run = runDiscoveryLoop({
+      description: "Build demo",
+      slug: "build-demo",
+      ctx,
+      config: mergeConfig({}),
+      modelAdapter: adapter,
+    });
+
+    await firstQuestionVisible;
+    harness.ui.setEditorText?.("answer 1");
+    expect(harness.enter()).toEqual({ consume: true });
+    await secondModelStarted.promise;
+
+    expect(
+      harness.timelineText(),
+      "Expected working indicator while next question is pending.",
+    ).toContain("working:indicator");
+    expect(
+      harness.timelineText(),
+      "Expected loading to be visible while next question is pending.",
+    ).toContain("working:visible true");
+    expect(harness.screen(80)).toContain("Answer: answer 1");
+    expect(harness.screen(80)).toContain("Working:\nAnalyzing feature discovery…");
+    expect(harness.input("typed while loading")).toEqual({ consume: true });
+
+    const secondQuestionVisible = waitForWidgetText("Second question");
+    secondModelResponse.resolve(
+      JSON.stringify({
+        readyToGenerate: false,
+        questions: [{ id: "q2", text: "Second question" }],
+      }),
+    );
+    await secondQuestionVisible;
+
+    expect(harness.screen(80)).not.toContain("Working:");
+    expect(harness.input("typed into ready input")).toEqual({ consume: false });
+    harness.ui.setEditorText?.("answer 2");
+    expect(harness.enter()).toEqual({ consume: true });
+
+    await run;
+    expect(harness.screen(80)).not.toContain("Working:");
+  });
+
   it("keeps loading visible and input unavailable after answer submission until the next question is ready", async () => {
     let completeCount = 0;
     let editorText = "";
@@ -446,6 +539,123 @@ describe("workflow", () => {
     }
   });
 });
+
+function createWorkflowUiHarness(): {
+  ui: FeatureWorkflowContext["ui"];
+  enter(): { consume?: boolean; data?: string } | undefined;
+  input(data: string): { consume?: boolean; data?: string } | undefined;
+  timelineText(): string;
+  screen(width: number): string;
+  renderWidget(key: string, width: number): string[];
+} {
+  const events: string[] = [];
+  const statuses = new Map<string, string>();
+  const widgets = new Map<string, unknown>();
+  let editorText = "";
+  let terminalHandler:
+    | ((data: string) => { consume?: boolean; data?: string } | undefined)
+    | undefined;
+  let workingMessage: string | undefined;
+  let workingVisible = false;
+
+  const record = (event: string): void => {
+    events.push(event);
+  };
+  const renderWidgetContent = (content: unknown, width: number): string[] => {
+    if (Array.isArray(content)) return content;
+    if (typeof content !== "function") return [];
+    const widget = content({}, {});
+    return widget.render(width);
+  };
+
+  const ui: FeatureWorkflowContext["ui"] = {
+    input: async () => editorText,
+    select: async () => undefined,
+    confirm: async () => true,
+    setStatus: (key, value) => {
+      if (value === undefined) statuses.delete(key);
+      else statuses.set(key, value);
+      record(`setStatus ${key}=${value ?? "cleared"}`);
+    },
+    setEditorText: (text) => {
+      editorText = text;
+      record(`setEditorText ${text}`);
+    },
+    getEditorText: () => {
+      record(`getEditorText ${editorText}`);
+      return editorText;
+    },
+    setWidget: (key, content, options) => {
+      if (content === undefined) {
+        widgets.delete(key);
+        record(`setWidget ${key} cleared`);
+        return;
+      }
+      if ((options?.placement ?? "default") === "aboveEditor") widgets.set(key, content);
+      record(`setWidget ${key}`);
+    },
+    onTerminalInput: (handler) => {
+      terminalHandler = handler;
+      record("onTerminalInput subscribe");
+      return () => {
+        if (terminalHandler === handler) terminalHandler = undefined;
+        record("onTerminalInput unsubscribe");
+      };
+    },
+    setWorkingIndicator: () => {
+      record("working:indicator");
+    },
+    setWorkingMessage: (message) => {
+      workingMessage = message;
+      record(`working:message ${message ?? "default"}`);
+    },
+    setWorkingVisible: (visible) => {
+      workingVisible = visible;
+      record(`working:visible ${visible}`);
+    },
+    notify: () => undefined,
+  };
+
+  const sendInput = (data: string): { consume?: boolean; data?: string } | undefined =>
+    terminalHandler?.(data) ?? { consume: false };
+
+  return {
+    ui,
+    enter: () => sendInput("\r"),
+    input: sendInput,
+    timelineText: () => events.map((event, index) => `${index + 1}. ${event}`).join("\n"),
+    screen: (width) => {
+      const sections: string[] = [];
+      const renderedWidgets = Array.from(widgets.values()).flatMap((content) =>
+        renderWidgetContent(content, width),
+      );
+      if (renderedWidgets.length > 0)
+        sections.push(["Above editor:", ...renderedWidgets].join("\n"));
+      const statusLines = Array.from(statuses.entries()).map(([key, value]) => `${key}: ${value}`);
+      if (statusLines.length > 0) sections.push(["Status:", ...statusLines].join("\n"));
+      if (workingVisible) sections.push(["Working:", workingMessage ?? "default"].join("\n"));
+      return sections.join("\n\n");
+    },
+    renderWidget: (key, width) => {
+      const content = widgets.get(key);
+      return content ? renderWidgetContent(content, width) : [];
+    },
+  };
+}
+
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+} {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
 
 function createContext(
   dir: string,
