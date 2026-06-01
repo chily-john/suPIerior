@@ -23,6 +23,13 @@ triggers:
 - Use `timelineText()` for lifecycle-order assertions and `screen(width)` for human-readable visible-state assertions; prefer asserting both when loading/working state must be visible during an active period.
 - For width-sensitive widget tests, use `renderWidget(key, width)` and include assertion messages that print rendered lines with their lengths so wrapping regressions are easy to diagnose.
 - Loading lifecycle tests must assert intended context and working state during the active loading period, not only after stop/cleanup.
+- For async question gaps, use deferred promises rather than sleeps/timers: submit the current answer, wait until the deferred async work has started, assert `working:indicator`, `working:visible true`, and `screen(width)` while the deferred promise is still pending, then resolve it and assert loading stops before the next question is shown.
+- Fast local loop for async question/loading work:
+  ```bash
+  pnpm --filter @supierior/tui-tools test -- tests/domains/questions/asking/ask-question.test.ts
+  pnpm --filter @supierior/tui-tools test
+  pnpm --filter @supierior/tui-tools typecheck
+  ```
 
 ## Subdirectories
 
