@@ -23,7 +23,7 @@ Enter here when adding or updating tests for reusable TUI primitives, including 
 
 ## Subdirectories
 
-| Directory   | When to enter                                    |
-| ----------- | ------------------------------------------------ |
-| `domains/`  | Testing behavior owned by a reusable TUI domain. |
-| `support/`  | Shared Vitest harnesses and test utilities.      |
+| Directory  | When to enter                                    |
+| ---------- | ------------------------------------------------ |
+| `domains/` | Testing behavior owned by a reusable TUI domain. |
+| `support/` | Shared Vitest harnesses and test utilities.      |
