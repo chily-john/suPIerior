@@ -5,8 +5,39 @@ import {
   type PiQuestionUi,
   type PiWidgetFactory,
 } from "../../../../extension-src/tui-tools/domains/questions/features/asking";
+import { createQuestionUiHarness } from "../../../support";
 
 describe("askQuestion", () => {
+  it("renders and submits a text question through the reusable question UI harness", async () => {
+    const harness = createQuestionUiHarness();
+
+    const answerPromise = askQuestion(harness.ui, {
+      id: "q1",
+      kind: "text",
+      prompt: "What should we build?",
+    });
+    harness.ui.setEditorText?.("A reusable harness");
+    expect(harness.enter()).toEqual({ consume: true });
+    const answer = await answerPromise;
+
+    expect(answer).toBe("A reusable harness");
+    expect(harness.events()).toEqual([
+      "setWidget feature-flow-question aboveEditor widget:What should we build?",
+      "setEditorText ",
+      "onTerminalInput subscribe",
+      "setEditorText A reusable harness",
+      "getEditorText A reusable harness",
+      "onTerminalInput unsubscribe",
+      "setEditorText ",
+      "terminalInput \\r consume=true",
+      "setWidget feature-flow-question cleared",
+      "setStatus feature-flow-help=cleared",
+    ]);
+    expect(harness.timelineText()).toContain(
+      "1. setWidget feature-flow-question aboveEditor widget:What should we build?\n2. setEditorText ",
+    );
+  });
+
   it("renders formatted text questions in an untruncated custom widget and uses the main editor without extension titles", async () => {
     const widgets: Array<string[] | PiWidgetFactory | undefined> = [];
     let editorText = "answer";
