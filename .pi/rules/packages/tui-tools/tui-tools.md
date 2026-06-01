@@ -21,6 +21,7 @@ triggers:
 - Prefer structural changes that preserve behavior unless the user explicitly asks for behavior changes.
 - For question UI lifecycle coverage, use `packages/tui-tools/tests/support/createQuestionUiHarness()` to exercise public question behavior.
 - Use `timelineText()` for lifecycle-order assertions and `screen(width)` for human-readable visible-state assertions; prefer asserting both when loading/working state must be visible during an active period.
+- Loading lifecycle tests must assert intended context and working state during the active loading period, not only after stop/cleanup.
 
 ## Subdirectories
 

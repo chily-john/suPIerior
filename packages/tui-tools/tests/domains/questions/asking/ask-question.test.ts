@@ -114,14 +114,16 @@ describe("beginQuestionLoading", () => {
     expect(harness.input("typed")).toEqual({ consume: true });
 
     stop();
+    expect(harness.input("typed-after-stop")).toEqual({ consume: false });
 
-    expect(harness.events().slice(-6)).toEqual([
+    expect(harness.events().slice(-7)).toEqual([
       "terminalInput typed consume=true",
       "onTerminalInput unsubscribe",
       "setWidget feature-flow-question cleared",
       "working:visible false",
       "working:message default",
       "working:indicator",
+      "terminalInput typed-after-stop consume=false",
     ]);
     expect(harness.timelineText()).toContain("10. working:visible false");
     expect(harness.screen(80)).toBe("");
