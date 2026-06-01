@@ -31,7 +31,7 @@ export async function askQuestion(
       return choice ?? String(question.defaultValue ?? "");
     }
     if (question.kind === "multi-choice") {
-      renderQuestionWidget(ui, promptWidgetKey, question.prompt);
+      renderQuestionWidget(ui, promptWidgetKey, question.prompt, question.helpText);
       const value = await askText(
         ui,
         "Feature discovery answer (comma-separated)",
@@ -43,7 +43,7 @@ export async function askQuestion(
         .map((part) => part.trim())
         .filter(Boolean);
     }
-    renderQuestionWidget(ui, promptWidgetKey, question.prompt);
+    renderQuestionWidget(ui, promptWidgetKey, question.prompt, question.helpText);
     return (
       (await askText(
         ui,
@@ -133,17 +133,27 @@ async function askInlineEditor(
   });
 }
 
-function renderQuestionWidget(ui: PiQuestionUi, key: string, prompt: string): void {
-  ui.setWidget?.(key, () => new QuestionPromptWidget(prompt), {
+function renderQuestionWidget(
+  ui: PiQuestionUi,
+  key: string,
+  prompt: string,
+  helpText?: string,
+): void {
+  ui.setWidget?.(key, () => new QuestionPromptWidget(prompt, helpText), {
     placement: "aboveEditor",
   });
 }
 
 class QuestionPromptWidget implements PiWidgetComponent {
-  constructor(private readonly prompt: string) {}
+  constructor(
+    private readonly prompt: string,
+    private readonly helpText?: string,
+  ) {}
 
   render(width: number): string[] {
-    return wrapPrompt(this.prompt, width);
+    const lines = wrapPrompt(this.prompt, width);
+    if (this.helpText) lines.push("", ...wrapPrompt(`Help: ${this.helpText}`, width));
+    return lines;
   }
 
   invalidate(): void {

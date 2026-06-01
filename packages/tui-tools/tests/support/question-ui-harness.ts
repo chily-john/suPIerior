@@ -16,6 +16,7 @@ export interface QuestionUiHarness {
   events(): string[];
   timelineText(): string;
   screen(width: number): string;
+  renderWidget(key: string, width: number): string[];
   clearEvents(): void;
 }
 
@@ -120,6 +121,10 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
         workingMessage,
         workingVisible,
       }),
+    renderWidget: (key, width) => {
+      const content = aboveEditorWidgets.get(key);
+      return content ? renderWidgetContent(content, width) : [];
+    },
     clearEvents: () => {
       recordedEvents.length = 0;
     },
