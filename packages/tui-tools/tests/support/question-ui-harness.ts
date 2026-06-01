@@ -4,7 +4,9 @@ import type {
 } from "../../extension-src/tui-tools/domains/questions/features/asking";
 
 export interface QuestionUiHarnessOptions {
+  confirmAnswer?: boolean;
   editorText?: string;
+  selectAnswer?: string;
 }
 
 export interface QuestionUiHarness {
@@ -38,12 +40,16 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
       return editorText || undefined;
     },
     select: async (prompt, choices) => {
-      record(`select prompt=${prompt} options=${choices.join(",")}`);
-      return undefined;
+      const result = options.selectAnswer;
+      record(
+        `select prompt=${prompt} options=${choices.join(",")}${result === undefined ? "" : ` result=${result}`}`,
+      );
+      return result;
     },
     confirm: async (title, message) => {
-      record(`confirm title=${title} message=${message}`);
-      return true;
+      const result = options.confirmAnswer ?? true;
+      record(`confirm title=${title} message=${message} result=${result}`);
+      return result;
     },
     setStatus: (key, value) => {
       if (value === undefined) statuses.delete(key);
