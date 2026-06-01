@@ -22,6 +22,7 @@ triggers:
 - For question UI lifecycle coverage, use `packages/tui-tools/tests/support/createQuestionUiHarness()` to exercise public question behavior.
 - Use `timelineText()` for lifecycle-order assertions and `screen(width)` for human-readable visible-state assertions; prefer asserting both when loading/working state must be visible during an active period.
 - For width-sensitive widget tests, use `renderWidget(key, width)` and include assertion messages that print rendered lines with their lengths so wrapping regressions are easy to diagnose.
+- Loading lifecycle tests must assert intended context and working state during the active loading period, not only after stop/cleanup.
 
 ## Subdirectories
 
