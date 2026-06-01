@@ -8,6 +8,40 @@ import {
 import { createQuestionUiHarness } from "../../../support";
 
 describe("askQuestion", () => {
+  it("wraps question prompt and help text inside a narrow widget with readable screen output", async () => {
+    const harness = createQuestionUiHarness();
+    const width = 32;
+
+    const answerPromise = askQuestion(harness.ui, {
+      id: "q1",
+      kind: "text",
+      prompt: "[1/3] Summarize the customer onboarding blockers before proceeding",
+      helpText: "Include owners, dates, and risks so reviewers can prioritize safely",
+    });
+
+    const rendered = harness.renderWidget("feature-flow-question", width);
+    expect(rendered, renderedLinesMessage(rendered, width)).toEqual([
+      "[1/3] Summarize the customer",
+      "onboarding blockers before",
+      "proceeding",
+      "",
+      "Help: Include owners, dates,",
+      "and risks so reviewers can",
+      "prioritize safely",
+    ]);
+    expect(
+      rendered.every((line) => line.length <= width),
+      renderedLinesMessage(rendered, width),
+    ).toBe(true);
+    expect(harness.screen(width), harness.screen(width)).toContain(
+      "Above editor:\n[1/3] Summarize the customer\nonboarding blockers before\nproceeding",
+    );
+
+    harness.ui.setEditorText?.("Ready to proceed");
+    expect(harness.enter()).toEqual({ consume: true });
+    expect(await answerPromise).toBe("Ready to proceed");
+  });
+
   it("renders and submits a text question through the reusable question UI harness", async () => {
     const harness = createQuestionUiHarness();
 
@@ -81,6 +115,13 @@ describe("askQuestion", () => {
     expect(widgets.at(-1)).toBeUndefined();
   });
 });
+
+function renderedLinesMessage(lines: string[], width: number): string {
+  return [
+    `Expected rendered widget lines to fit width ${width}.`,
+    ...lines.map((line, index) => `${index + 1}. (${line.length}) ${line}`),
+  ].join("\n");
+}
 
 describe("beginQuestionLoading", () => {
   it("exposes active loading lifecycle through the harness timeline and screen preview", () => {

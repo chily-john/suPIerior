@@ -38,6 +38,8 @@ describe("createQuestionUiHarness", () => {
     });
     harness.ui.setStatus("feature-flow-help", "Explain the answer");
 
+    expect(harness.renderWidget("feature-flow-question", 80)).toEqual(["What should we build?"]);
+    expect(harness.renderWidget("missing-widget", 80)).toEqual([]);
     expect(harness.screen(80)).toBe(
       [
         "Above editor:",
