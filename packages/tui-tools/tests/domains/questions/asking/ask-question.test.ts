@@ -83,6 +83,50 @@ describe("askQuestion", () => {
 });
 
 describe("beginQuestionLoading", () => {
+  it("exposes active loading lifecycle through the harness timeline and screen preview", () => {
+    const harness = createQuestionUiHarness({ editorText: "stale draft" });
+
+    const stop = beginQuestionLoading(harness.ui, {
+      question: { id: "q1", kind: "text", prompt: "What should we build?" },
+      answer: "A better loader",
+      message: "Loading next question…",
+    });
+
+    expect(harness.events()).toEqual([
+      "setEditorText ",
+      "setWidget feature-flow-question aboveEditor widget:What should we build? |  | Answer: A better loader",
+      "working:indicator",
+      "working:message Loading next question…",
+      "working:visible true",
+      "onTerminalInput subscribe",
+    ]);
+    expect(harness.timelineText()).toContain(
+      [
+        "3. working:indicator",
+        "4. working:message Loading next question…",
+        "5. working:visible true",
+      ].join("\n"),
+    );
+    expect(harness.screen(80)).toContain("Working:\nLoading next question…");
+    expect(harness.screen(80)).toContain(
+      "Above editor:\nWhat should we build?\n\nAnswer: A better loader",
+    );
+    expect(harness.input("typed")).toEqual({ consume: true });
+
+    stop();
+
+    expect(harness.events().slice(-6)).toEqual([
+      "terminalInput typed consume=true",
+      "onTerminalInput unsubscribe",
+      "setWidget feature-flow-question cleared",
+      "working:visible false",
+      "working:message default",
+      "working:indicator",
+    ]);
+    expect(harness.timelineText()).toContain("10. working:visible false");
+    expect(harness.screen(80)).toBe("");
+  });
+
   it("clears the editor, renders prior context, starts Pi working state, and consumes terminal input until stopped", () => {
     let handler: ((data: string) => { consume?: boolean } | undefined) | undefined;
     const calls: string[] = [];
