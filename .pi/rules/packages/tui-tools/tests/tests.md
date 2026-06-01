@@ -19,9 +19,11 @@ Enter here when adding or updating tests for reusable TUI primitives, including 
 - Mirror source architecture as `tests/domains/<domain>/<feature>/<feature>.test.ts`.
 - Feature tests may import feature entrypoints directly.
 - Add root or domain public API smoke tests only when export behavior itself needs coverage.
+- Keep reusable test helpers under `tests/support/` and export them from `tests/support/index.ts`.
 
 ## Subdirectories
 
-| Directory  | When to enter                                    |
-| ---------- | ------------------------------------------------ |
-| `domains/` | Testing behavior owned by a reusable TUI domain. |
+| Directory   | When to enter                                    |
+| ----------- | ------------------------------------------------ |
+| `domains/`  | Testing behavior owned by a reusable TUI domain. |
+| `support/`  | Shared Vitest harnesses and test utilities.      |
