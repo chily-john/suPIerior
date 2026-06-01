@@ -25,4 +25,5 @@ Pi package that ships Markdown skills for issue implementation workflows. Keep V
 - Keep `@supierior/ruleplementor` publishable and independent of `@supierior/pi-rules`; recommend pairing in docs rather than adding a hard dependency.
 - Use descriptive skill names even when the package brand is coined; `issue-implementor` is the primary V1 skill.
 - Treat GitHub/`gh` as a V1 workflow assumption in Markdown, not as package code or permanent architecture.
+- Run issue implementation in an isolated git worktree; do not switch or edit the caller's current checkout.
 - Avoid local runtime files; use temporary files only when needed for PR bodies or shell-safe command input.

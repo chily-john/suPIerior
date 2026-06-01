@@ -61,13 +61,13 @@ Extract the issue number from a bare number, `#123`, a GitHub issue URL, or free
    gh auth status
    ```
 
-2. Check for existing work:
+2. Check for existing work in the caller's current checkout:
 
    ```bash
    git status --short
    ```
 
-3. If the worktree is dirty, stop and ask unless the user explicitly allowed continuing or the dirty files are clearly unrelated/generated.
+3. If the caller's current checkout is dirty, do not edit it. Continue only by creating an isolated issue worktree. Stop only if the dirty state prevents creating the worktree.
 
 ### Phase 1 — Issue Intake
 
@@ -80,22 +80,28 @@ Extract the issue number from a bare number, `#123`, a GitHub issue URL, or free
 2. Extract the implementation contract from the issue.
 3. Assume issues are ready for implementation unless the body is impossible to act on. Do not ask for clarification merely because acceptance criteria are informal.
 
-### Phase 2 — Branch Setup
+### Phase 2 — Isolated Worktree and Branch Setup
 
-Create a branch from up-to-date `main`:
-
-```bash
-git fetch origin
-git switch main
-git pull --ff-only origin main
-```
-
-Create a focused branch:
+Create a focused branch in an isolated git worktree instead of switching the caller's current checkout:
 
 - `feature/<issue-number>-short-slug` for feature issues
 - `fix/<issue-number>-short-slug` for bug issues
 - `chore/<issue-number>-short-slug` for chore issues
 - `task/<issue-number>-short-slug` when type is unclear
+
+Then create and enter the issue-specific worktree:
+
+```bash
+git fetch origin
+mkdir -p ../.ruleplementor-worktrees
+git worktree add -b <branch> ../.ruleplementor-worktrees/issue-<issue-number> origin/main
+cd ../.ruleplementor-worktrees/issue-<issue-number>
+git status --short
+```
+
+If the issue-specific worktree path already exists, stop and ask before reusing, deleting, or overwriting it.
+
+From this point forward, perform all file reads, edits, writes, tests, commits, pushes, and PR creation from the issue-specific worktree.
 
 ### Phase 3 — Project Rules Context Preflight
 
@@ -252,12 +258,15 @@ gh pr create --draft --base main --head <branch> --title "<title>" --body-file <
 
 Use `Closes #<issue-number>` in the PR body when the implementation is intended to close the issue. Use `Refs #<issue-number>` for draft/incomplete PRs when appropriate.
 
+Do not remove the issue worktree automatically after opening the PR unless the user explicitly asks.
+
 ### Phase 12 — Final Report
 
 Report:
 
 - PR URL
 - branch name
+- issue worktree path
 - issue implemented
 - commit summary
 - red test command and failure summary
@@ -271,7 +280,8 @@ Stop and ask the user if:
 
 - no issue number or URL is provided
 - multiple issue references are present
-- the worktree is dirty and not clearly safe to proceed
+- the isolated issue worktree cannot be created
+- the issue-specific worktree path already exists and the user has not approved reusing or replacing it
 - GitHub CLI/auth is unavailable
 - valid behavioral red cannot be created or observed
 - production edits would be required before valid behavioral red
