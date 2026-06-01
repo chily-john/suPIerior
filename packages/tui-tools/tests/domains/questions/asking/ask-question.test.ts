@@ -72,6 +72,59 @@ describe("askQuestion", () => {
     );
   });
 
+  it("cancels a text question with escape and cleans up the inline editor lifecycle", async () => {
+    const harness = createQuestionUiHarness({ editorText: "stale draft" });
+
+    const answerPromise = askQuestion(harness.ui, {
+      id: "q1",
+      kind: "text",
+      prompt: "What should we build?",
+    });
+    harness.ui.setEditorText?.("Draft to discard");
+    expect(harness.input("\x1b")).toEqual({ consume: true });
+    const answer = await answerPromise;
+
+    expect(answer).toBe("");
+    expect(harness.events()).toEqual([
+      "setWidget feature-flow-question aboveEditor widget:What should we build?",
+      "setEditorText ",
+      "onTerminalInput subscribe",
+      "setEditorText Draft to discard",
+      "onTerminalInput unsubscribe",
+      "setEditorText ",
+      "terminalInput Escape consume=true",
+      "setWidget feature-flow-question cleared",
+      "setStatus feature-flow-help=cleared",
+    ]);
+    expect(harness.screen(80)).toBe("");
+    expect(harness.timelineText()).toContain("7. terminalInput Escape consume=true");
+  });
+
+  it("cancels a text question with ctrl-c and records useful cancellation details", async () => {
+    const harness = createQuestionUiHarness();
+
+    const answerPromise = askQuestion(harness.ui, {
+      id: "q1",
+      kind: "text",
+      prompt: "What should we build?",
+    });
+    harness.ui.setEditorText?.("Draft to interrupt");
+    expect(harness.input("\x03")).toEqual({ consume: true });
+    const answer = await answerPromise;
+
+    expect(answer).toBe("");
+    expect(harness.events()).toEqual([
+      "setWidget feature-flow-question aboveEditor widget:What should we build?",
+      "setEditorText ",
+      "onTerminalInput subscribe",
+      "setEditorText Draft to interrupt",
+      "onTerminalInput unsubscribe",
+      "setEditorText ",
+      "terminalInput Ctrl-C consume=true",
+      "setWidget feature-flow-question cleared",
+      "setStatus feature-flow-help=cleared",
+    ]);
+    expect(harness.timelineText()).toContain("7. terminalInput Ctrl-C consume=true");
   it("parses multi-choice comma-separated inline editor text through the reusable question UI harness", async () => {
     const harness = createQuestionUiHarness({ editorText: "alpha, beta, gamma" });
 

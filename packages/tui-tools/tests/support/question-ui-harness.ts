@@ -99,7 +99,8 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
 
   const sendInput = (data: string): { consume?: boolean; data?: string } | undefined => {
     const result = terminalHandler?.(data) ?? { consume: false };
-    const displayData = data === "\r" ? "\\r" : data === "\n" ? "\\n" : data;
+    const displayData = describeTerminalInput(data);
+
     record(
       `terminalInput ${displayData}${result?.consume === undefined ? "" : ` consume=${result.consume}`}`,
     );
@@ -129,6 +130,14 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
       recordedEvents.length = 0;
     },
   };
+}
+
+function describeTerminalInput(data: string): string {
+  if (data === "\r") return "\\r";
+  if (data === "\n") return "\\n";
+  if (data === "\x1b") return "Escape";
+  if (data === "\x03") return "Ctrl-C";
+  return data;
 }
 
 function renderScreen({
