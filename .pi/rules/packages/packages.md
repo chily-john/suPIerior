@@ -11,6 +11,7 @@ triggers:
   - packages/tui-tools
   - packages/feature-flow
   - packages/kanban-converters
+  - packages/ruleplementor
 ---
 
 # Packages
@@ -25,4 +26,5 @@ Enter here when deciding which workspace package owns a change. Keep runtime Pi 
 | `feature-flow/`      | Changing the `/feature` guided discovery workflow or its generated feature/plan artifacts.                                    |
 | `kanban-converters/` | Changing reusable kanban conversion contracts or built-in GitHub issue publishing for feature workflows.                      |
 | `pi-rules/`          | Changing `.pi/rules` discovery, injection, commands, skills, package build metadata, or background rule-maintenance behavior. |
-| `tui-tools/`         | Changing reusable Pi TUI question primitives for guided workflows.                                                            |
+| `ruleplementor/`     | Changing the strict TDD GitHub issue implementation skill package and its PR automation guidance.                             |
+| `tui-tools/`         | Changing reusable Pi TUI question primitives for guided workflow packages.                                                    |
