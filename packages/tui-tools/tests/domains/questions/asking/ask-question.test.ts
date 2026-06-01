@@ -125,6 +125,8 @@ describe("askQuestion", () => {
       "setStatus feature-flow-help=cleared",
     ]);
     expect(harness.timelineText()).toContain("7. terminalInput Ctrl-C consume=true");
+  });
+
   it("parses multi-choice comma-separated inline editor text through the reusable question UI harness", async () => {
     const harness = createQuestionUiHarness({ editorText: "alpha, beta, gamma" });
 
