@@ -91,7 +91,7 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
   };
 
   const sendInput = (data: string): { consume?: boolean; data?: string } | undefined => {
-    const result = terminalHandler?.(data);
+    const result = terminalHandler?.(data) ?? { consume: false };
     const displayData = data === "\r" ? "\\r" : data === "\n" ? "\\n" : data;
     record(
       `terminalInput ${displayData}${result?.consume === undefined ? "" : ` consume=${result.consume}`}`,
