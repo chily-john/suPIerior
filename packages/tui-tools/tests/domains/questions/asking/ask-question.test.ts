@@ -8,6 +8,40 @@ import {
 import { createQuestionUiHarness } from "../../../support";
 
 describe("askQuestion", () => {
+  it("wraps question prompt and help text inside a narrow widget with readable screen output", async () => {
+    const harness = createQuestionUiHarness();
+    const width = 32;
+
+    const answerPromise = askQuestion(harness.ui, {
+      id: "q1",
+      kind: "text",
+      prompt: "[1/3] Summarize the customer onboarding blockers before proceeding",
+      helpText: "Include owners, dates, and risks so reviewers can prioritize safely",
+    });
+
+    const rendered = harness.renderWidget("feature-flow-question", width);
+    expect(rendered, renderedLinesMessage(rendered, width)).toEqual([
+      "[1/3] Summarize the customer",
+      "onboarding blockers before",
+      "proceeding",
+      "",
+      "Help: Include owners, dates,",
+      "and risks so reviewers can",
+      "prioritize safely",
+    ]);
+    expect(
+      rendered.every((line) => line.length <= width),
+      renderedLinesMessage(rendered, width),
+    ).toBe(true);
+    expect(harness.screen(width), harness.screen(width)).toContain(
+      "Above editor:\n[1/3] Summarize the customer\nonboarding blockers before\nproceeding",
+    );
+
+    harness.ui.setEditorText?.("Ready to proceed");
+    expect(harness.enter()).toEqual({ consume: true });
+    expect(await answerPromise).toBe("Ready to proceed");
+  });
+
   it("renders and submits a text question through the reusable question UI harness", async () => {
     const harness = createQuestionUiHarness();
 
@@ -91,6 +125,68 @@ describe("askQuestion", () => {
       "setStatus feature-flow-help=cleared",
     ]);
     expect(harness.timelineText()).toContain("7. terminalInput Ctrl-C consume=true");
+  it("parses multi-choice comma-separated inline editor text through the reusable question UI harness", async () => {
+    const harness = createQuestionUiHarness({ editorText: "alpha, beta, gamma" });
+
+    const answerPromise = askQuestion(harness.ui, {
+      id: "q1",
+      kind: "multi-choice",
+      prompt: "Which targets should be included?",
+      defaultValue: ["alpha"],
+    });
+    harness.ui.setEditorText?.("alpha, beta, gamma");
+    expect(harness.enter()).toEqual({ consume: true });
+
+    await expect(answerPromise).resolves.toEqual(["alpha", "beta", "gamma"]);
+    expect(harness.timelineText()).toContain(
+      "1. setWidget feature-flow-question aboveEditor widget:Which targets should be included?",
+    );
+  });
+
+  it("calls choice prompts with expected option values and records the selected value", async () => {
+    const harness = createQuestionUiHarness({ selectAnswer: "beta" });
+
+    const answer = await askQuestion(harness.ui, {
+      id: "q1",
+      kind: "choice",
+      prompt: "Which target should be included?",
+      options: [
+        { value: "alpha", label: "Alpha" },
+        { value: "beta", label: "Beta" },
+      ],
+    });
+
+    expect(answer).toBe("beta");
+    expect(harness.events()).toEqual([
+      "select prompt=Which target should be included? options=alpha,beta result=beta",
+      "setWidget feature-flow-question cleared",
+      "setStatus feature-flow-help=cleared",
+    ]);
+    expect(harness.timelineText()).toContain(
+      "1. select prompt=Which target should be included? options=alpha,beta result=beta",
+    );
+  });
+
+  it("calls confirm prompts with expected prompt/help text and records the confirmed value", async () => {
+    const harness = createQuestionUiHarness({ confirmAnswer: false });
+
+    const answer = await askQuestion(harness.ui, {
+      id: "q1",
+      kind: "confirm",
+      prompt: "Proceed with generation?",
+      helpText: "Only continue when the plan is ready.",
+    });
+
+    expect(answer).toBe(false);
+    expect(harness.events()).toEqual([
+      "setStatus feature-flow-help=Only continue when the plan is ready.",
+      "confirm title=Proceed with generation? message=Only continue when the plan is ready. result=false",
+      "setWidget feature-flow-question cleared",
+      "setStatus feature-flow-help=cleared",
+    ]);
+    expect(harness.timelineText()).toContain(
+      "2. confirm title=Proceed with generation? message=Only continue when the plan is ready. result=false",
+    );
   });
 
   it("renders formatted text questions in an untruncated custom widget and uses the main editor without extension titles", async () => {
@@ -137,6 +233,13 @@ describe("askQuestion", () => {
   });
 });
 
+function renderedLinesMessage(lines: string[], width: number): string {
+  return [
+    `Expected rendered widget lines to fit width ${width}.`,
+    ...lines.map((line, index) => `${index + 1}. (${line.length}) ${line}`),
+  ].join("\n");
+}
+
 describe("beginQuestionLoading", () => {
   it("exposes active loading lifecycle through the harness timeline and screen preview", () => {
     const harness = createQuestionUiHarness({ editorText: "stale draft" });
@@ -169,14 +272,16 @@ describe("beginQuestionLoading", () => {
     expect(harness.input("typed")).toEqual({ consume: true });
 
     stop();
+    expect(harness.input("typed-after-stop")).toEqual({ consume: false });
 
-    expect(harness.events().slice(-6)).toEqual([
+    expect(harness.events().slice(-7)).toEqual([
       "terminalInput typed consume=true",
       "onTerminalInput unsubscribe",
       "setWidget feature-flow-question cleared",
       "working:visible false",
       "working:message default",
       "working:indicator",
+      "terminalInput typed-after-stop consume=false",
     ]);
     expect(harness.timelineText()).toContain("10. working:visible false");
     expect(harness.screen(80)).toBe("");

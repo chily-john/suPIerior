@@ -4,7 +4,9 @@ import type {
 } from "../../extension-src/tui-tools/domains/questions/features/asking";
 
 export interface QuestionUiHarnessOptions {
+  confirmAnswer?: boolean;
   editorText?: string;
+  selectAnswer?: string;
 }
 
 export interface QuestionUiHarness {
@@ -14,6 +16,7 @@ export interface QuestionUiHarness {
   events(): string[];
   timelineText(): string;
   screen(width: number): string;
+  renderWidget(key: string, width: number): string[];
   clearEvents(): void;
 }
 
@@ -38,12 +41,16 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
       return editorText || undefined;
     },
     select: async (prompt, choices) => {
-      record(`select prompt=${prompt} options=${choices.join(",")}`);
-      return undefined;
+      const result = options.selectAnswer;
+      record(
+        `select prompt=${prompt} options=${choices.join(",")}${result === undefined ? "" : ` result=${result}`}`,
+      );
+      return result;
     },
     confirm: async (title, message) => {
-      record(`confirm title=${title} message=${message}`);
-      return true;
+      const result = options.confirmAnswer ?? true;
+      record(`confirm title=${title} message=${message} result=${result}`);
+      return result;
     },
     setStatus: (key, value) => {
       if (value === undefined) statuses.delete(key);
@@ -91,8 +98,9 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
   };
 
   const sendInput = (data: string): { consume?: boolean; data?: string } | undefined => {
-    const result = terminalHandler?.(data);
+    const result = terminalHandler?.(data) ?? { consume: false };
     const displayData = describeTerminalInput(data);
+
     record(
       `terminalInput ${displayData}${result?.consume === undefined ? "" : ` consume=${result.consume}`}`,
     );
@@ -114,6 +122,10 @@ export function createQuestionUiHarness(options: QuestionUiHarnessOptions = {}):
         workingMessage,
         workingVisible,
       }),
+    renderWidget: (key, width) => {
+      const content = aboveEditorWidgets.get(key);
+      return content ? renderWidgetContent(content, width) : [];
+    },
     clearEvents: () => {
       recordedEvents.length = 0;
     },
