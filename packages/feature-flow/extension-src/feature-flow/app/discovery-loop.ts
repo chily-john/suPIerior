@@ -1,14 +1,9 @@
-import { createQuestionSession } from "@supierior/tui-tools";
-import type { PiQuestionUi } from "@supierior/tui-tools";
 import type { FeatureFlowStateController } from "@app/flow-state";
+import type { FeatureFlowUi } from "@app/ui";
 import type { FeatureFlowConfig } from "@domain/config";
 import type { DiscoveryModelAdapter } from "@domain/discovery/adapter";
 import { parseDiscoveryModelResponse } from "@domain/discovery/parse-response";
-import {
-  createInitialDiscoveryState,
-  toDiscoveryAnswer,
-  toQuestionDefinition,
-} from "@domain/discovery/state";
+import { createInitialDiscoveryState } from "@domain/discovery/state";
 import type { DiscoveryModelResponse, DiscoveryState } from "@domain/model";
 import { renderDiscoveryPrompt, renderRepairDiscoveryPrompt } from "@templates/prompts";
 
@@ -16,9 +11,7 @@ export interface RunDiscoveryLoopInput {
   description: string;
   slug: string;
   ctx: {
-    ui: PiQuestionUi & {
-      notify?: (message: string, level?: "info" | "warning" | "error") => void;
-    };
+    ui: FeatureFlowUi;
   };
   config: FeatureFlowConfig;
   modelAdapter: DiscoveryModelAdapter;
@@ -27,19 +20,16 @@ export interface RunDiscoveryLoopInput {
 
 export async function runDiscoveryLoop(input: RunDiscoveryLoopInput): Promise<DiscoveryState> {
   const state = createInitialDiscoveryState(input.description, input.slug);
-  const questions = createQuestionSession(input.ctx.ui, {
-    phase: "Discovery",
-    statusKey: "feature-flow",
-    loadingMessage: "Analyzing feature discovery…",
-  });
 
   try {
     while (true) {
-      questions.setLoading("Analyzing feature discovery…");
-      const response = await completeAndParseWithRepair(
-        input.modelAdapter,
-        renderDiscoveryPrompt(state, input.config),
-        input.config,
+      input.ctx.ui.setStatus("feature-flow", "Discovery");
+      const response = await runWithDiscoveryLoading(input, () =>
+        completeAndParseWithRepair(
+          input.modelAdapter,
+          renderDiscoveryPrompt(state, input.config),
+          input.config,
+        ),
       );
 
       state.lastModelMessage = response.message;
@@ -50,15 +40,35 @@ export async function runDiscoveryLoop(input: RunDiscoveryLoopInput): Promise<Di
       if (!response.question)
         throw new Error("Discovery model returned no question while not ready.");
 
-      const record = await questions.ask(toQuestionDefinition(response.question), {
-        estimatedRemaining: response.estimatedNumberOfQuestionsRemaining,
+      const status = formatDiscoveryStatus(response.estimatedNumberOfQuestionsRemaining);
+      input.ctx.ui.setStatus("feature-flow", status);
+      input.flowState?.inputReady(status);
+      const answer =
+        (await input.ctx.ui.input(response.question.text, "Answer feature discovery question")) ??
+        "";
+      state.answers.push({
+        questionId: response.question.id,
+        questionText: response.question.text,
+        answer,
       });
-      state.answers.push(toDiscoveryAnswer(record));
     }
     return state;
   } finally {
-    questions.dispose();
+    input.ctx.ui.setStatus("feature-flow", undefined);
   }
+}
+
+function formatDiscoveryStatus(estimatedRemaining: number | undefined): string {
+  if (estimatedRemaining === undefined) return "Discovery";
+  return `Discovery · ${estimatedRemaining} remaining`;
+}
+
+async function runWithDiscoveryLoading<T>(
+  input: RunDiscoveryLoopInput,
+  work: () => Promise<T>,
+): Promise<T> {
+  if (!input.flowState) return work();
+  return input.flowState.busy("Analyzing feature discovery…", work);
 }
 
 async function completeAndParseWithRepair(

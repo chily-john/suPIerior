@@ -1,5 +1,4 @@
-import { beginQuestionLoading } from "@supierior/tui-tools";
-import type { PiQuestionUi, QuestionLoadingOptions } from "@supierior/tui-tools";
+import type { FeatureFlowUi } from "@app/ui";
 import {
   createInitialFeatureFlowState,
   isFeatureFlowProcessing,
@@ -8,23 +7,27 @@ import {
   type FeatureFlowState,
 } from "@domain/discovery/state";
 
+interface FeatureFlowLoadingOptions {
+  message?: string;
+}
+
 export interface FeatureFlowStateController {
   readonly current: FeatureFlowState;
   setPhase(phase: FeatureFlowPhase, message?: string): FeatureFlowState;
   inputReady(message?: string): FeatureFlowState;
-  busy<T>(message: string | QuestionLoadingOptions, work: () => Promise<T>): Promise<T>;
-  rendering<T>(message: string | QuestionLoadingOptions, work: () => Promise<T>): Promise<T>;
+  busy<T>(message: string | FeatureFlowLoadingOptions, work: () => Promise<T>): Promise<T>;
+  rendering<T>(message: string | FeatureFlowLoadingOptions, work: () => Promise<T>): Promise<T>;
   complete(message?: string): FeatureFlowState;
   dispose(): void;
 }
 
-export function createFeatureFlowStateController(ui: PiQuestionUi): FeatureFlowStateController {
+export function createFeatureFlowStateController(ui: FeatureFlowUi): FeatureFlowStateController {
   let state = createInitialFeatureFlowState();
   let stopBusy: (() => void) | undefined;
 
   const apply = (
     phase: FeatureFlowPhase,
-    messageOrOptions?: string | QuestionLoadingOptions,
+    messageOrOptions?: string | FeatureFlowLoadingOptions,
   ): FeatureFlowState => {
     const loadingOptions = normalizeLoadingOptions(messageOrOptions);
     const next = transitionFeatureFlowState(state, phase, loadingOptions?.message);
@@ -42,7 +45,10 @@ export function createFeatureFlowStateController(ui: PiQuestionUi): FeatureFlowS
       isProcessing &&
       (!wasProcessing || state.message !== next.message || state.phase !== next.phase)
     ) {
-      stopBusy = beginQuestionLoading(ui, loadingOptions ?? defaultMessage(next.phase));
+      stopBusy = beginFeatureFlowLoading(
+        ui,
+        loadingOptions ?? { message: defaultMessage(next.phase) },
+      );
     }
 
     state = next;
@@ -52,7 +58,7 @@ export function createFeatureFlowStateController(ui: PiQuestionUi): FeatureFlowS
 
   const runWithPhase = async <T>(
     phase: FeatureFlowPhase,
-    messageOrOptions: string | QuestionLoadingOptions,
+    messageOrOptions: string | FeatureFlowLoadingOptions,
     work: () => Promise<T>,
   ): Promise<T> => {
     apply(phase, messageOrOptions);
@@ -77,10 +83,27 @@ export function createFeatureFlowStateController(ui: PiQuestionUi): FeatureFlowS
 }
 
 function normalizeLoadingOptions(
-  messageOrOptions: string | QuestionLoadingOptions | undefined,
-): QuestionLoadingOptions | undefined {
+  messageOrOptions: string | FeatureFlowLoadingOptions | undefined,
+): FeatureFlowLoadingOptions | undefined {
   if (typeof messageOrOptions === "string") return { message: messageOrOptions };
   return messageOrOptions;
+}
+
+function beginFeatureFlowLoading(
+  ui: FeatureFlowUi,
+  options: FeatureFlowLoadingOptions,
+): () => void {
+  ui.setEditorText?.("");
+  ui.setWorkingIndicator?.();
+  ui.setWorkingMessage?.(options.message ?? "Thinking…");
+  ui.setWorkingVisible?.(true);
+  const unsubscribe = ui.onTerminalInput?.(() => ({ consume: true }));
+  return () => {
+    unsubscribe?.();
+    ui.setWorkingVisible?.(false);
+    ui.setWorkingMessage?.();
+    ui.setWorkingIndicator?.();
+  };
 }
 
 function defaultMessage(phase: FeatureFlowPhase): string {

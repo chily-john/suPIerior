@@ -33,9 +33,6 @@ importers:
       "@supierior/kanban-converters":
         specifier: workspace:*
         version: link:../kanban-converters
-      "@supierior/tui-tools":
-        specifier: workspace:*
-        version: link:../tui-tools
     devDependencies:
       "@types/node":
         specifier: ^22.15.0

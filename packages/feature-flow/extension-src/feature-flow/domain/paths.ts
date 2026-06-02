@@ -8,7 +8,6 @@ export interface ArtifactPaths {
   featureDir: string;
   draftPath: string;
   featurePath: string;
-  planPath: string;
 }
 
 export async function findNearestPiRoot(startCwd: string): Promise<string | undefined> {
@@ -42,7 +41,6 @@ export async function resolveArtifactPaths(cwd: string, slug: string): Promise<A
     featureDir,
     draftPath: join(featureDir, "feature.draft.md"),
     featurePath: join(featureDir, "feature.md"),
-    planPath: join(featureDir, "plan.md"),
   };
 }
 

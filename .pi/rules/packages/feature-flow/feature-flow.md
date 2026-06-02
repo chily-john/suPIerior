@@ -17,7 +17,7 @@ triggers:
 
 ## Patterns & Conventions
 
-- Keep reusable TUI question behavior in `@supierior/tui-tools`; this package should compose those primitives for the feature workflow.
+- Ask discovery questions through Pi's normal chat/input prompt for now. Do not compose `@supierior/tui-tools` question primitives in feature-flow until the question tool is revisited and stabilized.
 - Use `@supierior/kanban-converters` for post-plan kanban conversion instead of embedding publisher logic in the workflow package.
 - Preserve the extension package boundary: Pi registration and model integration belong under `pi/`, workflow orchestration under `app/`, feature rules and discovery contracts under `domain/`, and generated text under `templates/`.
 - Package validation mirrors other extension packages: build with `tsup`, test with Vitest, typecheck with `tsc --noEmit`, and lint dependency boundaries with dependency-cruiser.

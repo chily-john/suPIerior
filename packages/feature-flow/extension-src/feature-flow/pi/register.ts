@@ -4,7 +4,7 @@ import { PiDiscoveryModelAdapter } from "@pi/pi-discovery-adapter";
 
 export function registerFeatureCommand(pi: ExtensionAPI): void {
   pi.registerCommand("feature", {
-    description: "Discover and write .pi/features/<slug>/feature.md and plan.md artifacts",
+    description: "Discover and write a .pi/features/<slug>/feature.md artifact",
     handler: async (args, ctx) => {
       if (!ctx.isIdle()) {
         ctx.ui.notify("Feature workflow can only start while the agent is idle.", "warning");

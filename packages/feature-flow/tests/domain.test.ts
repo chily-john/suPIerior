@@ -395,54 +395,28 @@ describe("workflow", () => {
     }
   });
 
-  it("shows the submitted answer in the default loading state until the next prompt is ready", async () => {
+  it("asks discovery questions through normal chat input without mounting the question widget", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
-    let promptCount = 0;
-    let workingVisible = false;
-    let widgetRender: ((width: number) => string[]) | undefined;
-    const adapter = {
-      prompts: [] as string[],
-      async complete(prompt: string): Promise<string> {
-        this.prompts.push(prompt);
-        promptCount += 1;
-        if (promptCount === 1) {
-          return JSON.stringify({
-            readyToGenerate: false,
-            estimatedNumberOfQuestionsRemaining: 1,
-            question: { id: "q1", text: "What problem should this solve?" },
-          });
-        }
-        if (promptCount === 2) {
-          expect(workingVisible).toBe(true);
-          expect(widgetRender?.(80)).toEqual([
-            "What problem should this solve?",
-            "",
-            "Answer: It should help users plan work.",
-          ]);
-          return JSON.stringify({
-            readyToGenerate: true,
-            estimatedNumberOfQuestionsRemaining: 0,
-          });
-        }
-        return "# Feature: generated\n";
-      },
-    };
-    const ctx = createContext(dir, ["It should help users plan work."], adapter);
-    ctx.ui.setWorkingVisible = (visible) => {
-      workingVisible = visible;
-    };
-    ctx.ui.setWidget = (_key, content) => {
-      if (typeof content !== "function") {
-        widgetRender = undefined;
-        return;
-      }
-      const widget = content({}, {});
-      widgetRender = (width) => widget.render(width);
+    const asked: string[] = [];
+    let widgetMounted = false;
+    const adapter = new MockAdapter([
+      JSON.stringify({
+        readyToGenerate: false,
+        estimatedNumberOfQuestionsRemaining: 1,
+        question: { id: "q1", text: "What problem should this solve?" },
+      }),
+      JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
+    ]);
+    const ctx = createContext(dir, ["It should help users plan work."], adapter, asked);
+    (ctx.ui as { setWidget?: () => void }).setWidget = () => {
+      widgetMounted = true;
     };
     try {
       await mkdir(join(dir, ".pi"));
       await runFeatureWorkflow("Build demo", ctx);
-      expect(workingVisible).toBe(false);
+      expect(asked).toContain("What problem should this solve?");
+      expect(widgetMounted).toBe(false);
+      expect(adapter.prompts[1]).toContain("It should help users plan work.");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -487,90 +461,23 @@ describe("workflow", () => {
     }
   });
 
-  it("shows discovery loading immediately while the first generated question is pending", async () => {
-    const harness = createWorkflowUiHarness();
-    const firstModelResponse = createDeferred<string>();
-    const firstModelStarted = createDeferred<void>();
-    let completeCount = 0;
-    const adapter = {
-      async complete(): Promise<string> {
-        completeCount += 1;
-        if (completeCount === 1) {
-          firstModelStarted.resolve();
-          return firstModelResponse.promise;
-        }
-        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
-      },
-    };
-    const ctx = createContext(".", [], adapter);
-    ctx.ui = harness.ui;
-
-    const run = runDiscoveryLoop({
-      description: "Build demo",
-      slug: "build-demo",
-      ctx,
-      config: mergeConfig({}),
-      modelAdapter: adapter,
-    });
-
-    await firstModelStarted.promise;
-
-    expect(harness.screen(80)).toContain("feature-flow: Discovery");
-    expect(harness.screen(80)).toContain("Working:\nAnalyzing feature discovery…");
-    expect(harness.input("typed while first question loads")).toEqual({ consume: true });
-
-    firstModelResponse.resolve(
+  it("shows model estimated remaining count while waiting for chat input", async () => {
+    const adapter = new MockAdapter([
+      JSON.stringify({
+        readyToGenerate: false,
+        estimatedNumberOfQuestionsRemaining: 3,
+        question: { id: "q1", text: "First question" },
+      }),
       JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
-    );
-    await run;
-    expect(harness.screen(80)).not.toContain("Working:");
-    expect(harness.screen(80)).not.toContain("feature-flow: Discovery");
-  });
-
-  it("shows model estimated remaining count while a generated question is active", async () => {
-    const harness = createWorkflowUiHarness();
-    const widgetWaiters: Array<() => void> = [];
-    const originalSetWidget = harness.ui.setWidget?.bind(harness.ui) as
-      | ((
-          key: string,
-          content: unknown,
-          options?: { placement?: "aboveEditor" | "belowEditor" },
-        ) => void)
-      | undefined;
-    harness.ui.setWidget = (key, content, options) => {
-      originalSetWidget?.(key, content, options);
-      for (const notify of [...widgetWaiters]) notify();
+    ]);
+    const statuses: string[] = [];
+    const asked: string[] = [];
+    const ctx = createContext(".", ["answer 1"], adapter, asked);
+    ctx.ui.setStatus = (key, value) => {
+      if (key === "feature-flow" && value) statuses.push(value);
     };
-    const waitForWidgetText = (text: string): Promise<void> =>
-      new Promise((resolve) => {
-        const notify = () => {
-          if (harness.renderWidget("feature-flow-question", 80).join("\n").includes(text)) {
-            const index = widgetWaiters.indexOf(notify);
-            if (index >= 0) widgetWaiters.splice(index, 1);
-            resolve();
-          }
-        };
-        widgetWaiters.push(notify);
-        notify();
-      });
-    let completeCount = 0;
-    const adapter = {
-      async complete(): Promise<string> {
-        completeCount += 1;
-        if (completeCount === 1) {
-          return JSON.stringify({
-            readyToGenerate: false,
-            estimatedNumberOfQuestionsRemaining: 3,
-            question: { id: "q1", text: "First question" },
-          });
-        }
-        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
-      },
-    };
-    const ctx = createContext(".", [], adapter);
-    ctx.ui = harness.ui;
 
-    const run = runDiscoveryLoop({
+    await runDiscoveryLoop({
       description: "Build demo",
       slug: "build-demo",
       ctx,
@@ -578,182 +485,8 @@ describe("workflow", () => {
       modelAdapter: adapter,
     });
 
-    await waitForWidgetText("First question");
-    expect(harness.screen(80)).toContain("feature-flow: Discovery · 3 remaining");
-    harness.ui.setEditorText?.("answer 1");
-    expect(harness.enter()).toEqual({ consume: true });
-
-    await run;
-  });
-
-  it("shows loading while the next generated question is pending after an answer", async () => {
-    const harness = createWorkflowUiHarness();
-    const secondModelResponse = createDeferred<string>();
-    const secondModelStarted = createDeferred<void>();
-    let completeCount = 0;
-    const widgetWaiters: Array<() => void> = [];
-    const originalSetWidget = harness.ui.setWidget?.bind(harness.ui) as
-      | ((
-          key: string,
-          content: unknown,
-          options?: { placement?: "aboveEditor" | "belowEditor" },
-        ) => void)
-      | undefined;
-    harness.ui.setWidget = (key, content, options) => {
-      originalSetWidget?.(key, content, options);
-      for (const notify of [...widgetWaiters]) notify();
-    };
-    const waitForWidgetText = (text: string): Promise<void> =>
-      new Promise((resolve) => {
-        const notify = () => {
-          if (harness.renderWidget("feature-flow-question", 80).join("\n").includes(text)) {
-            const index = widgetWaiters.indexOf(notify);
-            if (index >= 0) widgetWaiters.splice(index, 1);
-            resolve();
-          }
-        };
-        widgetWaiters.push(notify);
-        notify();
-      });
-
-    const adapter = {
-      async complete(): Promise<string> {
-        completeCount += 1;
-        if (completeCount === 1) {
-          return JSON.stringify({
-            readyToGenerate: false,
-            estimatedNumberOfQuestionsRemaining: 1,
-            question: { id: "q1", text: "First question" },
-          });
-        }
-        if (completeCount === 2) {
-          secondModelStarted.resolve();
-          return secondModelResponse.promise;
-        }
-        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
-      },
-    };
-    const firstQuestionVisible = waitForWidgetText("First question");
-    const ctx = createContext(".", [], adapter);
-    ctx.ui = harness.ui;
-
-    const run = runDiscoveryLoop({
-      description: "Build demo",
-      slug: "build-demo",
-      ctx,
-      config: mergeConfig({}),
-      modelAdapter: adapter,
-    });
-
-    await firstQuestionVisible;
-    harness.ui.setEditorText?.("answer 1");
-    expect(harness.enter()).toEqual({ consume: true });
-    await secondModelStarted.promise;
-
-    expect(
-      harness.timelineText(),
-      "Expected working indicator while next question is pending.",
-    ).toContain("working:indicator");
-    expect(
-      harness.timelineText(),
-      "Expected loading to be visible while next question is pending.",
-    ).toContain("working:visible true");
-    expect(harness.screen(80)).toContain("Answer: answer 1");
-    expect(harness.screen(80)).toContain("Working:\nAnalyzing feature discovery…");
-    expect(harness.input("typed while loading")).toEqual({ consume: true });
-
-    const secondQuestionVisible = waitForWidgetText("Second question");
-    secondModelResponse.resolve(
-      JSON.stringify({
-        readyToGenerate: false,
-        estimatedNumberOfQuestionsRemaining: 1,
-        question: { id: "q2", text: "Second question" },
-      }),
-    );
-    await secondQuestionVisible;
-
-    expect(harness.screen(80)).not.toContain("Working:");
-    expect(harness.input("typed into ready input")).toEqual({ consume: false });
-    harness.ui.setEditorText?.("answer 2");
-    expect(harness.enter()).toEqual({ consume: true });
-
-    await run;
-    expect(harness.screen(80)).not.toContain("Working:");
-  });
-
-  it("keeps loading visible and input unavailable after answer submission until the next question is ready", async () => {
-    let completeCount = 0;
-    let editorText = "";
-    let terminalHandler: ((data: string) => { consume?: boolean } | undefined) | undefined;
-    let currentWidget: ((width: number) => string[]) | undefined;
-    let workingVisible = false;
-
-    const adapter = {
-      async complete(): Promise<string> {
-        completeCount += 1;
-        if (completeCount === 1) {
-          return JSON.stringify({
-            readyToGenerate: false,
-            estimatedNumberOfQuestionsRemaining: 1,
-            question: { id: "q1", text: "First question" },
-          });
-        }
-        if (completeCount === 2) {
-          expect(workingVisible).toBe(true);
-          expect(terminalHandler?.("typed while loading")).toEqual({ consume: true });
-          expect(currentWidget?.(80)).toEqual(["First question", "", "Answer: answer 1"]);
-          return JSON.stringify({
-            readyToGenerate: false,
-            estimatedNumberOfQuestionsRemaining: 1,
-            question: { id: "q2", text: "Second question" },
-          });
-        }
-        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
-      },
-    };
-    const ctx = createContext(".", [], adapter);
-    ctx.ui.setEditorText = (text) => {
-      editorText = text;
-    };
-    ctx.ui.getEditorText = () => editorText;
-    ctx.ui.onTerminalInput = (handler) => {
-      terminalHandler = handler;
-      return () => {
-        if (terminalHandler === handler) terminalHandler = undefined;
-      };
-    };
-    ctx.ui.setWorkingVisible = (visible) => {
-      workingVisible = visible;
-    };
-    ctx.ui.setWidget = (_key, content) => {
-      if (typeof content !== "function") {
-        currentWidget = undefined;
-        return;
-      }
-      const widget = content({}, {});
-      currentWidget = (width) => widget.render(width);
-    };
-
-    const run = runDiscoveryLoop({
-      description: "Build demo",
-      slug: "build-demo",
-      ctx,
-      config: mergeConfig({}),
-      modelAdapter: adapter,
-    });
-
-    await waitFor(() => currentWidget?.(80)[0] === "First question");
-    editorText = "answer 1";
-    expect(terminalHandler?.("\r")).toEqual({ consume: true });
-
-    await waitFor(() => currentWidget?.(80)[0] === "Second question");
-    expect(workingVisible).toBe(false);
-    expect(terminalHandler?.("typed into ready input")).toBeUndefined();
-    editorText = "answer 2";
-    expect(terminalHandler?.("\r")).toEqual({ consume: true });
-
-    await run;
-    expect(workingVisible).toBe(false);
+    expect(statuses).toContain("Discovery · 3 remaining");
+    expect(asked).toContain("First question");
   });
 
   it("fails clearly when no Pi model adapter factory is provided", async () => {
@@ -798,7 +531,14 @@ function createWorkflowUiHarness(): {
     return widget.render(width);
   };
 
-  const ui: FeatureWorkflowContext["ui"] = {
+  const ui: FeatureWorkflowContext["ui"] & {
+    getEditorText?: () => string;
+    setWidget?: (
+      key: string,
+      content: unknown,
+      options?: { placement?: "aboveEditor" | "belowEditor" },
+    ) => void;
+  } = {
     input: async () => editorText,
     select: async () => undefined,
     confirm: async () => true,

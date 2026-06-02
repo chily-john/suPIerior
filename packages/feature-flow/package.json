@@ -34,8 +34,7 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@supierior/kanban-converters": "workspace:*",
-    "@supierior/tui-tools": "workspace:*"
+    "@supierior/kanban-converters": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

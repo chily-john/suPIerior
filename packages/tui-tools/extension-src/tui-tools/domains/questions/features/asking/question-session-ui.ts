@@ -8,26 +8,26 @@ import type { PiQuestionUi, PiWidgetComponent } from "./models/pi-question-ui";
 const promptWidgetKey = "feature-flow-question";
 const defaultLoadingMessage = "Thinking…";
 
-export interface QuestionLoadingOptions {
+export interface SessionLoadingOptions {
   message?: string;
   question?: QuestionDefinition | string;
   answer?: QuestionAnswer;
   widgetKey?: string;
 }
 
-export interface AskQuestionOptions {
+export interface PromptForQuestionOptions {
   statusKey?: string;
   widgetKey?: string;
 }
 
-export async function askQuestion(
+export async function promptForQuestion(
   ui: PiQuestionUi,
   question: QuestionDefinition,
-  options: AskQuestionOptions = {},
+  options: PromptForQuestionOptions = {},
 ): Promise<QuestionAnswer> {
-  const statusKey = options.statusKey ?? "feature-flow-help";
+  const statusKey = options.statusKey;
   const widgetKey = options.widgetKey ?? promptWidgetKey;
-  if (question.helpText) ui.setStatus(statusKey, question.helpText);
+  if (statusKey && question.helpText) ui.setStatus(statusKey, question.helpText);
   try {
     if (question.kind === "confirm")
       return ui.confirm(question.prompt, question.helpText ?? question.prompt);
@@ -42,7 +42,7 @@ export async function askQuestion(
       renderQuestionWidget(ui, widgetKey, question.prompt, question.helpText);
       const value = await askText(
         ui,
-        "Feature discovery answer (comma-separated)",
+        "Question answer (comma-separated)",
         `${question.prompt} (comma-separated)`,
         Array.isArray(question.defaultValue) ? question.defaultValue.join(", ") : undefined,
       );
@@ -55,20 +55,20 @@ export async function askQuestion(
     return (
       (await askText(
         ui,
-        "Feature discovery answer",
+        "Question answer",
         question.prompt,
         typeof question.defaultValue === "string" ? question.defaultValue : undefined,
       )) ?? ""
     );
   } finally {
     ui.setWidget?.(widgetKey, undefined);
-    ui.setStatus(statusKey, undefined);
+    if (statusKey) ui.setStatus(statusKey, undefined);
   }
 }
 
-export function beginQuestionLoading(
+export function startSessionLoading(
   ui: PiQuestionUi,
-  options: QuestionLoadingOptions | string = defaultLoadingMessage,
+  options: SessionLoadingOptions | string = defaultLoadingMessage,
 ): () => void {
   const loading = normalizeLoadingOptions(options);
   ui.setEditorText?.("");
@@ -171,8 +171,8 @@ class QuestionPromptWidget implements PiWidgetComponent {
 
 class QuestionContextWidget implements PiWidgetComponent {
   constructor(
-    private readonly options: Required<Pick<QuestionLoadingOptions, "message">> &
-      Omit<QuestionLoadingOptions, "message">,
+    private readonly options: Required<Pick<SessionLoadingOptions, "message">> &
+      Omit<SessionLoadingOptions, "message">,
   ) {}
 
   render(width: number): string[] {
@@ -185,13 +185,13 @@ class QuestionContextWidget implements PiWidgetComponent {
 }
 
 function normalizeLoadingOptions(
-  options: QuestionLoadingOptions | string,
-): Required<Pick<QuestionLoadingOptions, "message">> & Omit<QuestionLoadingOptions, "message"> {
+  options: SessionLoadingOptions | string,
+): Required<Pick<SessionLoadingOptions, "message">> & Omit<SessionLoadingOptions, "message"> {
   if (typeof options === "string") return { message: options };
   return { ...options, message: options.message ?? defaultLoadingMessage };
 }
 
-function renderLoadingContext(options: QuestionLoadingOptions, width: number): string[] {
+function renderLoadingContext(options: SessionLoadingOptions, width: number): string[] {
   const prompt = typeof options.question === "string" ? options.question : options.question?.prompt;
   const lines = prompt ? wrapPrompt(prompt, width) : [];
   if (options.answer !== undefined) {

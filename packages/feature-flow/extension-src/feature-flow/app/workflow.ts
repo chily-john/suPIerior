@@ -1,7 +1,7 @@
 import { rm, writeFile } from "node:fs/promises";
 import { createDefaultKanbanConverterRegistry } from "@supierior/kanban-converters";
-import type { PiQuestionUi } from "@supierior/tui-tools";
 import { runDiscoveryLoop } from "@app/discovery-loop";
+import type { FeatureFlowUi } from "@app/ui";
 import { createFeatureFlowStateController, type FeatureFlowStateController } from "@app/flow-state";
 import { loadFeatureFlowConfig, type FeatureFlowConfig } from "@domain/config";
 import {
@@ -26,9 +26,7 @@ import { renderFeatureDocumentPrompt } from "@templates/prompts";
 export interface FeatureWorkflowContext {
   cwd: string;
   hasUI?: boolean;
-  ui: PiQuestionUi & {
-    notify?: (message: string, level?: "info" | "warning" | "error") => void;
-  };
+  ui: FeatureFlowUi;
   discoveryModelAdapter?: DiscoveryModelAdapter;
   createDiscoveryModelAdapter?: () => DiscoveryModelAdapter;
 }

@@ -1,4 +1,10 @@
-import type { AnswerRecord } from "@supierior/tui-tools";
+export interface AnswerRecord<TAnswer = string | string[] | boolean> {
+  questionId: string;
+  prompt: string;
+  answer: TAnswer;
+  summary: string;
+  recordInContext?: boolean;
+}
 
 export interface DiscoveryQuestion {
   id: string;
