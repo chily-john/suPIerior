@@ -487,6 +487,105 @@ describe("workflow", () => {
     }
   });
 
+  it("shows discovery loading immediately while the first generated question is pending", async () => {
+    const harness = createWorkflowUiHarness();
+    const firstModelResponse = createDeferred<string>();
+    const firstModelStarted = createDeferred<void>();
+    let completeCount = 0;
+    const adapter = {
+      async complete(): Promise<string> {
+        completeCount += 1;
+        if (completeCount === 1) {
+          firstModelStarted.resolve();
+          return firstModelResponse.promise;
+        }
+        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
+      },
+    };
+    const ctx = createContext(".", [], adapter);
+    ctx.ui = harness.ui;
+
+    const run = runDiscoveryLoop({
+      description: "Build demo",
+      slug: "build-demo",
+      ctx,
+      config: mergeConfig({}),
+      modelAdapter: adapter,
+    });
+
+    await firstModelStarted.promise;
+
+    expect(harness.screen(80)).toContain("feature-flow: Discovery");
+    expect(harness.screen(80)).toContain("Working:\nAnalyzing feature discovery…");
+    expect(harness.input("typed while first question loads")).toEqual({ consume: true });
+
+    firstModelResponse.resolve(
+      JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
+    );
+    await run;
+    expect(harness.screen(80)).not.toContain("Working:");
+    expect(harness.screen(80)).not.toContain("feature-flow: Discovery");
+  });
+
+  it("shows model estimated remaining count while a generated question is active", async () => {
+    const harness = createWorkflowUiHarness();
+    const widgetWaiters: Array<() => void> = [];
+    const originalSetWidget = harness.ui.setWidget?.bind(harness.ui) as
+      | ((
+          key: string,
+          content: unknown,
+          options?: { placement?: "aboveEditor" | "belowEditor" },
+        ) => void)
+      | undefined;
+    harness.ui.setWidget = (key, content, options) => {
+      originalSetWidget?.(key, content, options);
+      for (const notify of [...widgetWaiters]) notify();
+    };
+    const waitForWidgetText = (text: string): Promise<void> =>
+      new Promise((resolve) => {
+        const notify = () => {
+          if (harness.renderWidget("feature-flow-question", 80).join("\n").includes(text)) {
+            const index = widgetWaiters.indexOf(notify);
+            if (index >= 0) widgetWaiters.splice(index, 1);
+            resolve();
+          }
+        };
+        widgetWaiters.push(notify);
+        notify();
+      });
+    let completeCount = 0;
+    const adapter = {
+      async complete(): Promise<string> {
+        completeCount += 1;
+        if (completeCount === 1) {
+          return JSON.stringify({
+            readyToGenerate: false,
+            estimatedNumberOfQuestionsRemaining: 3,
+            question: { id: "q1", text: "First question" },
+          });
+        }
+        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
+      },
+    };
+    const ctx = createContext(".", [], adapter);
+    ctx.ui = harness.ui;
+
+    const run = runDiscoveryLoop({
+      description: "Build demo",
+      slug: "build-demo",
+      ctx,
+      config: mergeConfig({ questions: { maxQuestions: 8 } as never }),
+      modelAdapter: adapter,
+    });
+
+    await waitForWidgetText("First question");
+    expect(harness.screen(80)).toContain("feature-flow: Discovery · 3 remaining");
+    harness.ui.setEditorText?.("answer 1");
+    expect(harness.enter()).toEqual({ consume: true });
+
+    await run;
+  });
+
   it("shows loading while the next generated question is pending after an answer", async () => {
     const harness = createWorkflowUiHarness();
     const secondModelResponse = createDeferred<string>();
