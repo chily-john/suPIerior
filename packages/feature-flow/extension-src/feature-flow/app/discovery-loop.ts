@@ -1,4 +1,4 @@
-import { askQuestion, QuestionQueue } from "@supierior/tui-tools";
+import { askQuestion } from "@supierior/tui-tools";
 import type { PiQuestionUi, QuestionAnswer, QuestionDefinition } from "@supierior/tui-tools";
 import { createFeatureFlowStateController, type FeatureFlowStateController } from "@app/flow-state";
 import type { FeatureFlowConfig } from "@domain/config";
@@ -27,11 +27,6 @@ export interface RunDiscoveryLoopInput {
 
 export async function runDiscoveryLoop(input: RunDiscoveryLoopInput): Promise<DiscoveryState> {
   const state = createInitialDiscoveryState(input.description, input.slug);
-  const queue = new QuestionQueue([], {
-    phase: "Discovery",
-    showAdjustmentIndicator: input.config.questions.showAdjustmentIndicator,
-  });
-
   const flowState = input.flowState ?? createFeatureFlowStateController(input.ctx.ui);
   let pendingSubmission: SubmittedAnswerContext | undefined;
   try {
@@ -50,25 +45,32 @@ export async function runDiscoveryLoop(input: RunDiscoveryLoopInput): Promise<Di
       state.turns += 1;
       if (response.message) input.ctx.ui.notify?.(response.message, "info");
 
-      await flowState.rendering(
+      if (response.readyToGenerate) break;
+      const active = await flowState.rendering(
         loadingContext("Rendering next discovery prompt…", pendingSubmission),
         async () => {
-          queue.rebase(response.questions.map(toQuestionDefinition));
+          if (!response.question)
+            throw new Error("Discovery model returned no question while not ready.");
+          return toQuestionDefinition(response.question);
         },
       );
-      if (response.readyToGenerate) break;
 
-      const active = queue.active;
-      if (!active) throw new Error("Discovery model returned no active question while not ready.");
-
-      input.ctx.ui.setStatus("feature-flow", queue.getProgress().statusText);
+      const statusText = discoveryStatusText(state.answers.length + 1, input.config);
+      input.ctx.ui.setStatus("feature-flow", statusText);
       pendingSubmission = undefined;
-      flowState.inputReady(queue.getProgress().statusText);
+      flowState.inputReady(statusText);
       const answer = await askQuestion(input.ctx.ui, active);
       pendingSubmission = { question: active, answer };
       const record = await flowState.busy(
         loadingContext("Recording discovery answer…", pendingSubmission),
-        () => queue.resolveActive(answer),
+        () =>
+          Promise.resolve({
+            questionId: active.id,
+            prompt: active.prompt,
+            answer,
+            summary: `${active.prompt}: ${String(answer)}`,
+            recordInContext: active.recordInContext ?? true,
+          }),
       );
       state.answers.push(toDiscoveryAnswer(record));
     }
@@ -88,6 +90,13 @@ function loadingContext(message: string, submission: SubmittedAnswerContext | un
   return submission
     ? { message, question: submission.question, answer: submission.answer }
     : { message };
+}
+
+function discoveryStatusText(questionNumber: number, config: FeatureFlowConfig): string {
+  const total = config.questions.maxQuestions;
+  return typeof total === "number"
+    ? `Discovery question ${questionNumber} of ${total}`
+    : `Discovery question ${questionNumber}`;
 }
 
 async function completeAndParseWithRepair(

@@ -14,33 +14,23 @@ export function parseDiscoveryModelResponse(output: string): DiscoveryModelRespo
   if (typeof value.readyToGenerate !== "boolean") {
     throw new DiscoveryResponseValidationError("readyToGenerate must be a boolean.");
   }
-  if (!Array.isArray(value.questions)) {
-    throw new DiscoveryResponseValidationError("questions must be an array.");
+  const estimatedNumberOfQuestionsRemaining = value.estimatedNumberOfQuestionsRemaining;
+  if (
+    !Number.isInteger(estimatedNumberOfQuestionsRemaining) ||
+    (estimatedNumberOfQuestionsRemaining as number) < 0
+  ) {
+    throw new DiscoveryResponseValidationError(
+      "estimatedNumberOfQuestionsRemaining must be a non-negative integer.",
+    );
   }
   if ("message" in value && value.message !== undefined && typeof value.message !== "string") {
     throw new DiscoveryResponseValidationError("message must be a string when present.");
   }
 
-  const questions: DiscoveryQuestion[] = value.questions.map((question, index) => {
-    if (!isRecord(question)) {
-      throw new DiscoveryResponseValidationError(`questions[${index}] must be an object.`);
-    }
-    if (typeof question.id !== "string" || !question.id.trim()) {
-      throw new DiscoveryResponseValidationError(
-        `questions[${index}].id must be a non-empty string.`,
-      );
-    }
-    if (typeof question.text !== "string" || !question.text.trim()) {
-      throw new DiscoveryResponseValidationError(
-        `questions[${index}].text must be a non-empty string.`,
-      );
-    }
-    return { id: question.id.trim(), text: question.text.trim() };
-  });
-
-  if (!value.readyToGenerate && questions.length === 0) {
+  const question = value.question === undefined ? undefined : parseQuestion(value.question);
+  if (!value.readyToGenerate && question === undefined) {
     throw new DiscoveryResponseValidationError(
-      "questions must include at least one question when readyToGenerate is false.",
+      "question is required when readyToGenerate is false.",
     );
   }
 
@@ -48,8 +38,22 @@ export function parseDiscoveryModelResponse(output: string): DiscoveryModelRespo
     message:
       typeof value.message === "string" && value.message.trim() ? value.message.trim() : undefined,
     readyToGenerate: value.readyToGenerate,
-    questions,
+    estimatedNumberOfQuestionsRemaining: estimatedNumberOfQuestionsRemaining as number,
+    question: value.readyToGenerate ? undefined : question,
   };
+}
+
+function parseQuestion(value: unknown): DiscoveryQuestion {
+  if (!isRecord(value)) {
+    throw new DiscoveryResponseValidationError("question must be an object.");
+  }
+  if (typeof value.id !== "string" || !value.id.trim()) {
+    throw new DiscoveryResponseValidationError("question.id must be a non-empty string.");
+  }
+  if (typeof value.text !== "string" || !value.text.trim()) {
+    throw new DiscoveryResponseValidationError("question.text must be a non-empty string.");
+  }
+  return { id: value.id.trim(), text: value.text.trim() };
 }
 
 function parseJsonObject(output: string): unknown {

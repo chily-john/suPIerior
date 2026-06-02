@@ -11,17 +11,20 @@ export function renderDiscoveryPrompt(state: DiscoveryState, config: FeatureFlow
     "Ask rich natural-language question blocks that uncover intent, scope, constraints, risks, expected outputs, and validation needs.",
     "Remain kind and collaborative, but push back when the request or an answer is clearly contradictory, technically inconsistent, or points toward an obviously worse approach.",
     "When a simpler, safer, or more effective alternative is clearly available, briefly recommend it inside the next question block and ask the user to confirm or correct that direction.",
-    "Return JSON only using this exact minimal envelope:",
-    '{"message":"optional note to the user","readyToGenerate":false,"questions":[{"id":"q1","text":"Natural rich question block"}]}',
+    "Return JSON only using this exact minimal envelope when more discovery is needed:",
+    '{"message":"optional note to the user","readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":3,"question":{"id":"q1","text":"Natural rich question block"}}',
+    "Return this minimal envelope when enough is known:",
+    '{"message":"Ready to generate.","readyToGenerate":true,"estimatedNumberOfQuestionsRemaining":0}',
     "Rules:",
     "- Re-evaluate the full feature state and all prior answers every turn.",
-    "- You may keep, revise, reorder, drop, or add unanswered questions.",
-    "- Ask one or more candidate questions, but only one will be presented before you are called again.",
+    "- Return exactly one next best question when readyToGenerate is false.",
+    "- Do not generate a backlog; do not return questions or candidate queues.",
+    "- Include estimatedNumberOfQuestionsRemaining as your best estimate after the next question is answered.",
     "- Preserve useful formatting in question text: newlines, blank lines, bullets, numbered lists, indentation, and light Markdown emphasis are allowed.",
     "- If you push back, do it kindly and specifically; do not be argumentative, and continue gathering requirements after the challenge.",
     "- Never reuse an answered question id; follow-ups require new ids.",
-    "- If the user indicates they want to proceed, decide whether enough is known and return readyToGenerate true when appropriate.",
-    "- If readyToGenerate is false, include at least one unanswered question.",
+    "- If the user indicates they want to proceed, decide whether enough is known and return readyToGenerate true with estimatedNumberOfQuestionsRemaining 0 when appropriate.",
+    "- If readyToGenerate is false, include question with non-empty id and text.",
     renderBudget(state, config),
     "Current feature state:",
     JSON.stringify(
@@ -47,9 +50,11 @@ export function renderRepairDiscoveryPrompt(badOutput: string, error: string): s
     `Validation error: ${error}`,
     "Malformed output:",
     badOutput,
-    "Return JSON only matching this shape:",
-    '{"message":"optional note to the user","readyToGenerate":false,"questions":[{"id":"q1","text":"Natural rich question block"}]}',
-    "Requirements: readyToGenerate must be boolean; questions must be an array; each question needs non-empty string id and text; message is optional string.",
+    "Return JSON only matching this not-ready shape:",
+    '{"message":"optional note to the user","readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":1,"question":{"id":"q1","text":"Natural rich question block"}}',
+    "Or this ready shape:",
+    '{"message":"Ready to generate.","readyToGenerate":true,"estimatedNumberOfQuestionsRemaining":0}',
+    "Requirements: readyToGenerate must be boolean; estimatedNumberOfQuestionsRemaining must be a non-negative integer; when not ready, question is required with non-empty string id and text; message is optional string. Do not return questions/backlogs.",
   ].join("\n\n");
 }
 
@@ -105,5 +110,5 @@ function renderBudget(state: DiscoveryState, config: FeatureFlowConfig): string 
     );
   }
   if (!parts.length) return undefined;
-  return `Configured budget: ${parts.join(" ")} Optimize the next questions to fit the remaining budget, or return readyToGenerate true if enough is known.`;
+  return `Configured budget: ${parts.join(" ")} Optimize the next question to fit the remaining budget, or return readyToGenerate true if enough is known.`;
 }

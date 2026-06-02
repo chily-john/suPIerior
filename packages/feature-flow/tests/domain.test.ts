@@ -13,6 +13,10 @@ import { resolveArtifactPaths } from "../extension-src/feature-flow/domain/paths
 import { proposeSlug, sanitizeSlug } from "../extension-src/feature-flow/domain/slug";
 import { runDiscoveryLoop } from "../extension-src/feature-flow/app/discovery-loop";
 import {
+  renderDiscoveryPrompt,
+  renderRepairDiscoveryPrompt,
+} from "../extension-src/feature-flow/templates/prompts";
+import {
   runFeatureWorkflow,
   type FeatureWorkflowContext,
 } from "../extension-src/feature-flow/app/workflow";
@@ -102,16 +106,110 @@ describe("feature flow state", () => {
 });
 
 describe("discovery parsing", () => {
-  it("parses fenced JSON responses", () => {
+  it("parses fenced JSON responses using one next question", () => {
+    const response = parseDiscoveryModelResponse(
+      '```json\n{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":3,"question":{"id":"q1","text":"Why?"}}\n```',
+    );
+
+    expect(response.question?.id).toBe("q1");
+    expect(response.estimatedNumberOfQuestionsRemaining).toBe(3);
+  });
+
+  it("accepts ready responses without a question", () => {
     expect(
       parseDiscoveryModelResponse(
-        '```json\n{"readyToGenerate":false,"questions":[{"id":"q1","text":"Why?"}]}\n```',
-      ).questions[0]?.id,
-    ).toBe("q1");
+        '{"message":"Ready to generate.","readyToGenerate":true,"estimatedNumberOfQuestionsRemaining":0}',
+      ),
+    ).toEqual({
+      message: "Ready to generate.",
+      readyToGenerate: true,
+      estimatedNumberOfQuestionsRemaining: 0,
+    });
+  });
+
+  it("rejects not-ready responses without a question", () => {
+    expect(() =>
+      parseDiscoveryModelResponse(
+        '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":1}',
+      ),
+    ).toThrow(/question is required/i);
+  });
+
+  it.each([
+    ["missing", '{"readyToGenerate":false,"question":{"id":"q1","text":"Why?"}}'],
+    [
+      "negative",
+      '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":-1,"question":{"id":"q1","text":"Why?"}}',
+    ],
+    [
+      "fractional",
+      '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":1.5,"question":{"id":"q1","text":"Why?"}}',
+    ],
+    [
+      "non-number",
+      '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":"1","question":{"id":"q1","text":"Why?"}}',
+    ],
+  ])("rejects %s estimatedNumberOfQuestionsRemaining", (_name, output) => {
+    expect(() => parseDiscoveryModelResponse(output)).toThrow(
+      /estimatedNumberOfQuestionsRemaining must be a non-negative integer/,
+    );
+  });
+
+  it("rejects blank question fields", () => {
+    expect(() =>
+      parseDiscoveryModelResponse(
+        '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":1,"question":{"id":" ","text":"Why?"}}',
+      ),
+    ).toThrow(/question.id must be a non-empty string/);
+    expect(() =>
+      parseDiscoveryModelResponse(
+        '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":1,"question":{"id":"q1","text":" "}}',
+      ),
+    ).toThrow(/question.text must be a non-empty string/);
+  });
+
+  it("rejects the old questions backlog schema", () => {
+    expect(() =>
+      parseDiscoveryModelResponse(
+        '{"readyToGenerate":false,"estimatedNumberOfQuestionsRemaining":1,"questions":[{"id":"q1","text":"Why?"}]}',
+      ),
+    ).toThrow(/question is required/i);
   });
 
   it("rejects malformed responses", () => {
     expect(() => parseDiscoveryModelResponse("not json")).toThrow(/valid JSON/);
+  });
+});
+
+describe("discovery prompts", () => {
+  it("instructs the model to ask exactly one question without a backlog", () => {
+    const prompt = renderDiscoveryPrompt(
+      {
+        description: "Build demo",
+        slug: "build-demo",
+        answers: [{ questionId: "q1", questionText: "First?", answer: "First answer" }],
+        turns: 2,
+      },
+      mergeConfig({ questions: { maxTurns: 4, maxQuestions: 6 } as never }),
+    );
+
+    expect(prompt).toContain("exactly one next best question");
+    expect(prompt).toContain("Do not generate a backlog");
+    expect(prompt).toContain("Re-evaluate the full feature state and all prior answers every turn");
+    expect(prompt).toContain("estimatedNumberOfQuestionsRemaining");
+    expect(prompt).toContain("Never reuse an answered question id");
+    expect(prompt).toContain('"question"');
+    expect(prompt).not.toContain('"questions"');
+    expect(prompt).toContain("remaining turn budget");
+    expect(prompt).toContain("remaining question budget");
+  });
+
+  it("repairs malformed model output using the new schema", () => {
+    const prompt = renderRepairDiscoveryPrompt("not json", "Validation error");
+
+    expect(prompt).toContain("estimatedNumberOfQuestionsRemaining");
+    expect(prompt).toContain('"question"');
+    expect(prompt).not.toContain('"questions"');
   });
 });
 
@@ -122,9 +220,14 @@ describe("workflow", () => {
     const adapter = new MockAdapter([
       JSON.stringify({
         readyToGenerate: false,
-        questions: [{ id: "q1", text: "What problem should this solve?" }],
+        estimatedNumberOfQuestionsRemaining: 1,
+        question: { id: "q1", text: "What problem should this solve?" },
       }),
-      JSON.stringify({ message: "Ready to generate.", readyToGenerate: true, questions: [] }),
+      JSON.stringify({
+        message: "Ready to generate.",
+        readyToGenerate: true,
+        estimatedNumberOfQuestionsRemaining: 0,
+      }),
     ]);
     const ctx = createContext(dir, inputs, adapter);
     try {
@@ -144,7 +247,7 @@ describe("workflow", () => {
   it("offers custom feature templates before generating the feature document", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
     const adapter = new MockAdapter([
-      JSON.stringify({ readyToGenerate: true, questions: [] }),
+      JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
       "# Custom Feature Document\n\nUsed the custom template.",
     ]);
     const selectedPrompts: string[] = [];
@@ -171,52 +274,68 @@ describe("workflow", () => {
     }
   });
 
-  it("allows the model to evolve the backlog", async () => {
+  it("records sequential one-question discovery turns", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
     const asked: string[] = [];
     const adapter = new MockAdapter([
       JSON.stringify({
         readyToGenerate: false,
-        questions: [
-          { id: "q1", text: "First question" },
-          { id: "q2", text: "Dropped question" },
-        ],
+        estimatedNumberOfQuestionsRemaining: 2,
+        question: { id: "q1", text: "First question" },
       }),
       JSON.stringify({
         readyToGenerate: false,
-        questions: [{ id: "q3", text: "Replacement question" }],
+        estimatedNumberOfQuestionsRemaining: 1,
+        question: { id: "q2", text: "Second question based on answer 1" },
       }),
-      JSON.stringify({ readyToGenerate: true, questions: [] }),
+      JSON.stringify({
+        message: "Ready to generate.",
+        readyToGenerate: true,
+        estimatedNumberOfQuestionsRemaining: 0,
+      }),
     ]);
-    const ctx = createContext(dir, ["answer 1", "answer 3"], adapter, asked);
+    const ctx = createContext(dir, ["answer 1", "answer 2"], adapter, asked);
     try {
       await mkdir(join(dir, ".pi"));
-      await runFeatureWorkflow("Build demo", ctx);
-      expect(asked).toEqual(["First question", "Replacement question"]);
+      const state = await runDiscoveryLoop({
+        description: "Build demo",
+        slug: "build-demo",
+        ctx,
+        config: mergeConfig({}),
+        modelAdapter: adapter,
+      });
+
+      expect(asked).toEqual(["First question", "Second question based on answer 1"]);
+      expect(state.turns).toBe(3);
+      expect(state.answers).toEqual([
+        { questionId: "q1", questionText: "First question", answer: "answer 1" },
+        { questionId: "q2", questionText: "Second question based on answer 1", answer: "answer 2" },
+      ]);
+      expect(adapter.prompts[1]).toContain("answer 1");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  it("does not re-ask answered IDs", async () => {
+  it("fails clearly when a not-ready response omits the next question", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
-    const asked: string[] = [];
     const adapter = new MockAdapter([
-      JSON.stringify({ readyToGenerate: false, questions: [{ id: "q1", text: "First" }] }),
-      JSON.stringify({
-        readyToGenerate: false,
-        questions: [
-          { id: "q1", text: "Duplicate" },
-          { id: "q2", text: "Second" },
-        ],
-      }),
-      JSON.stringify({ readyToGenerate: true, questions: [] }),
+      JSON.stringify({ readyToGenerate: false, estimatedNumberOfQuestionsRemaining: 1 }),
+      JSON.stringify({ readyToGenerate: false, estimatedNumberOfQuestionsRemaining: 1 }),
+      JSON.stringify({ readyToGenerate: false, estimatedNumberOfQuestionsRemaining: 1 }),
     ]);
-    const ctx = createContext(dir, ["answer 1", "answer 2"], adapter, asked);
+    const ctx = createContext(dir, [], adapter);
     try {
       await mkdir(join(dir, ".pi"));
-      await runFeatureWorkflow("Build demo", ctx);
-      expect(asked).toEqual(["First", "Second"]);
+      await expect(
+        runDiscoveryLoop({
+          description: "Build demo",
+          slug: "build-demo",
+          ctx,
+          config: mergeConfig({}),
+          modelAdapter: adapter,
+        }),
+      ).rejects.toThrow(/question is required/i);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -226,7 +345,7 @@ describe("workflow", () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
     const adapter = new MockAdapter([
       "not json",
-      JSON.stringify({ readyToGenerate: true, questions: [] }),
+      JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
     ]);
     const ctx = createContext(dir, [], adapter);
     try {
@@ -255,7 +374,9 @@ describe("workflow", () => {
 
   it("includes configured budgets in prompts", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
-    const adapter = new MockAdapter([JSON.stringify({ readyToGenerate: true, questions: [] })]);
+    const adapter = new MockAdapter([
+      JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
+    ]);
     const ctx = createContext(dir, [], adapter);
     try {
       await mkdir(join(dir, ".pi"));
@@ -287,7 +408,8 @@ describe("workflow", () => {
         if (promptCount === 1) {
           return JSON.stringify({
             readyToGenerate: false,
-            questions: [{ id: "q1", text: "What problem should this solve?" }],
+            estimatedNumberOfQuestionsRemaining: 1,
+            question: { id: "q1", text: "What problem should this solve?" },
           });
         }
         if (promptCount === 2) {
@@ -297,7 +419,10 @@ describe("workflow", () => {
             "",
             "Answer: It should help users plan work.",
           ]);
-          return JSON.stringify({ readyToGenerate: true, questions: [] });
+          return JSON.stringify({
+            readyToGenerate: true,
+            estimatedNumberOfQuestionsRemaining: 0,
+          });
         }
         return "# Feature: generated\n";
       },
@@ -325,7 +450,9 @@ describe("workflow", () => {
 
   it("publishes global busy state around processing and clears it when complete", async () => {
     const dir = await mkdtemp(join(tmpdir(), "feature-flow-"));
-    const adapter = new MockAdapter([JSON.stringify({ readyToGenerate: true, questions: [] })]);
+    const adapter = new MockAdapter([
+      JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 }),
+    ]);
     const states: Array<string | undefined> = [];
     const working: boolean[] = [];
     const ctx = createContext(dir, [], adapter);
@@ -396,14 +523,15 @@ describe("workflow", () => {
         if (completeCount === 1) {
           return JSON.stringify({
             readyToGenerate: false,
-            questions: [{ id: "q1", text: "First question" }],
+            estimatedNumberOfQuestionsRemaining: 1,
+            question: { id: "q1", text: "First question" },
           });
         }
         if (completeCount === 2) {
           secondModelStarted.resolve();
           return secondModelResponse.promise;
         }
-        return JSON.stringify({ readyToGenerate: true, questions: [] });
+        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
       },
     };
     const firstQuestionVisible = waitForWidgetText("First question");
@@ -439,7 +567,8 @@ describe("workflow", () => {
     secondModelResponse.resolve(
       JSON.stringify({
         readyToGenerate: false,
-        questions: [{ id: "q2", text: "Second question" }],
+        estimatedNumberOfQuestionsRemaining: 1,
+        question: { id: "q2", text: "Second question" },
       }),
     );
     await secondQuestionVisible;
@@ -466,7 +595,8 @@ describe("workflow", () => {
         if (completeCount === 1) {
           return JSON.stringify({
             readyToGenerate: false,
-            questions: [{ id: "q1", text: "First question" }],
+            estimatedNumberOfQuestionsRemaining: 1,
+            question: { id: "q1", text: "First question" },
           });
         }
         if (completeCount === 2) {
@@ -475,10 +605,11 @@ describe("workflow", () => {
           expect(currentWidget?.(80)).toEqual(["First question", "", "Answer: answer 1"]);
           return JSON.stringify({
             readyToGenerate: false,
-            questions: [{ id: "q2", text: "Second question" }],
+            estimatedNumberOfQuestionsRemaining: 1,
+            question: { id: "q2", text: "Second question" },
           });
         }
-        return JSON.stringify({ readyToGenerate: true, questions: [] });
+        return JSON.stringify({ readyToGenerate: true, estimatedNumberOfQuestionsRemaining: 0 });
       },
     };
     const ctx = createContext(".", [], adapter);

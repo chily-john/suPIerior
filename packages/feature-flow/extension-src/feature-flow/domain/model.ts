@@ -8,7 +8,8 @@ export interface DiscoveryQuestion {
 export interface DiscoveryModelResponse {
   message?: string;
   readyToGenerate: boolean;
-  questions: DiscoveryQuestion[];
+  estimatedNumberOfQuestionsRemaining: number;
+  question?: DiscoveryQuestion;
 }
 
 export interface DiscoveryAnswer {
