@@ -15,11 +15,19 @@ export interface QuestionLoadingOptions {
   widgetKey?: string;
 }
 
+export interface AskQuestionOptions {
+  statusKey?: string;
+  widgetKey?: string;
+}
+
 export async function askQuestion(
   ui: PiQuestionUi,
   question: QuestionDefinition,
+  options: AskQuestionOptions = {},
 ): Promise<QuestionAnswer> {
-  if (question.helpText) ui.setStatus("feature-flow-help", question.helpText);
+  const statusKey = options.statusKey ?? "feature-flow-help";
+  const widgetKey = options.widgetKey ?? promptWidgetKey;
+  if (question.helpText) ui.setStatus(statusKey, question.helpText);
   try {
     if (question.kind === "confirm")
       return ui.confirm(question.prompt, question.helpText ?? question.prompt);
@@ -31,7 +39,7 @@ export async function askQuestion(
       return choice ?? String(question.defaultValue ?? "");
     }
     if (question.kind === "multi-choice") {
-      renderQuestionWidget(ui, promptWidgetKey, question.prompt, question.helpText);
+      renderQuestionWidget(ui, widgetKey, question.prompt, question.helpText);
       const value = await askText(
         ui,
         "Feature discovery answer (comma-separated)",
@@ -43,7 +51,7 @@ export async function askQuestion(
         .map((part) => part.trim())
         .filter(Boolean);
     }
-    renderQuestionWidget(ui, promptWidgetKey, question.prompt, question.helpText);
+    renderQuestionWidget(ui, widgetKey, question.prompt, question.helpText);
     return (
       (await askText(
         ui,
@@ -53,8 +61,8 @@ export async function askQuestion(
       )) ?? ""
     );
   } finally {
-    ui.setWidget?.(promptWidgetKey, undefined);
-    ui.setStatus("feature-flow-help", undefined);
+    ui.setWidget?.(widgetKey, undefined);
+    ui.setStatus(statusKey, undefined);
   }
 }
 
