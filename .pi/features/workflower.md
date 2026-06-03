@@ -237,8 +237,8 @@ export default defineWorkflow({
     { id: "discover", command: "/feature-discovery", outputs: ["feature.md"] },
     { id: "plan-issues", command: "/feature-plan-issues", outputs: ["issues.md"] },
     { id: "review-issues", command: "/feature-review-issues", outputs: ["reviewed-issues.md"] },
-    { id: "create-github-issues", command: "/github-create-issues" }
-  ]
+    { id: "create-github-issues", command: "/github-create-issues" },
+  ],
 });
 ```
 
@@ -339,6 +339,7 @@ Example kickoff prompt:
 You are running a Workflower workflow step.
 
 Workflow:
+
 - id: feature-to-github-issues
 - type: feature
 - name: my-login-flow
@@ -347,13 +348,16 @@ Workflow working directory:
 .pi/workflows/feature/my-login-flow
 
 Previous step outputs:
+
 - .pi/workflows/feature/my-login-flow/feature.md
 
 Current step:
+
 - id: plan-issues
 - command: /feature-plan-issues
 
 Expected outputs for this step:
+
 - .pi/workflows/feature/my-login-flow/issues.md
 
 Run the current step now. Use the previous outputs as input. Write any expected outputs to the exact paths listed above. When this step is complete, the user will run /next to continue the workflow.
@@ -478,11 +482,13 @@ if (result.cancelled) {
    - complete or create fresh session and send next prompt
 10. Add `/workflow status` and `/workflow cancel` if cheap; otherwise postpone.
 11. Add unit tests for pure logic:
-   - state path generation
-   - workdir path generation
-   - prompt construction
-   - next-step output handoff behavior
-   - final-step completion behavior
+
+- state path generation
+- workdir path generation
+- prompt construction
+- next-step output handoff behavior
+- final-step completion behavior
+
 12. Add a simple concrete feature workflow definition for smoke testing, but keep it obviously separate from the generic runner.
 
 ## Open Questions for Implementing Agent

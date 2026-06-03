@@ -1,0 +1,2 @@
+# Pi local/generated context should not be formatted by workspace checks.
+.pi/

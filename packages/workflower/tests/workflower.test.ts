@@ -120,6 +120,12 @@ describe("/workflow status and cancel", () => {
       await pi.commands.workflow.handler("status", ctx);
 
       expect(ctx.notifications.at(-1)).toEqual(["No active workflow.", "info"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("/next", () => {
   it("registers /next and reports when no workflow is active", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
@@ -169,6 +175,11 @@ describe("/next", () => {
       expect(message).toContain(`Workdir: ${workdir}`);
       expect(message).toContain("Current step 1: plan-issues");
       expect(message).toContain("Command: /feature-plan-issues");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("reports a missing workflow definition without mutating active state", async () => {
     const { default: registerWorkflower, writeActiveWorkflowState } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
@@ -241,6 +252,11 @@ describe("/next", () => {
       await pi.commands.workflow.handler("cancel", ctx);
 
       expect(ctx.notifications.at(-1)).toEqual(["No active workflow to cancel.", "info"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("advances blindly to the next step and sends previous-output handoff in a fresh session", async () => {
     const {
       default: registerWorkflower,
@@ -326,6 +342,11 @@ describe("/next", () => {
         "Cancelled workflow feature-to-github-issues (release-notes). Workflow artifacts were not deleted.",
         "info",
       ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("clears active state at the end and does not create another session", async () => {
     const {
       default: registerWorkflower,

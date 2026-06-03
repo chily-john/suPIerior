@@ -45,8 +45,8 @@ defineWorkflow({
     { id: "discover", command: "/feature-discovery", outputs: ["feature.md"] },
     { id: "plan-issues", command: "/feature-plan-issues", outputs: ["issues.md"] },
     { id: "review-issues", command: "/feature-review-issues", outputs: ["reviewed-issues.md"] },
-    { id: "create-github-issues", command: "/github-create-issues" }
-  ]
+    { id: "create-github-issues", command: "/github-create-issues" },
+  ],
 });
 ```
 

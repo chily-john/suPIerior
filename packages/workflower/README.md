@@ -39,6 +39,7 @@ When no workflow is active, Workflower reports that there is no active workflow.
 ```
 
 Cancelling clears `.pi/tmp/workflows/active.json` and reports which workflow was cancelled. It does not delete workflow artifacts or generated files under `.pi/workflows/<workflow-type>/<workflow-name>/`; users can inspect, reuse, or remove those files manually.
+
 ## Advance to the next step
 
 ```text
