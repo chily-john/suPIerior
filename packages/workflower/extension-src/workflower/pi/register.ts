@@ -4,6 +4,7 @@ import { advanceWorkflow } from "@app/next";
 import { startWorkflow } from "@app/start";
 
 const WORKFLOW_COMMANDS = "Available commands: start, status, cancel.";
+const NEXT_USAGE = "Usage: /next";
 
 export function registerWorkflowCommand(pi: ExtensionAPI): void {
   pi.registerCommand("workflow", {
@@ -33,7 +34,12 @@ export function registerWorkflowCommand(pi: ExtensionAPI): void {
 
   pi.registerCommand("next", {
     description: "Advance the active Workflower workflow to the next step",
-    handler: async (_args, ctx) => {
+    handler: async (args, ctx) => {
+      if (args.trim() !== "") {
+        ctx.ui.notify(NEXT_USAGE, "error");
+        return;
+      }
+
       await advanceWorkflow(ctx);
     },
   });
