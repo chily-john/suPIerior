@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, vi } from "vitest";
@@ -105,6 +105,153 @@ describe("paths, state, and prompts", () => {
       join("/repo", ".pi", "workflows", "feature", "release-notes", "feature.md"),
     );
     expect(prompt).toContain("After the user verifies this step's outputs, use /next");
+  });
+});
+
+describe("/workflow status and cancel", () => {
+  it("reports when no workflow is active", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflower(pi);
+      await pi.commands.workflow.handler("status", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual(["No active workflow.", "info"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("shows active workflow details including the current step", async () => {
+    const { default: registerWorkflower, writeActiveWorkflowState } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const workdir = join(dir, ".pi", "workflows", "feature", "release-notes");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      await writeActiveWorkflowState(join(dir, ".pi", "tmp", "workflows", "active.json"), {
+        workflowId: "feature-to-github-issues",
+        type: "feature",
+        name: "release-notes",
+        workdir,
+        currentStepIndex: 1,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T04:05:06.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.workflow.handler("status", ctx);
+
+      const [message, level] = ctx.notifications.at(-1) ?? [];
+      expect(level).toBe("info");
+      expect(message).toContain("Active workflow: feature-to-github-issues");
+      expect(message).toContain("Type: feature");
+      expect(message).toContain("Name: release-notes");
+      expect(message).toContain(`Workdir: ${workdir}`);
+      expect(message).toContain("Current step 1: plan-issues");
+      expect(message).toContain("Command: /feature-plan-issues");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports active state that references a missing workflow definition", async () => {
+    const { default: registerWorkflower, writeActiveWorkflowState } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      await writeActiveWorkflowState(join(dir, ".pi", "tmp", "workflows", "active.json"), {
+        workflowId: "missing-workflow",
+        type: "feature",
+        name: "release-notes",
+        workdir: join(dir, ".pi", "workflows", "feature", "release-notes"),
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T04:05:06.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.workflow.handler("status", ctx);
+
+      expect(ctx.notifications.at(-1)?.[0]).toMatch(
+        /Active workflow references unknown workflow id: missing-workflow/,
+      );
+      expect(ctx.notifications.at(-1)?.[1]).toBe("warning");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports when cancel is requested without an active workflow", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflower(pi);
+      await pi.commands.workflow.handler("cancel", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual(["No active workflow to cancel.", "info"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("clears active workflow state without deleting workflow artifacts", async () => {
+    const { default: registerWorkflower, writeActiveWorkflowState } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const activeStatePath = join(dir, ".pi", "tmp", "workflows", "active.json");
+    const workdir = join(dir, ".pi", "workflows", "feature", "release-notes");
+    const artifactPath = join(workdir, "feature.md");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      await writeActiveWorkflowState(activeStatePath, {
+        workflowId: "feature-to-github-issues",
+        type: "feature",
+        name: "release-notes",
+        workdir,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T04:05:06.000Z",
+      });
+      await mkdir(workdir, { recursive: true });
+      await writeFile(artifactPath, "artifact", "utf8");
+
+      registerWorkflower(pi);
+      await pi.commands.workflow.handler("cancel", ctx);
+
+      await expect(access(activeStatePath)).rejects.toThrow();
+      await expect(readFile(artifactPath, "utf8")).resolves.toBe("artifact");
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Cancelled workflow feature-to-github-issues (release-notes). Workflow artifacts were not deleted.",
+        "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports helpful unknown workflow subcommands", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const pi = createPiHarness();
+    const ctx = createCommandContext("/repo");
+
+    registerWorkflower(pi);
+    await pi.commands.workflow.handler("frobnicate", ctx);
+
+    expect(ctx.notifications.at(-1)?.[0]).toMatch(
+      /Unknown workflow command: frobnicate\. Available commands: start, status, cancel\./,
+    );
+    expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });
 });
 

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 export type ActiveWorkflowState = {
@@ -21,4 +21,8 @@ export async function writeActiveWorkflowState(
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+}
+
+export async function deleteActiveWorkflowState(path: string): Promise<void> {
+  await unlink(path);
 }

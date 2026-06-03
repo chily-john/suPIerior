@@ -24,6 +24,22 @@ Starting a workflow:
 
 The kickoff prompt includes the workflow id, type, name, workdir, current step id and command, expected output paths resolved inside the workdir, and an instruction to use `/next` after the user verifies the step output.
 
+## Inspect workflow status
+
+```text
+/workflow status
+```
+
+When no workflow is active, Workflower reports that there is no active workflow. When a workflow is active, status shows the workflow id, type, name, workdir, and current step id/command.
+
+## Cancel active workflow state
+
+```text
+/workflow cancel
+```
+
+Cancelling clears `.pi/tmp/workflows/active.json` and reports which workflow was cancelled. It does not delete workflow artifacts or generated files under `.pi/workflows/<workflow-type>/<workflow-name>/`; users can inspect, reuse, or remove those files manually.
+
 ## Included workflow
 
 `feature-to-github-issues` is a smoke-test workflow for planning GitHub issues from a feature:
@@ -42,4 +58,4 @@ Active state stores `workflowId`, `type`, `name`, `workdir`, `currentStepIndex`,
 
 ## V1 non-goals
 
-This initial slice only starts a registered workflow at step 0. Advancing with `/next`, status/cancel lifecycle commands, and broader command validation are planned follow-up slices.
+This initial slice starts a registered workflow at step 0 and exposes basic status/cancel lifecycle commands. Advancing with `/next` and broader command validation are planned follow-up slices.
