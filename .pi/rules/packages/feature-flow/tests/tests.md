@@ -11,11 +11,11 @@ triggers:
 
 # tests
 
-Enter here when adding or updating tests for feature-flow behavior. Current coverage focuses on domain helpers, feature-flow phase state, discovery model parsing/repair, workflow loading/input locking, and the workflow's artifact-writing lifecycle.
+Enter here when adding or updating tests for feature-flow behavior. Current coverage focuses on domain helpers, feature-flow phase state, discovery model parsing/repair, chat-input discovery prompting, workflow loading/input locking, and the workflow's artifact-writing lifecycle.
 
 ## Patterns & Conventions
 
 - Prefer focused tests for pure domain behavior when possible.
 - Use temporary directories for path and artifact tests; clean them up with `rm(..., { recursive: true, force: true })`.
-- Mock only the small `FeatureWorkflowContext.ui` surface needed by the workflow under test.
+- Mock only the small `FeatureWorkflowContext.ui` / `FeatureFlowUi` surface needed by the workflow under test.
 - Use `FeatureWorkflowContext.discoveryModelAdapter` to test discovery loops without network calls.
