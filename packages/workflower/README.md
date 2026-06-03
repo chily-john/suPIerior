@@ -24,6 +24,24 @@ Starting a workflow:
 
 The kickoff prompt includes the workflow id, type, name, workdir, current step id and command, expected output paths resolved inside the workdir, and an instruction to use `/next` after the user verifies the step output.
 
+## Advance to the next step
+
+```text
+/next
+```
+
+Workflower advances by explicit user intent. After you complete and manually verify a step's declared outputs, type `/next`; no workflow id, name, or type is required. Workflower reads `.pi/tmp/workflows/active.json`, increments `currentStepIndex`, persists the new active state, opens a fresh Pi session with `ctx.newSession()`, and sends the next kickoff prompt inside the replacement session.
+
+Next-step prompts include:
+
+- the previous step's declared outputs, resolved relative to the workflow workdir;
+- the current step's expected outputs, also resolved relative to the workflow workdir; and
+- the command to run for the current step.
+
+Workflower intentionally advances blindly by user intent. It does not check whether output files exist, validate artifacts, or parse prompt text for state. If session replacement is cancelled or fails after state is advanced, Workflower reports the failure and leaves active state at the advanced step so the user can inspect state or continue intentionally.
+
+When `/next` advances beyond the final step, Workflower clears `.pi/tmp/workflows/active.json`, reports workflow completion, and does not create another session. If there is no active state, it reports `No active workflow.`; if the saved workflow definition is unavailable, it reports an error and does not mutate active state.
+
 ## Included workflow
 
 `feature-to-github-issues` is a smoke-test workflow for planning GitHub issues from a feature:
@@ -42,4 +60,4 @@ Active state stores `workflowId`, `type`, `name`, `workdir`, `currentStepIndex`,
 
 ## V1 non-goals
 
-This initial slice only starts a registered workflow at step 0. Advancing with `/next`, status/cancel lifecycle commands, and broader command validation are planned follow-up slices.
+Status/cancel lifecycle commands and broader command validation are planned follow-up slices.
