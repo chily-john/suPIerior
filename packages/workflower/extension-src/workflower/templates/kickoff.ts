@@ -8,14 +8,19 @@ export type KickoffPromptInput = {
   workdir: string;
   currentStepIndex: number;
   step: WorkflowStep;
+  previousStep?: WorkflowStep;
 };
 
 export function renderKickoffPrompt(input: KickoffPromptInput): string {
   const outputs = input.step.outputs ?? [];
-  const outputLines =
-    outputs.length > 0
-      ? outputs.map((output) => `- ${join(input.workdir, output)}`).join("\n")
-      : "- None declared";
+  const outputLines = renderOutputLines(input.workdir, outputs);
+  const previousOutputLines = input.previousStep
+    ? [
+        "Previous step outputs:",
+        renderOutputLines(input.workdir, input.previousStep.outputs ?? []),
+        "",
+      ]
+    : [];
 
   return [
     "Start this Workflower workflow step.",
@@ -26,10 +31,17 @@ export function renderKickoffPrompt(input: KickoffPromptInput): string {
     `Workdir: ${input.workdir}`,
     `Current step ${input.currentStepIndex}: ${input.step.id}`,
     `Command: ${input.step.command}`,
+    ...previousOutputLines,
     "Expected outputs:",
     outputLines,
     "",
-    "Use the command above to execute this step in the workflow workdir. Keep all workflow artifacts inside the workdir unless the step explicitly requires otherwise.",
+    "Use the command above to execute this step in the workflow workdir. Previous and expected output paths are declared by the workflow and are resolved relative to the workdir.",
     "After the user verifies this step's outputs, use /next to advance to the next workflow step.",
   ].join("\n");
+}
+
+function renderOutputLines(workdir: string, outputs: string[]): string {
+  return outputs.length > 0
+    ? outputs.map((output) => `- ${join(workdir, output)}`).join("\n")
+    : "- None declared";
 }

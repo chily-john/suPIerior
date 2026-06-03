@@ -5,6 +5,7 @@ export default function workflower(pi: ExtensionAPI): void {
   registerWorkflowCommand(pi);
 }
 
+export { advanceWorkflow } from "@app/next";
 export { startWorkflow } from "@app/start";
 export { defineWorkflow } from "@domain/workflow";
 export type { WorkflowDefinition, WorkflowStep } from "@domain/workflow";
