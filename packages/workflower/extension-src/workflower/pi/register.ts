@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { cancelWorkflow, showWorkflowStatus } from "@app/lifecycle";
+import { advanceWorkflow } from "@app/next";
 import { startWorkflow } from "@app/start";
 
 const WORKFLOW_COMMANDS = "Available commands: start, status, cancel.";
@@ -27,6 +28,13 @@ export function registerWorkflowCommand(pi: ExtensionAPI): void {
       }
 
       ctx.ui.notify(`Unknown workflow command: ${subcommand}. ${WORKFLOW_COMMANDS}`, "error");
+    },
+  });
+
+  pi.registerCommand("next", {
+    description: "Advance the active Workflower workflow to the next step",
+    handler: async (_args, ctx) => {
+      await advanceWorkflow(ctx);
     },
   });
 }

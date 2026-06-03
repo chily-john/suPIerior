@@ -39,6 +39,23 @@ When no workflow is active, Workflower reports that there is no active workflow.
 ```
 
 Cancelling clears `.pi/tmp/workflows/active.json` and reports which workflow was cancelled. It does not delete workflow artifacts or generated files under `.pi/workflows/<workflow-type>/<workflow-name>/`; users can inspect, reuse, or remove those files manually.
+## Advance to the next step
+
+```text
+/next
+```
+
+Workflower advances by explicit user intent. After you complete and manually verify a step's declared outputs, type `/next`; no workflow id, name, or type is required. Workflower reads `.pi/tmp/workflows/active.json`, increments `currentStepIndex`, persists the new active state, opens a fresh Pi session with `ctx.newSession()`, and sends the next kickoff prompt inside the replacement session.
+
+Next-step prompts include:
+
+- the previous step's declared outputs, resolved relative to the workflow workdir;
+- the current step's expected outputs, also resolved relative to the workflow workdir; and
+- the command to run for the current step.
+
+Workflower intentionally advances blindly by user intent. It does not check whether output files exist, validate artifacts, or parse prompt text for state. If session replacement is cancelled or fails after state is advanced, Workflower reports the failure and leaves active state at the advanced step so the user can inspect state or continue intentionally.
+
+When `/next` advances beyond the final step, Workflower clears `.pi/tmp/workflows/active.json`, reports workflow completion, and does not create another session. If there is no active state, it reports `No active workflow.`; if the saved workflow definition is unavailable, it reports an error and does not mutate active state.
 
 ## Included workflow
 
@@ -59,3 +76,4 @@ Active state stores `workflowId`, `type`, `name`, `workdir`, `currentStepIndex`,
 ## V1 non-goals
 
 This initial slice starts a registered workflow at step 0 and exposes basic status/cancel lifecycle commands. Advancing with `/next` and broader command validation are planned follow-up slices.
+Status/cancel lifecycle commands and broader command validation are planned follow-up slices.

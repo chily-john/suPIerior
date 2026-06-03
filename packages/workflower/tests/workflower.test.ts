@@ -120,6 +120,21 @@ describe("/workflow status and cancel", () => {
       await pi.commands.workflow.handler("status", ctx);
 
       expect(ctx.notifications.at(-1)).toEqual(["No active workflow.", "info"]);
+describe("/next", () => {
+  it("registers /next and reports when no workflow is active", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      registerWorkflower(pi);
+      expect(typeof pi.commands.next.handler).toBe("function");
+
+      await pi.commands.next.handler("", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual(["No active workflow.", "info"]);
+      expect(ctx.newSession).not.toHaveBeenCalled();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -154,6 +169,33 @@ describe("/workflow status and cancel", () => {
       expect(message).toContain(`Workdir: ${workdir}`);
       expect(message).toContain("Current step 1: plan-issues");
       expect(message).toContain("Command: /feature-plan-issues");
+  it("reports a missing workflow definition without mutating active state", async () => {
+    const { default: registerWorkflower, writeActiveWorkflowState } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = join(dir, ".pi", "tmp", "workflows", "active.json");
+    const state = {
+      workflowId: "missing-workflow",
+      type: "feature",
+      name: "demo",
+      workdir: join(dir, ".pi", "workflows", "feature", "demo"),
+      currentStepIndex: 0,
+      startedAt: "2026-01-02T03:04:05.000Z",
+      updatedAt: "2026-01-02T03:04:05.000Z",
+    };
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      await writeActiveWorkflowState(statePath, state);
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+
+      expect(ctx.notifications.at(-1)?.[0]).toMatch(/Active workflow definition not found/);
+      expect(ctx.notifications.at(-1)?.[1]).toBe("error");
+      await expect(readFile(statePath, "utf8")).resolves.toBe(
+        `${JSON.stringify(state, null, 2)}\n`,
+      );
+      expect(ctx.newSession).not.toHaveBeenCalled();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -199,6 +241,55 @@ describe("/workflow status and cancel", () => {
       await pi.commands.workflow.handler("cancel", ctx);
 
       expect(ctx.notifications.at(-1)).toEqual(["No active workflow to cancel.", "info"]);
+  it("advances blindly to the next step and sends previous-output handoff in a fresh session", async () => {
+    const {
+      default: registerWorkflower,
+      writeActiveWorkflowState,
+      readActiveWorkflowState,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = join(dir, ".pi", "tmp", "workflows", "active.json");
+    const workdir = join(dir, ".pi", "workflows", "feature", "demo");
+    const sentPrompts: string[] = [];
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, {
+      newSession: async (options: any) => {
+        const stateDuringSession = await readActiveWorkflowState(statePath);
+        expect(stateDuringSession.currentStepIndex).toBe(1);
+        await options.withSession({
+          sendUserMessage: async (prompt: string) => sentPrompts.push(prompt),
+        });
+        return { cancelled: false };
+      },
+    });
+
+    try {
+      await writeActiveWorkflowState(statePath, {
+        workflowId: "feature-to-github-issues",
+        type: "feature",
+        name: "demo",
+        workdir,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+
+      expect(ctx.notifications).toContainEqual([
+        "Advanced workflow feature-to-github-issues to step 1.",
+        "info",
+      ]);
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        currentStepIndex: 1,
+      });
+      expect(sentPrompts).toHaveLength(1);
+      expect(sentPrompts[0]).toContain("Current step 1: plan-issues");
+      expect(sentPrompts[0]).toContain("Command: /feature-plan-issues");
+      expect(sentPrompts[0]).toContain("Previous step outputs:");
+      expect(sentPrompts[0]).toContain(join(workdir, "feature.md"));
+      expect(sentPrompts[0]).toContain("Expected outputs:");
+      expect(sentPrompts[0]).toContain(join(workdir, "issues.md"));
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -235,6 +326,36 @@ describe("/workflow status and cancel", () => {
         "Cancelled workflow feature-to-github-issues (release-notes). Workflow artifacts were not deleted.",
         "info",
       ]);
+  it("clears active state at the end and does not create another session", async () => {
+    const {
+      default: registerWorkflower,
+      writeActiveWorkflowState,
+      readActiveWorkflowState,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = join(dir, ".pi", "tmp", "workflows", "active.json");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      await writeActiveWorkflowState(statePath, {
+        workflowId: "feature-to-github-issues",
+        type: "feature",
+        name: "demo",
+        workdir: join(dir, ".pi", "workflows", "feature", "demo"),
+        currentStepIndex: 3,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+
+      await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Workflow feature-to-github-issues complete.",
+        "info",
+      ]);
+      expect(ctx.newSession).not.toHaveBeenCalled();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -253,6 +374,52 @@ describe("/workflow status and cancel", () => {
     );
     expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });
+  it.each([
+    ["cancelled", async () => ({ cancelled: true }), /Session creation was cancelled/, "error"],
+    [
+      "failed",
+      async () => {
+        throw new Error("boom");
+      },
+      /Session creation failed: boom/,
+      "error",
+    ],
+  ])(
+    "keeps advanced state when next-step session creation is %s",
+    async (_label, newSession, message, level) => {
+      const {
+        default: registerWorkflower,
+        writeActiveWorkflowState,
+        readActiveWorkflowState,
+      } = await loadWorkflower();
+      const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+      const statePath = join(dir, ".pi", "tmp", "workflows", "active.json");
+      const pi = createPiHarness();
+      const ctx = createCommandContext(dir, { newSession });
+
+      try {
+        await writeActiveWorkflowState(statePath, {
+          workflowId: "feature-to-github-issues",
+          type: "feature",
+          name: "demo",
+          workdir: join(dir, ".pi", "workflows", "feature", "demo"),
+          currentStepIndex: 0,
+          startedAt: "2026-01-02T03:04:05.000Z",
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        });
+        registerWorkflower(pi);
+        await pi.commands.next.handler("", ctx);
+
+        expect(ctx.notifications.at(-1)?.[0]).toMatch(message);
+        expect(ctx.notifications.at(-1)?.[1]).toBe(level);
+        await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+          currentStepIndex: 1,
+        });
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("/workflow start", () => {
