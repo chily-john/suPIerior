@@ -1,0 +1,30 @@
+{
+  "name": "@supierior/workflower-authoring",
+  "version": "0.1.0-beta.0",
+  "description": "Pi skill package for creating Workflower workflow packages.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "skill",
+    "workflow",
+    "workflower",
+    "authoring"
+  ],
+  "license": "Apache-2.0",
+  "files": [
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "echo \"No build for workflower-authoring\"",
+    "test": "echo \"No tests for workflower-authoring\"",
+    "typecheck": "echo \"No typecheck for workflower-authoring\"",
+    "lint": "echo \"No lint for workflower-authoring\"",
+    "clean": "rimraf dist coverage .turbo || true"
+  },
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  }
+}

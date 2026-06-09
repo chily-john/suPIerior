@@ -1,0 +1,24 @@
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { applyWorkflowStepRuntimeSettings } from "@pi-adapter/apply-workflow-step-runtime-settings";
+import {
+  listStartableWorkflows,
+  onStartableWorkflowRegistered,
+} from "@orchestration/runtime/use-cases/generated-starts/watch-startable-workflows";
+import { startWorkflow } from "@orchestration/runtime/use-cases/start/start-workflow";
+
+export function registerGeneratedStartCommands(pi: ExtensionAPI): () => void {
+  const registerStartCommand = (workflow: ReturnType<typeof listStartableWorkflows>[number]) => {
+    pi.registerCommand(`wf:${workflow.id}`, {
+      description: `Start Workflower workflow ${workflow.id}`,
+      handler: async (args, ctx) => {
+        await startWorkflow(workflow.id, args, ctx, {
+          applyStepRuntimeSettings: (step) => applyWorkflowStepRuntimeSettings(pi, ctx, step),
+          sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
+        });
+      },
+    });
+  };
+
+  for (const workflow of listStartableWorkflows()) registerStartCommand(workflow);
+  return onStartableWorkflowRegistered(registerStartCommand);
+}

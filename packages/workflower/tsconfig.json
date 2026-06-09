@@ -4,10 +4,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["extension-src/workflower/*"],
-      "@app/*": ["extension-src/workflower/app/*"],
-      "@domain/*": ["extension-src/workflower/domain/*"],
-      "@pi/*": ["extension-src/workflower/pi/*"],
-      "@templates/*": ["extension-src/workflower/templates/*"]
+      "@package-api/*": ["extension-src/workflower/package-api/*"],
+      "@pi-adapter/*": ["extension-src/workflower/internals/pi-adapter/*"],
+      "@orchestration/*": ["extension-src/workflower/internals/workflow-orchestration/*"]
     },
     "types": ["node", "vitest/globals"]
   },

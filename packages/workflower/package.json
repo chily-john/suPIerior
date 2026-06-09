@@ -46,7 +46,7 @@
   },
   "pi": {
     "extensions": [
-      "./dist/extensions/workflower.mjs"
+      "./dist/index.mjs"
     ]
   }
 }

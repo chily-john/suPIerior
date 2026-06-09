@@ -1,7 +1,7 @@
 {
   "name": "@supierior/ruleplementor",
   "version": "0.1.0-beta.0",
-  "description": "Pi skill package for strict TDD GitHub issue implementation using project rules context and autonomous PR creation.",
+  "description": "Pi skill package for strict TDD implementation and review workflows using project rules context.",
   "keywords": [
     "pi-package",
     "pi",

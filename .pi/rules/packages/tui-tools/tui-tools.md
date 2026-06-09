@@ -12,7 +12,7 @@ triggers:
 
 # tui-tools
 
-`@supierior/tui-tools` is the reusable package for extended Pi TUI functionality. Its questions domain is currently paused and is not used by `@supierior/feature-flow`; future work is needed before workflow packages should depend on the question tool again.
+`@supierior/tui-tools` is the reusable package for extended Pi TUI functionality. Its questions domain is currently paused; future work is needed before workflow packages should depend on the question tool again.
 
 ## Domain Language
 
