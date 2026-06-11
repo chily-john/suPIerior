@@ -16,7 +16,7 @@ Workflower runs named multi-step workflows through `/wf:<workflow-id> <workflow-
 
 Ask only for missing information. Gather:
 
-1. Workflow id, for example `feature`, `github:issue`, or `release-notes`.
+1. Workflow id, for example `feature`, `github_issue`, or `release-notes`.
 2. What the workflow should accomplish.
 3. Step list, including each step's purpose.
 4. Command for each step. Prefer `/skill:<skill-name>` when the step should be implemented by a bundled skill.

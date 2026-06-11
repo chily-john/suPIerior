@@ -16,13 +16,14 @@ Workflow command names are created automatically from registered workflow ids. F
 /wf:feature <workflow-name>
 ```
 
-Namespaced workflow ids use additional colons:
+Namespaced workflow ids can use underscores or hyphens:
 
 ```text
-/wf:github:issue <workflow-name>
+/wf:github_issue <workflow-name>
+/wf:review-pr <workflow-name>
 ```
 
-Workflow ids must be command-safe: non-empty, contain no whitespace or control characters, not start with `/`, not start with `wf:`, and not contain shell/confusing characters such as quotes, backticks, backslashes, pipes, angle brackets, braces, or square brackets. Exact duplicate workflow ids are rejected during registration because they would create the same `/wf:<id>` command.
+Workflow ids must match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, underscores, and hyphens only. Exact duplicate workflow ids are rejected during registration because they would create the same `/wf:<id>` command.
 
 ## Start a workflow
 
@@ -33,7 +34,7 @@ Workflow ids must be command-safe: non-empty, contain no whitespace or control c
 For example:
 
 ```text
-/wf:custom:demo my-workflow
+/wf:custom-demo my-workflow
 ```
 
 Starting a workflow:
@@ -85,7 +86,7 @@ import { registerWorkflow } from "@supierior/workflower";
 import type { WorkflowDefinition } from "@supierior/workflower";
 
 const myWorkflow: WorkflowDefinition = {
-  id: "custom:demo",
+  id: "custom-demo",
   clearOnStart: false,
   clearOnCompletion: false,
   cleanupOnCompletion: false,
@@ -109,7 +110,7 @@ export default function myPackageExtension(): void {
 After registration, Workflower automatically exposes the start command:
 
 ```text
-/wf:custom:demo <workflow-name>
+/wf:custom-demo <workflow-name>
 ```
 
 The Pi extension entry points at Workflower's public ESM module (`./dist/index.mjs`), and the registry is stored on `globalThis`, so command handlers and external package imports share the same in-process registry even when extension bundles load separately. Workflower registers `/wf:<workflow-id>` commands for workflows already present when the extension loads and for workflows contributed later in the same process.

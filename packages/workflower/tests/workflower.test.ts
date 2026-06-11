@@ -64,38 +64,45 @@ describe("package smoke", () => {
 });
 
 describe("workflow definitions and registry", () => {
-  it("registers workflows through the public API", async () => {
-    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
-    const workflow = {
-      id: "external:demo",
-      steps: [{ id: "first", command: "/demo", outputs: ["demo.md"] }],
-    };
-    const pi = createPiHarness();
+  it.each(["feature", "github_issue", "review-pr"])(
+    "supports folder-safe workflow id %s through generated start commands",
+    async (workflowId) => {
+      const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+      const pi = createPiHarness();
 
-    expect(registerWorkflow(workflow)).toBeUndefined();
-    registerWorkflower(pi);
-    expect(pi.commands["wf:external:demo"].description).toMatch(
-      /Start Workflower workflow external:demo/,
-    );
-  });
+      if (workflowId !== "feature") {
+        expect(
+          registerWorkflow({
+            id: workflowId,
+            steps: [{ id: "first", command: "/demo", outputs: ["demo.md"] }],
+          }),
+        ).toBeUndefined();
+      }
+
+      registerWorkflower(pi);
+      expect(pi.commands[`wf:${workflowId}`].description).toMatch(
+        new RegExp(`Start Workflower workflow ${workflowId}`),
+      );
+    },
+  );
 
   it("rejects duplicate workflow ids because they create duplicate /wf commands", async () => {
     const { registerWorkflow } = await loadWorkflower();
     registerWorkflow({
-      id: "duplicate:demo",
+      id: "duplicate-demo",
       steps: [{ id: "first", command: "/demo" }],
     });
 
     expect(() =>
       registerWorkflow({
-        id: "duplicate:demo",
+        id: "duplicate-demo",
         steps: [{ id: "first", command: "/demo" }],
       }),
-    ).toThrow(/Workflow id already registered: duplicate:demo/);
+    ).toThrow(/Workflow id already registered: duplicate-demo/);
   });
 
-  it.each(["", "has space", "/leading-slash", "wf:reserved", "bad|pipe", "bad[bracket]"])(
-    "rejects command-unsafe workflow ids: %s",
+  it.each(["github:issue", "Feature", "has space", "../bad", ""])(
+    "rejects unsafe workflow id %j",
     async (workflowId) => {
       const { registerWorkflow } = await loadWorkflower();
 
@@ -185,7 +192,7 @@ describe("command registration", () => {
     expect(commandNames).toContain("next");
     expect(commandNames).toContain("wf");
     expect(commandNames).toContain("wf:feature");
-    expect(commandNames).toContain("wf:external:demo");
+    expect(commandNames).toContain("wf:github_issue");
     expect(commandNames).not.toContain("workflow");
     expect(commandNames).not.toContain("wf-start-current-step");
     expect(pi.commands["wf:missing"]).toBeUndefined();
@@ -204,15 +211,15 @@ describe("command registration", () => {
     const pi = createPiHarness();
 
     registerWorkflower(pi);
-    expect(pi.commands["wf:late:demo"]).toBeUndefined();
+    expect(pi.commands["wf:late-demo"]).toBeUndefined();
 
     registerWorkflow({
-      id: "late:demo",
+      id: "late-demo",
       steps: [{ id: "first", command: "/late" }],
     });
 
-    expect(pi.commands["wf:late:demo"].description).toMatch(/Start Workflower workflow late:demo/);
-    expect(typeof pi.commands["wf:late:demo"].handler).toBe("function");
+    expect(pi.commands["wf:late-demo"].description).toMatch(/Start Workflower workflow late-demo/);
+    expect(typeof pi.commands["wf:late-demo"].handler).toBe("function");
   });
 
   it("sets up Workflower commands and events idempotently for the same Pi instance", async () => {
@@ -276,13 +283,13 @@ describe("command registration", () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const pi = createPiHarness();
 
-    registerWorkflow({ id: "package:a", steps: [{ id: "first", command: "/a" }] });
+    registerWorkflow({ id: "package-a", steps: [{ id: "first", command: "/a" }] });
     registerWorkflower(pi);
-    registerWorkflow({ id: "package:b", steps: [{ id: "first", command: "/b" }] });
+    registerWorkflow({ id: "package-b", steps: [{ id: "first", command: "/b" }] });
     registerWorkflower(pi);
 
-    expect(pi.commands["wf:package:a"]).toBeDefined();
-    expect(pi.commands["wf:package:b"]).toBeDefined();
+    expect(pi.commands["wf:package-a"]).toBeDefined();
+    expect(pi.commands["wf:package-b"]).toBeDefined();
     expect(pi.registeredCommands.filter((name) => name === "wf")).toHaveLength(1);
     expect(pi.registeredCommands.filter((name) => name === "next")).toHaveLength(1);
     expect(pi.handlers.agent_end).toHaveLength(1);
