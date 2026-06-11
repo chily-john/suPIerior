@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerGeneratedStartCommands } from "./commands/generated-start-commands";
 import { registerNextCommand } from "./commands/next-command";
-import { registerStartCurrentStepCommand } from "./commands/start-current-step-command";
 import { registerWfCommand } from "./commands/wf-command";
 import { registerAutoNextOnAgentEnd } from "./events/auto-next-on-agent-end";
 import { registerScopedContextOnContextRequest } from "./events/scoped-context-on-context-request";
@@ -12,7 +11,8 @@ type WorkflowerRuntimeGlobal = typeof globalThis & {
 };
 
 const runtimeGlobal = globalThis as WorkflowerRuntimeGlobal;
-const registeredApis = (runtimeGlobal.__supieriorWorkflowerRegisteredApis ??= new WeakSet<ExtensionAPI>());
+const registeredApis = (runtimeGlobal.__supieriorWorkflowerRegisteredApis ??=
+  new WeakSet<ExtensionAPI>());
 const runtimeDisposers = (runtimeGlobal.__supieriorWorkflowerRuntimeDisposers ??= new WeakMap<
   ExtensionAPI,
   Array<() => void>
@@ -34,7 +34,6 @@ export function registerExtension(pi: ExtensionAPI): void {
   registerScopedContextOnContextRequest(pi);
   registerAutoNextOnAgentEnd(pi);
   registerWfCommand(pi);
-  registerStartCurrentStepCommand(pi);
   disposers.push(registerGeneratedStartCommands(pi));
   registerNextCommand(pi);
 }

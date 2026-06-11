@@ -2,7 +2,10 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolveActiveStatePath } from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-paths";
-import { readActiveWorkflowState, writeActiveWorkflowState } from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store";
+import {
+  readActiveWorkflowState,
+  writeActiveWorkflowState,
+} from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store";
 import { resolveWorkflowPaths } from "../extension-src/workflower/internals/workflow-orchestration/runtime/artifacts/artifact-paths";
 import { renderStepKickoffPrompt } from "../extension-src/workflower/internals/workflow-orchestration/prompting/step-kickoff/render-step-kickoff-prompt";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -25,7 +28,10 @@ beforeAll(async () => {
       ],
     });
   } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("Workflow id already registered: feature")) {
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes("Workflow id already registered: feature")
+    ) {
       throw error;
     }
   }
@@ -49,7 +55,9 @@ describe("package smoke", () => {
   });
 
   it("uses the public module as the Pi extension entry so external registration shares one registry", async () => {
-    const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+    const manifest = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    );
 
     expect(manifest.pi.extensions).toEqual(["./dist/index.mjs"]);
   });
@@ -99,7 +107,6 @@ describe("workflow definitions and registry", () => {
       ).toThrow(/Invalid workflow id/);
     },
   );
-
 });
 
 describe("paths, state, and prompts", () => {
@@ -125,12 +132,8 @@ describe("paths, state, and prompts", () => {
     try {
       await writeActiveWorkflowState(activeStatePath(dir), state);
 
-      await expect(
-        readFile(activeStatePath(dir), "utf8"),
-      ).resolves.toContain('"id": "feature"');
-      await expect(
-        readActiveWorkflowState(activeStatePath(dir)),
-      ).resolves.toEqual(state);
+      await expect(readFile(activeStatePath(dir), "utf8")).resolves.toContain('"id": "feature"');
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toEqual(state);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -155,7 +158,6 @@ describe("paths, state, and prompts", () => {
     expect(prompt).toContain(
       join("/repo", ".pi", "workflows", "feature", "release-notes", "feature.md"),
     );
-
   });
 
   it("omits manual next instructions for autoNext kickoff prompts", async () => {
@@ -185,6 +187,7 @@ describe("command registration", () => {
     expect(commandNames).toContain("wf:feature");
     expect(commandNames).toContain("wf:external:demo");
     expect(commandNames).not.toContain("workflow");
+    expect(commandNames).not.toContain("wf-start-current-step");
     expect(pi.commands["wf:missing"]).toBeUndefined();
     expect(pi.handlers.agent_end).toHaveLength(1);
     expect(pi.handlers.context).toHaveLength(1);
@@ -208,9 +211,7 @@ describe("command registration", () => {
       steps: [{ id: "first", command: "/late" }],
     });
 
-    expect(pi.commands["wf:late:demo"].description).toMatch(
-      /Start Workflower workflow late:demo/,
-    );
+    expect(pi.commands["wf:late:demo"].description).toMatch(/Start Workflower workflow late:demo/);
     expect(typeof pi.commands["wf:late:demo"].handler).toBe("function");
   });
 
@@ -261,7 +262,10 @@ describe("command registration", () => {
     pi.registeredCommands = [];
     pi.handlers = {};
 
-    registerWorkflow({ id: "after-shutdown-listener-demo", steps: [{ id: "first", command: "/demo" }] });
+    registerWorkflow({
+      id: "after-shutdown-listener-demo",
+      steps: [{ id: "first", command: "/demo" }],
+    });
     expect(pi.commands["wf:after-shutdown-listener-demo"]).toBeUndefined();
 
     registerWorkflower(pi);
@@ -500,7 +504,9 @@ describe("/next", () => {
       await pi.commands.wf.handler("list", ctx);
 
       expect(ctx.notifications.at(-1)?.[0]).toContain("feature (current) step 0 - current session");
-      expect(ctx.notifications.at(-1)?.[0]).toContain("feature (stale) step 1 - stale/other session");
+      expect(ctx.notifications.at(-1)?.[0]).toContain(
+        "feature (stale) step 1 - stale/other session",
+      );
       expect(ctx.notifications.at(-1)?.[1]).toBe("info");
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -543,21 +549,18 @@ describe("/next", () => {
   });
 
   it("advances directly and sends a follow-up kickoff after an autoNext step agent run ends", async () => {
-    const {
-      default: registerWorkflower,
-      registerWorkflow,
-    } = await loadWorkflower();
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
 
     try {
       registerWorkflow({
-          id: "auto-next-demo",
-          steps: [
-            { id: "first", command: "/first", autoNext: true },
-            { id: "second", command: "/second" },
-          ],
-        });
+        id: "auto-next-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true },
+          { id: "second", command: "/second" },
+        ],
+      });
       await writeActiveWorkflowState(activeStatePath(dir), {
         sessionId: "session-id",
         id: "auto-next-demo",
@@ -585,22 +588,19 @@ describe("/next", () => {
   });
 
   it("auto-next honors clearOnNext false by preserving an existing boundary", async () => {
-    const {
-      default: registerWorkflower,
-      registerWorkflow,
-    } = await loadWorkflower();
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const pi = createPiHarness();
 
     try {
       registerWorkflow({
-          id: "auto-next-no-clear-demo",
-          steps: [
-            { id: "first", command: "/first", autoNext: true, clearOnNext: false },
-            { id: "second", command: "/second" },
-          ],
-        });
+        id: "auto-next-no-clear-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true, clearOnNext: false },
+          { id: "second", command: "/second" },
+        ],
+      });
       await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "auto-next-no-clear-demo",
@@ -667,22 +667,28 @@ describe("/next", () => {
         updatedAt: "2026-01-02T03:04:05.000Z",
       });
       registerWorkflower(pi);
-      const result = await pi.handlers.context[0]({ type: "context", messages: [] }, createCommandContext(dir, {
-        sessionManager: {
-          getSessionId: () => "session-id",
-          getSessionFile: () => join(dir, "session.jsonl"),
-          getLeafId: () => "entry-e",
-          getBranch: () => [
-            messageEntry("entry-a", null, "user", "old user"),
-            messageEntry("entry-b", "entry-a", "assistant", "old assistant"),
-            messageEntry("entry-c", "entry-b", "user", "boundary"),
-            messageEntry("entry-d", "entry-c", "user", "kickoff"),
-            messageEntry("entry-e", "entry-d", "assistant", "response"),
-          ],
-        },
-      }));
+      const result = await pi.handlers.context[0](
+        { type: "context", messages: [] },
+        createCommandContext(dir, {
+          sessionManager: {
+            getSessionId: () => "session-id",
+            getSessionFile: () => join(dir, "session.jsonl"),
+            getLeafId: () => "entry-e",
+            getBranch: () => [
+              messageEntry("entry-a", null, "user", "old user"),
+              messageEntry("entry-b", "entry-a", "assistant", "old assistant"),
+              messageEntry("entry-c", "entry-b", "user", "boundary"),
+              messageEntry("entry-d", "entry-c", "user", "kickoff"),
+              messageEntry("entry-e", "entry-d", "assistant", "response"),
+            ],
+          },
+        }),
+      );
 
-      expect(result.messages.map((message: any) => message.content)).toEqual(["kickoff", "response"]);
+      expect(result.messages.map((message: any) => message.content)).toEqual([
+        "kickoff",
+        "response",
+      ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -705,16 +711,16 @@ describe("/next", () => {
       });
       registerWorkflower(pi);
 
-      await expect(pi.handlers.context[0]({ type: "context", messages: [] }, createCommandContext(dir))).resolves.toBeUndefined();
+      await expect(
+        pi.handlers.context[0]({ type: "context", messages: [] }, createCommandContext(dir)),
+      ).resolves.toBeUndefined();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
   it("reports usage and does not advance when /next receives unexpected arguments", async () => {
-    const {
-      default: registerWorkflower,
-    } = await loadWorkflower();
+    const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const pi = createPiHarness();
@@ -776,10 +782,7 @@ describe("/next", () => {
   });
 
   it("advances in the current session when the completed step disables clearOnNext", async () => {
-    const {
-      default: registerWorkflower,
-      registerWorkflow,
-    } = await loadWorkflower();
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const workdir = join(dir, ".pi", "workflows", "same-session-demo", "same-session-demo");
@@ -788,12 +791,12 @@ describe("/next", () => {
 
     try {
       registerWorkflow({
-          id: "same-session-demo",
-          steps: [
-            { id: "first", command: "/first", outputs: ["first.md"], clearOnNext: false },
-            { id: "second", command: "/second", outputs: ["second.md"] },
-          ],
-        });
+        id: "same-session-demo",
+        steps: [
+          { id: "first", command: "/first", outputs: ["first.md"], clearOnNext: false },
+          { id: "second", command: "/second", outputs: ["second.md"] },
+        ],
+      });
       await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "same-session-demo",
@@ -823,9 +826,7 @@ describe("/next", () => {
   });
 
   it("advances blindly to the next step and sends previous-output handoff in the current session with a boundary", async () => {
-    const {
-      default: registerWorkflower,
-    } = await loadWorkflower();
+    const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const workdir = join(dir, ".pi", "workflows", "feature", "demo");
@@ -845,10 +846,7 @@ describe("/next", () => {
       registerWorkflower(pi);
       await pi.commands.next.handler("", ctx);
 
-      expect(ctx.notifications).toContainEqual([
-        "Advanced workflow feature to step 1.",
-        "info",
-      ]);
+      expect(ctx.notifications).toContainEqual(["Advanced workflow feature to step 1.", "info"]);
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
         contextBoundaryEntryId: "leaf-id",
@@ -856,7 +854,9 @@ describe("/next", () => {
       expect(ctx.newSession).not.toHaveBeenCalled();
       expect(pi.sentUserMessages).toHaveLength(1);
       expect(pi.sentUserMessages[0].prompt).toContain("Current step 1: plan-issues");
-      expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /feature-plan-issues.");
+      expect(pi.sentUserMessages[0].prompt).toContain(
+        "Execute this command: /feature-plan-issues.",
+      );
       expect(pi.sentUserMessages[0].prompt).toContain("Previous step outputs:");
       expect(pi.sentUserMessages[0].prompt).toContain(join(workdir, "feature.md"));
       expect(pi.sentUserMessages[0].prompt).toContain("Expected outputs:");
@@ -903,9 +903,7 @@ describe("/next", () => {
   });
 
   it("clears active state, deletes workflow artifacts, and starts a fresh session at the end by default", async () => {
-    const {
-      default: registerWorkflower,
-    } = await loadWorkflower();
+    const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const workdir = join(dir, ".pi", "workflows", "feature", "demo");
@@ -930,10 +928,7 @@ describe("/next", () => {
 
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
       await expect(access(workdir)).rejects.toThrow();
-      expect(ctx.notifications.at(-1)).toEqual([
-        "Workflow feature complete.",
-        "info",
-      ]);
+      expect(ctx.notifications.at(-1)).toEqual(["Workflow feature complete.", "info"]);
       expect(newSession).toHaveBeenCalledOnce();
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -941,10 +936,7 @@ describe("/next", () => {
   });
 
   it("preserves workflow artifacts on completion when cleanupOnCompletion is false", async () => {
-    const {
-      default: registerWorkflower,
-      registerWorkflow,
-    } = await loadWorkflower();
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const workdir = join(dir, ".pi", "workflows", "keep-artifacts-demo", "keep-artifacts-demo");
@@ -955,10 +947,10 @@ describe("/next", () => {
 
     try {
       registerWorkflow({
-          id: "keep-artifacts-demo",
-          cleanupOnCompletion: false,
-          steps: [{ id: "only", command: "/only", outputs: ["artifact.md"] }],
-        });
+        id: "keep-artifacts-demo",
+        cleanupOnCompletion: false,
+        steps: [{ id: "only", command: "/only", outputs: ["artifact.md"] }],
+      });
       await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "keep-artifacts-demo",
@@ -983,22 +975,25 @@ describe("/next", () => {
   });
 
   it("completes in the current session when clearOnCompletion is false", async () => {
-    const {
-      default: registerWorkflower,
-      registerWorkflow,
-    } = await loadWorkflower();
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
-    const workdir = join(dir, ".pi", "workflows", "same-session-completion-demo", "same-session-completion-demo");
+    const workdir = join(
+      dir,
+      ".pi",
+      "workflows",
+      "same-session-completion-demo",
+      "same-session-completion-demo",
+    );
     const pi = createPiHarness();
     const ctx = createCommandContext(dir, { newSession: vi.fn() });
 
     try {
       registerWorkflow({
-          id: "same-session-completion-demo",
-          clearOnCompletion: false,
-          steps: [{ id: "only", command: "/only" }],
-        });
+        id: "same-session-completion-demo",
+        clearOnCompletion: false,
+        steps: [{ id: "only", command: "/only" }],
+      });
       await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "same-session-completion-demo",
@@ -1025,10 +1020,7 @@ describe("/next", () => {
   });
 
   it("falls back to current-session completion when final-step auto-next completes", async () => {
-    const {
-      default: registerWorkflower,
-      registerWorkflow,
-    } = await loadWorkflower();
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const workdir = join(dir, ".pi", "workflows", "auto-complete-demo", "auto-complete-demo");
@@ -1037,9 +1029,9 @@ describe("/next", () => {
 
     try {
       registerWorkflow({
-          id: "auto-complete-demo",
-          steps: [{ id: "only", command: "/only", autoNext: true }],
-        });
+        id: "auto-complete-demo",
+        steps: [{ id: "only", command: "/only", autoNext: true }],
+      });
       await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "auto-complete-demo",
@@ -1103,9 +1095,7 @@ describe("/next", () => {
   });
 
   it("does not create a new session for next-step advancement when session creation would be cancelled", async () => {
-    const {
-      default: registerWorkflower,
-    } = await loadWorkflower();
+    const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const pi = createPiHarness();
@@ -1124,10 +1114,7 @@ describe("/next", () => {
       registerWorkflower(pi);
       await pi.commands.next.handler("", ctx);
 
-      expect(ctx.notifications.at(-1)).toEqual([
-        "Advanced workflow feature to step 1.",
-        "info",
-      ]);
+      expect(ctx.notifications.at(-1)).toEqual(["Advanced workflow feature to step 1.", "info"]);
       expect(ctx.newSession).not.toHaveBeenCalled();
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
@@ -1139,9 +1126,7 @@ describe("/next", () => {
   });
 
   it("does not create a new session for next-step advancement when session creation would fail", async () => {
-    const {
-      default: registerWorkflower,
-    } = await loadWorkflower();
+    const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
     const pi = createPiHarness();
@@ -1164,9 +1149,7 @@ describe("/next", () => {
       registerWorkflower(pi);
       await pi.commands.next.handler("", ctx);
 
-      expect(ctx.notifications).toEqual([
-        ["Advanced workflow feature to step 1.", "info"],
-      ]);
+      expect(ctx.notifications).toEqual([["Advanced workflow feature to step 1.", "info"]]);
       expect(ctx.newSession).not.toHaveBeenCalled();
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
@@ -1179,41 +1162,30 @@ describe("/next", () => {
 });
 
 describe("/wf:<id>", () => {
-  it("registers /wf:<id> and starts a known workflow in a fresh session", async () => {
+  it("registers /wf:<id> and starts a known workflow in the current session with a boundary", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
-    const ctx = createCommandContext(dir, {
-      newSession: async (options: any) => {
-        const replacementCtx = {
-          ...ctx,
-          ui: ctx.ui,
-          sendUserMessage: async (prompt: string) => {
-            if (prompt === "/wf-start-current-step") {
-              await pi.commands["wf-start-current-step"].handler("", replacementCtx);
-            }
-          },
-        };
-        await options.withSession(replacementCtx);
-        return { cancelled: false };
-      },
-    });
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
 
     try {
       registerWorkflower(pi);
       await pi.commands["wf:feature"].handler("release-notes", ctx);
 
+      expect(ctx.newSession).not.toHaveBeenCalled();
       expect(ctx.notifications).toContainEqual([
         "Started workflow feature as release-notes.",
         "info",
       ]);
-      await expect(
-        readFile(activeStatePath(dir), "utf8"),
-      ).resolves.toContain('"name": "release-notes"');
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        name: "release-notes",
+        contextBoundaryEntryId: "leaf-id",
+      });
       await expect(
         readFile(join(dir, ".pi", "workflows", "feature", "release-notes", ".keep"), "utf8"),
       ).resolves.toBe("");
       expect(pi.sentUserMessages).toHaveLength(1);
+      expect(pi.sentUserMessages[0].prompt).not.toBe("/wf-start-current-step");
       expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /feature-discovery.");
       expect(pi.sentUserMessages[0].prompt).toContain(
         join(dir, ".pi", "workflows", "feature", "release-notes", "feature.md"),
@@ -1231,10 +1203,10 @@ describe("/wf:<id>", () => {
 
     try {
       registerWorkflow({
-          id: "same-session-start-demo",
-          clearOnStart: false,
-          steps: [{ id: "first", command: "/first", outputs: ["first.md"] }],
-        });
+        id: "same-session-start-demo",
+        clearOnStart: false,
+        steps: [{ id: "first", command: "/first", outputs: ["first.md"] }],
+      });
       registerWorkflower(pi);
       await pi.commands["wf:same-session-start-demo"].handler("demo", ctx);
 
@@ -1242,9 +1214,9 @@ describe("/wf:<id>", () => {
       expect(pi.sentUserMessages).toHaveLength(1);
       expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: first");
       expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /first.");
-      await expect(
-        readFile(activeStatePath(dir), "utf8"),
-      ).resolves.toContain('"id": "same-session-start-demo"');
+      const state = await readActiveWorkflowState(activeStatePath(dir));
+      expect(state.id).toBe("same-session-start-demo");
+      expect(state).not.toHaveProperty("contextBoundaryEntryId");
       expect(ctx.notifications.at(-1)).toEqual([
         "Started workflow same-session-start-demo as demo.",
         "info",
@@ -1254,7 +1226,7 @@ describe("/wf:<id>", () => {
     }
   });
 
-  it("applies first-step model and thinking settings before a same-session start prompt", async () => {
+  it("applies first-step model and thinking settings before a default start prompt", async () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
@@ -1266,8 +1238,7 @@ describe("/wf:<id>", () => {
 
     try {
       registerWorkflow({
-        id: "same-session-runtime-settings-demo",
-        clearOnStart: false,
+        id: "default-runtime-settings-demo",
         steps: [
           {
             id: "first",
@@ -1278,8 +1249,9 @@ describe("/wf:<id>", () => {
         ],
       });
       registerWorkflower(pi);
-      await pi.commands["wf:same-session-runtime-settings-demo"].handler("demo", ctx);
+      await pi.commands["wf:default-runtime-settings-demo"].handler("demo", ctx);
 
+      expect(ctx.newSession).not.toHaveBeenCalled();
       expect(ctx.modelRegistry.find).toHaveBeenCalledWith("openai", "gpt-5.5-spark");
       expect(pi.setModelCalls).toEqual([model]);
       expect(pi.setThinkingLevelCalls).toEqual(["high"]);
@@ -1289,41 +1261,58 @@ describe("/wf:<id>", () => {
     }
   });
 
-  it("starts in a fresh session when clearOnStart is explicitly true", async () => {
+  it("creates a current-session boundary when clearOnStart is explicitly true", async () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
-    const ctx = createCommandContext(dir, {
-      newSession: async (options: any) => {
-        const replacementCtx = {
-          ...ctx,
-          ui: ctx.ui,
-          sendUserMessage: async (prompt: string) => {
-            if (prompt === "/wf-start-current-step") {
-              await pi.commands["wf-start-current-step"].handler("", replacementCtx);
-            }
-          },
-        };
-        await options.withSession(replacementCtx);
-        return { cancelled: false };
-      },
-    });
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
 
     try {
       registerWorkflow({
-          id: "fresh-session-start-demo",
-          clearOnStart: true,
-          steps: [{ id: "first", command: "/first", outputs: ["first.md"] }],
-        });
+        id: "fresh-session-start-demo",
+        clearOnStart: true,
+        steps: [{ id: "first", command: "/first", outputs: ["first.md"] }],
+      });
       registerWorkflower(pi);
       await pi.commands["wf:fresh-session-start-demo"].handler("demo", ctx);
 
+      expect(ctx.newSession).not.toHaveBeenCalled();
       expect(pi.sentUserMessages).toHaveLength(1);
       expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: first");
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        contextBoundaryEntryId: "leaf-id",
+      });
       expect(ctx.notifications).toContainEqual([
         "Started workflow fresh-session-start-demo as demo.",
         "info",
       ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("starts without a boundary when the current session has no leaf id", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      sessionManager: createSessionManager(dir, "session-id", { getLeafId: () => undefined }),
+    });
+
+    try {
+      registerWorkflow({
+        id: "no-start-boundary-demo",
+        steps: [{ id: "first", command: "/first" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:no-start-boundary-demo"].handler("demo", ctx);
+
+      expect(ctx.newSession).not.toHaveBeenCalled();
+      expect(pi.sentUserMessages).toHaveLength(1);
+      const state = await readActiveWorkflowState(activeStatePath(dir));
+      expect(state.id).toBe("no-start-boundary-demo");
+      expect(state).not.toHaveProperty("contextBoundaryEntryId");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1357,11 +1346,15 @@ describe("/wf:<id>", () => {
       await pi.commands["wf:session-scoped-demo"].handler("bravo", sessionB);
       await pi.commands.next.handler("", sessionA);
 
-      await expect(readActiveWorkflowState(activeStatePath(dir, "session-a"))).resolves.toMatchObject({
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "session-a")),
+      ).resolves.toMatchObject({
         name: "alpha",
         currentStepIndex: 1,
       });
-      await expect(readActiveWorkflowState(activeStatePath(dir, "session-b"))).resolves.toMatchObject({
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "session-b")),
+      ).resolves.toMatchObject({
         name: "bravo",
         currentStepIndex: 0,
       });
@@ -1452,7 +1445,7 @@ describe("/wf:<id>", () => {
     }
   });
 
-  it("reports filesystem and session creation failures clearly", async () => {
+  it("reports filesystem failures clearly", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const fsFailureDir = await mkdtemp(join(tmpdir(), "workflower-"));
     const fsFailureCwd = join(fsFailureDir, "not-a-directory");
@@ -1467,19 +1460,6 @@ describe("/wf:<id>", () => {
     } finally {
       await rm(fsFailureDir, { recursive: true, force: true });
     }
-
-    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
-    const sessionFailurePi = createPiHarness();
-    const sessionFailureCtx = createCommandContext(dir, {
-      newSession: async () => ({ cancelled: true }),
-    });
-    try {
-      registerWorkflower(sessionFailurePi);
-      await sessionFailurePi.commands["wf:feature"].handler("demo", sessionFailureCtx);
-      expect(sessionFailureCtx.notifications.at(-1)?.[0]).toMatch(/Session creation was cancelled/);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
   });
 });
 
@@ -1487,7 +1467,11 @@ function activeStatePath(cwd: string, sessionId = "session-id"): string {
   return join(cwd, ".pi", "tmp", "workflows", "active", `${sessionId}.json`);
 }
 
-function createSessionManager(cwd: string, sessionId = "session-id", overrides: Record<string, any> = {}): any {
+function createSessionManager(
+  cwd: string,
+  sessionId = "session-id",
+  overrides: Record<string, any> = {},
+): any {
   return {
     getSessionId: () => sessionId,
     getSessionFile: () => join(cwd, `${sessionId}.jsonl`),

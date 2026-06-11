@@ -11,18 +11,25 @@ export async function initializeWorkflowInSession(
   workflow: WorkflowDefinition,
   workflowName: string,
   ctx: WorkflowCommandContext,
+  initialContextBoundaryEntryId?: string,
 ): Promise<ActiveWorkflowState | undefined> {
   const sessionId = ctx.sessionManager.getSessionId();
   const activeStatePath = resolveActiveStatePath(ctx.cwd, sessionId);
   const paths = resolveWorkflowPaths(ctx.cwd, workflow.id, workflowName);
 
   if (await exists(activeStatePath)) {
-    ctx.ui.notify(`An active workflow already exists for this Pi session at ${activeStatePath}.`, "error");
+    ctx.ui.notify(
+      `An active workflow already exists for this Pi session at ${activeStatePath}.`,
+      "error",
+    );
     return undefined;
   }
 
   if (await exists(paths.workdir)) {
-    ctx.ui.notify(`Workflow name already exists for workflow ${workflow.id}: ${workflowName}.`, "error");
+    ctx.ui.notify(
+      `Workflow name already exists for workflow ${workflow.id}: ${workflowName}.`,
+      "error",
+    );
     return undefined;
   }
 
@@ -34,6 +41,7 @@ export async function initializeWorkflowInSession(
     name: workflowName,
     workdir: paths.workdir,
     currentStepIndex: 0,
+    contextBoundaryEntryId: initialContextBoundaryEntryId,
     startedAt: now,
     updatedAt: now,
   };

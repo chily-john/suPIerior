@@ -38,7 +38,9 @@ describe("createQuestionUiHarness", () => {
     });
     harness.ui.setStatus("question-session-help", "Explain the answer");
 
-    expect(harness.renderWidget("question-session-question", 80)).toEqual(["What should we build?"]);
+    expect(harness.renderWidget("question-session-question", 80)).toEqual([
+      "What should we build?",
+    ]);
     expect(harness.renderWidget("missing-widget", 80)).toEqual([]);
     expect(harness.screen(80)).toBe(
       [

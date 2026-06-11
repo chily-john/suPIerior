@@ -11,7 +11,10 @@ export async function applyWorkflowStepRuntimeSettings(
   if (step.model) {
     const resolved = resolveModelReference(step.model);
     if (!resolved) {
-      ctx.ui.notify(`Invalid workflow step model reference: ${step.model}. Expected provider/model-id.`, "error");
+      ctx.ui.notify(
+        `Invalid workflow step model reference: ${step.model}. Expected provider/model-id.`,
+        "error",
+      );
       return false;
     }
 

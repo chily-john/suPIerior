@@ -33,6 +33,7 @@ Before planning, read and apply:
    # Implementation Plan: <change name>
 
    ## Source summary
+
    <Briefly identify that this plan is derived from context-summary.md.>
 
    ## Outcome
@@ -40,6 +41,7 @@ Before planning, read and apply:
    ## Assumptions and open questions
 
    ## Affected areas
+
    - Packages:
    - Files likely to change:
    - Tests likely to change:
@@ -47,6 +49,7 @@ Before planning, read and apply:
    - Documentation / packaging:
 
    ## Acceptance criteria
+
    - [ ] <observable criterion>
 
    ## Vertical slices
@@ -56,28 +59,35 @@ Before planning, read and apply:
    #### Why this slice is vertical
 
    #### Red phase
+
    - [ ] Add failing behavioral test: <specific test file/case/assertion>
    - [ ] Run focused command: `<command>` and confirm the failure is behavioral.
 
    #### Green phase
+
    - [ ] Implement the smallest change that passes the red test.
 
    #### Refactor / docs phase
+
    - [ ] <Scoped cleanup or documentation update, or "None expected.">
 
    #### Validation
+
    - [ ] Run `<focused command>`.
 
    #### Dependencies
+
    - Blocked by: <None or previous slices>
    - Enables: <later slices, if any>
 
    ## Final validation
+
    - [ ] <package-local test/typecheck/lint/build command>
 
    ## Risks and mitigations
 
    ## Blocked states
+
    <Clarifications or conditions that should stop implementation instead of guessing.>
    ```
 

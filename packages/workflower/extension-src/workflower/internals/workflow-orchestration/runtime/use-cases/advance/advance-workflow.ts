@@ -78,7 +78,12 @@ async function advanceWorkflowInternal(
   if (!options.currentSession) return;
 
   try {
-    const sent = await startWorkflowStep(workflow, nextState, nextStepIndex, options.currentSession);
+    const sent = await startWorkflowStep(
+      workflow,
+      nextState,
+      nextStepIndex,
+      options.currentSession,
+    );
     if (sent) ctx.ui.notify(`Advanced workflow ${workflow.id} to step ${nextStepIndex}.`, "info");
   } catch {
     return;

@@ -1,7 +1,7 @@
 {
   "name": "@supierior/workflower",
   "version": "0.1.0-beta.0",
-  "description": "Pi workflow orchestrator package for starting registered workflows in fresh step sessions.",
+  "description": "Pi workflow orchestrator package for running registered workflows with context boundaries.",
   "keywords": [
     "pi-package",
     "pi",

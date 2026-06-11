@@ -23,10 +23,7 @@ export type ScopedWorkflowContext<TMessage> = {
 export async function buildScopedWorkflowContext<TEntry extends WorkflowContextEntry, TMessage>(
   input: BuildScopedWorkflowContextInput<TEntry, TMessage>,
 ): Promise<ScopedWorkflowContext<TMessage> | undefined> {
-  const activeStatePath = resolveActiveStatePath(
-    input.cwd,
-    input.sessionManager.getSessionId(),
-  );
+  const activeStatePath = resolveActiveStatePath(input.cwd, input.sessionManager.getSessionId());
   const state = await readActiveWorkflowState(activeStatePath).catch(() => undefined);
   const boundaryId = state?.contextBoundaryEntryId;
   if (!boundaryId) return undefined;

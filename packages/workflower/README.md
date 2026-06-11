@@ -40,9 +40,11 @@ Starting a workflow:
 
 1. looks up the registered workflow by id;
 2. creates a workdir at `.pi/workflows/<workflow-id>/<workflow-name>/`;
-3. opens a fresh Pi session with `ctx.newSession()` unless the workflow sets `clearOnStart: false`;
-4. writes durable active state for the selected Pi session to `.pi/tmp/workflows/active/<session-id>.json`; and
-5. sends the step-0 kickoff prompt inside the selected session.
+3. records a context boundary in the current Pi session unless the workflow sets `clearOnStart: false`;
+4. writes durable active state for the current Pi session to `.pi/tmp/workflows/active/<session-id>.json`; and
+5. sends the step-0 kickoff prompt inside the current session.
+
+`clearOnStart: false` preserves prior conversation context for the first step by disabling the start boundary. With the default start boundary, Workflower keeps the visible session but filters pre-start messages from model context through `contextBoundaryEntryId`.
 
 `<workflow-name>` must be a safe path segment because it becomes part of the workflow artifact path. Workflow names must be unique within a workflow id because artifacts are stored at `.pi/workflows/<workflow-id>/<workflow-name>/`. Missing arguments, extra arguments, unknown workflow ids, unsafe names, duplicate names for the same workflow id, and an already-active workflow in the current Pi session are reported with friendly error messages.
 

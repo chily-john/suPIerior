@@ -6,8 +6,11 @@ async function loadFeatureWorkflow(): Promise<Record<string, any>> {
 
 describe("feature-workflow package", () => {
   it("exports, registers, and initializes the feature workflows", async () => {
-    const { default: registerFeatureWorkflow, newFeatureWorkflow, takeItAwayWorkflow } =
-      await loadFeatureWorkflow();
+    const {
+      default: registerFeatureWorkflow,
+      newFeatureWorkflow,
+      takeItAwayWorkflow,
+    } = await loadFeatureWorkflow();
     const pi = createPiHarness();
 
     expect(newFeatureWorkflow).toEqual({

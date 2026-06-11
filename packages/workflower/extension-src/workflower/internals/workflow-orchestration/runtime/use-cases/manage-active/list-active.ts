@@ -26,7 +26,8 @@ export async function listWorkflowStates(ctx: WorkflowLifecycleCommandContext): 
     states
       .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
       .map((state) => {
-        const status = state.sessionId === currentSessionId ? "current session" : "stale/other session";
+        const status =
+          state.sessionId === currentSessionId ? "current session" : "stale/other session";
         return `${state.id} (${state.name}) step ${state.currentStepIndex} - ${status}\nWorkdir: ${state.workdir}`;
       })
       .join("\n\n"),

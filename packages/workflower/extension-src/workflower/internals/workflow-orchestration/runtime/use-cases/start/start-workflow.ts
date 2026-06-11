@@ -11,7 +11,7 @@ export async function startWorkflow(
   workflowId: string,
   args: string,
   ctx: WorkflowCommandContext,
-  currentSession?: CurrentSessionPromptSender,
+  currentSession: CurrentSessionPromptSender,
 ): Promise<void> {
   const parsed = parseWorkflowStartArgs(workflowId, args);
   if (!parsed.ok) {
@@ -30,30 +30,16 @@ export async function startWorkflow(
     return;
   }
 
-  if (workflow.clearOnStart === false && currentSession) {
-    const state = await initializeWorkflowInSession(workflow, parsed.workflowName, ctx);
-    if (!state) return;
+  const startBoundaryEntryId =
+    workflow.clearOnStart === false ? undefined : (ctx.sessionManager.getLeafId?.() ?? undefined);
+  const state = await initializeWorkflowInSession(
+    workflow,
+    parsed.workflowName,
+    ctx,
+    startBoundaryEntryId,
+  );
+  if (!state) return;
 
-    const sent = await startWorkflowStep(workflow, state, 0, currentSession).catch(() => false);
-    if (sent) ctx.ui.notify(`Started workflow ${workflow.id} as ${parsed.workflowName}.`, "info");
-    return;
-  }
-
-  let result: { cancelled?: boolean };
-  try {
-    result = await ctx.newSession({
-      withSession: async (replacementCtx) => {
-        const state = await initializeWorkflowInSession(workflow, parsed.workflowName, replacementCtx);
-        if (!state) return;
-
-        await replacementCtx.sendUserMessage("/wf-start-current-step");
-      },
-    });
-  } catch {
-    return;
-  }
-
-  if (result.cancelled) {
-    ctx.ui.notify("Session creation was cancelled before workflow start.", "error");
-  }
+  const sent = await startWorkflowStep(workflow, state, 0, currentSession).catch(() => false);
+  if (sent) ctx.ui.notify(`Started workflow ${workflow.id} as ${parsed.workflowName}.`, "info");
 }

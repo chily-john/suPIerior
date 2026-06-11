@@ -34,4 +34,5 @@ The public module is both the Pi extension entrypoint and the shared API externa
 - Keep workflow session-clearing behavior declarative through workflow and step flags such as `clearOnStart`, `clearOnNext`, and `clearOnCompletion`.
 - Apply step `model` and `thinkingLevel` runtime settings through the Pi adapter before sending a start, next, or auto-next step prompt.
 - Keep Pi adapter registration idempotent per `ExtensionAPI` and dispose generated workflow command listeners on `session_shutdown`.
+- Keep the Pi command surface to `/wf`, generated `/wf:<id>`, and `/next`; do not expose internal helper commands for orchestration.
 - Do not make workflow-specific behavior part of internal runtime layers; Workflower supplies runtime registration and command orchestration.

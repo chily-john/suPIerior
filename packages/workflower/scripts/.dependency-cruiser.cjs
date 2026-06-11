@@ -30,10 +30,13 @@ module.exports = {
     {
       name: "use-cases-no-sibling-private-types",
       severity: "error",
-      from: { path: "^extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/(advance|auto-next|generated-starts|manage-active|scope-context|start)/" },
+      from: {
+        path: "^extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/(advance|auto-next|generated-starts|manage-active|scope-context|start)/",
+      },
       to: {
         path: "^extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/(advance|auto-next|generated-starts|manage-active|scope-context|start)/.*\\.types\\.ts$",
-        pathNot: "^extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/($1)/",
+        pathNot:
+          "^extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/($1)/",
       },
     },
     {

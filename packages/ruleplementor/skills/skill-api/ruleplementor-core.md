@@ -15,7 +15,6 @@ Implement or evaluate requested changes with strict behavioral-red TDD, project-
    - if `.pi/rules/` exists, read only the matching `.pi/rules/**/*.md` files needed for those paths
    - read parent rules when needed to avoid missing cross-cutting constraints
 4. If no `.pi/rules/` system exists, continue using normal project context files such as `AGENTS.md`, README files, package manifests, and nearby tests.
-5. Do not manually update `.pi/rules` during implementation unless the user explicitly asks.
 6. Prefer existing project patterns over new abstractions.
 
 ## Strict Behavioral-Red TDD
@@ -29,7 +28,6 @@ These rules are mandatory for implementation workflows unless the wrapping skill
 - Do not add production APIs, exports, classes, or functions before valid red just to make a test compile.
 - If valid behavioral red is not possible, stop and ask the user. Do not proceed to production edits.
 - Keep scope tied to the requested change. Do not perform unrelated cleanup.
-- Ask before discarding or overwriting human work.
 
 ## Implementation Workflow
 

@@ -27,7 +27,7 @@ Enter here when changing named workflow orchestration, workflow registration API
 ## Package Rules
 
 - Workflower advances by explicit user intent or step-level `autoNext` and does not validate declared output files before `/next`.
-- Starts use a fresh session unless `clearOnStart: false`; non-final advancement keeps the visible session and clears model context through `contextBoundaryEntryId` unless `clearOnNext: false`.
+- Starts stay in the current visible session and clear model context through `contextBoundaryEntryId` unless `clearOnStart: false`; non-final advancement also keeps the visible session and clears model context through `contextBoundaryEntryId` unless `clearOnNext: false`.
 - Multiple active workflows are supported across different Pi sessions; `/next`, `/wf status`, and `/wf stop` operate on the current session's active workflow, while `/wf list` can surface stale/other-session active states.
 - Keep external workflow registration through `registerWorkflow` at the package root so contributed workflows share the same global registry as command handlers.
 - Keep Workflower runtime-only; workflow packages or `workflower-authoring` should provide workflows and companion skills.

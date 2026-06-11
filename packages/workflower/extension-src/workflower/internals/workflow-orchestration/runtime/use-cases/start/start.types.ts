@@ -6,10 +6,8 @@ export type WorkflowCommandContext = {
   sessionManager: {
     getSessionId(): string;
     getSessionFile(): string | undefined;
+    getLeafId?(): string | null | undefined;
   };
-  newSession(options: {
-    withSession(ctx: WorkflowCommandContext & CurrentSessionPromptSender): Promise<void>;
-  }): Promise<{ cancelled?: boolean }>;
 };
 
 export type ParsedStartArgs = { ok: true; workflowName: string } | { ok: false; message: string };

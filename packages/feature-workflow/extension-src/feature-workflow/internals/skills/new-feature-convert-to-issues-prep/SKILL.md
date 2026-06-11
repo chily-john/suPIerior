@@ -41,45 +41,56 @@ Before drafting issues, read and apply:
 10. Do not use generic labels like `type:feature`.
 11. Use this exact Markdown shape for each issue block:
 
-   ```markdown
-   # Issues for <feature name>
+```markdown
+# Issues for <feature name>
 
-   ---
-   title: "<short imperative title>"
-   labels:
-     - "feature:<short-feature-slug>"
-     - "mode:afk"
-     - "stream:<stream-name>"
-   blockedBy: []
-   dependents:
-     - "<title of issue that depends on this>"
-   ---
+---
 
-   ## Outcome
-   <What functional slice exists when this issue is done.>
+title: "<short imperative title>"
+labels:
 
-   ## Vertical slice
-   <Why this is independently useful and what user-visible or integration path it covers.>
+- "feature:<short-feature-slug>"
+- "mode:afk"
+- "stream:<stream-name>"
+  blockedBy: []
+  dependents:
+- "<title of issue that depends on this>"
 
-   ## Red phase
-   - [ ] Add failing test: <specific test>
+---
 
-   ## Green phase
-   - [ ] Implement the smallest change that passes the red test.
+## Outcome
 
-   ## Acceptance criteria
-   - [ ] <criterion>
+<What functional slice exists when this issue is done.>
 
-   ## Documentation
-   - [ ] <docs or README update, or "No documentation change required because ...">
+## Vertical slice
 
-   ## Dependencies
-   - Blocked by: <None or issue titles>
-   - Dependents: <None or issue titles>
+<Why this is independently useful and what user-visible or integration path it covers.>
 
-   ## Agent notes
-   <Relevant files, commands, risks, and implementation notes.>
-   ```
+## Red phase
+
+- [ ] Add failing test: <specific test>
+
+## Green phase
+
+- [ ] Implement the smallest change that passes the red test.
+
+## Acceptance criteria
+
+- [ ] <criterion>
+
+## Documentation
+
+- [ ] <docs or README update, or "No documentation change required because ...">
+
+## Dependencies
+
+- Blocked by: <None or issue titles>
+- Dependents: <None or issue titles>
+
+## Agent notes
+
+<Relevant files, commands, risks, and implementation notes.>
+```
 
 12. Separate issue blocks with `---` metadata delimiters as shown. Keep titles unique and stable because dependency fields refer to titles.
 13. Tell the user the file was written. This step is configured to advance automatically.
