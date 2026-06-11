@@ -1,6 +1,6 @@
 ---
 name: issue-implementor
-description: Implements GitHub issues end-to-end using strict behavioral-red TDD, project rules context, validation repair, and autonomous pull request creation. Use when asked to implement a ready GitHub issue.
+description: Implements GitHub issues end-to-end using strict behavioral-red TDD, project rules context, isolated worktrees, validation repair, and autonomous pull request creation. Use when asked to implement a ready GitHub issue.
 allowed-tools: read bash edit write
 ---
 
@@ -8,11 +8,17 @@ allowed-tools: read bash edit write
 
 ## Mission
 
-Implement one ready GitHub issue end-to-end. Use strict behavioral-red TDD, respect project rules, create a focused branch, make logical commits, run validation, repair related failures, push, and open a pull request.
+Implement one ready GitHub issue end-to-end. Fetch issue context, create an isolated worktree and focused branch, apply strict behavioral-red TDD, make logical commits, run validation, repair related failures, push, and open a pull request.
 
-This skill is autonomous: after the initial invocation, proceed without waiting for approval unless blocked by one of the explicit blocked states below.
+Before implementation work, read and apply the shared core guidance:
 
-## V1 Assumptions
+```text
+../skill-api/ruleplementor-core.md
+```
+
+This skill is autonomous after the issue is identified. Proceed without waiting for approval unless blocked by this skill or the shared core guidance.
+
+## Assumptions
 
 - GitHub Issues are the source of truth.
 - GitHub CLI (`gh`) is installed and authenticated.
@@ -40,22 +46,11 @@ Also valid:
 
 Extract the issue number from a bare number, `#123`, a GitHub issue URL, or freeform text containing one unambiguous issue reference. If no issue is provided or multiple issue references are present, ask which GitHub issue to implement.
 
-## Non-Negotiable Rules
-
-- Do not edit production or implementation code before valid behavioral red.
-- A valid red state must be a compiling/runnable behavioral test failure that demonstrates the requested behavior is missing, incorrect, or regressed.
-- TypeScript errors, missing imports, missing exports, syntax errors, test framework setup failures, environment failures, and unrelated failures do not count as valid red.
-- You may create or modify test files, fixtures, mocks, snapshots, helpers, and test configuration before red when needed to produce a meaningful behavioral test.
-- Do not add production APIs, exports, classes, or functions before valid red just to make a test compile.
-- If valid behavioral red is not possible, stop and ask the user. Do not proceed to production edits.
-- Keep scope tied to the issue. Do not perform unrelated cleanup.
-- Ask before discarding or overwriting human work.
-
 ## Workflow
 
 ### Phase 0 — Preconditions
 
-1. Confirm `gh` is available and authenticated when needed:
+1. Confirm `gh` is available and authenticated:
 
    ```bash
    gh auth status
@@ -103,58 +98,21 @@ If the issue-specific worktree path already exists, stop and ask before reusing,
 
 From this point forward, perform all file reads, edits, writes, tests, commits, pushes, and PR creation from the issue-specific worktree.
 
-### Phase 3 — Project Rules Context Preflight
+### Phase 3 — Core Implementation
 
-1. Treat injected project rules as authoritative.
-2. If relevant `.pi/rules` context was injected, use it and do not inspect the rules tree broadly.
-3. If no relevant rules were injected, or likely touched paths become clear only after reconnaissance:
-   - identify likely files or directories to touch
-   - if `.pi/rules/` exists, read only the matching `.pi/rules/**/*.md` files needed for those paths
-   - read parent rules when needed to avoid missing cross-cutting constraints
-4. If no `.pi/rules/` system exists, continue using normal project context files such as `AGENTS.md`, README files, package manifests, and nearby tests.
-5. Do not edit production files until this context check is complete.
-6. Do not manually update `.pi/rules` during implementation unless the user explicitly asks. A separate rules maintainer may run after the turn when `@supierior/pi-rules` is installed.
+Use `../skill-api/ruleplementor-core.md` for:
 
-### Phase 4 — Brief Plan
+- project rules context preflight
+- brief plan
+- strict behavioral-red TDD
+- green implementation
+- refactor
+- documentation and release artifact decisions
+- final validation and scoped repair
 
-Before creating the red test, state a concise plan with:
+The shared core non-negotiable TDD rules apply fully to this skill. Do not edit production or implementation code before a valid compiling/runnable behavioral red.
 
-- issue summary
-- likely package/files
-- relevant project rules loaded
-- test file/behavior to cover
-- expected behavioral red
-- focused test command
-- final validation commands likely to run
-
-Do not wait for approval unless blocked.
-
-### Phase 5 — Strict TDD Red
-
-1. Discover test conventions from nearby tests and relevant `package.json` scripts.
-2. Create or modify the smallest meaningful behavioral test for the issue.
-3. Create test fixtures, mocks, helpers, or test configuration as needed, following existing project conventions.
-4. Run the focused test command.
-5. Confirm valid behavioral red:
-   - the test file compiles/parses
-   - the focused test command runs
-   - the relevant test fails at an assertion, expectation, snapshot mismatch, or equivalent behavioral check
-   - the failure demonstrates the requested behavior is missing, incorrect, or regressed
-
-If the new test cannot reach behavioral red because of test setup, fix test setup without editing production behavior. If that is not possible, stop and ask.
-
-### Phase 6 — Green Implementation
-
-1. Make the minimal production change needed to pass the red test.
-2. Run the focused test command.
-3. Iterate until the focused test passes.
-4. If a new missing behavior emerges, return to Phase 5 and add or adjust a behavioral test before implementing it.
-
-### Phase 7 — Refactor
-
-Only refactor after focused tests are green. Keep refactors issue-scoped and re-run focused tests after refactoring.
-
-### Phase 8 — Commit Policy
+### Phase 4 — Commit Policy
 
 Use multiple logical commits when they improve reviewability.
 
@@ -174,59 +132,7 @@ Rules:
 - Do not push until the final branch state is green or until opening a documented draft PR for broader validation failures.
 - Before pushing, review `git log --oneline main..HEAD` and ensure the history is understandable.
 
-### Phase 9 — Documentation and Release Artifacts
-
-Update user-facing docs when:
-
-- the issue acceptance criteria require it
-- behavior or API changes would make existing docs incorrect
-- repository rules for the touched path require docs updates
-
-Do not create or modify release/versioning artifacts unless:
-
-- the issue explicitly requests it
-- repository rules require it
-- package policy clearly requires it for this kind of change
-
-If unsure whether a changeset or release note is needed, mention it in the PR under release/versioning impact instead of inventing one.
-
-### Phase 10 — Final Validation and Repair
-
-Discover validation commands before running them:
-
-1. Inspect the nearest relevant `package.json`.
-2. Inspect the root `package.json` when working in a workspace.
-3. Prefer focused package/file-level test commands during TDD.
-4. Prefer repository-standard validation before PR.
-
-When scripts exist, final validation should include the relevant focused tests and repository-standard commands. For this repository shape, that usually means:
-
-```bash
-pnpm test
-pnpm typecheck
-pnpm lint
-pnpm build
-pnpm format:check
-```
-
-Never mark a PR template checkbox unless the exact command was run and passed.
-
-If final validation fails:
-
-1. Determine whether each failure is related to this branch's changes.
-2. Fix related failures.
-3. Re-run the failed command after each fix.
-4. Do not fix unrelated pre-existing failures unless the user explicitly asks.
-5. Stop repairing when:
-   - the same command fails for the same reason after a fix attempt
-   - fixing requires unrelated cleanup
-   - fixing requires product/design clarification
-   - fixing would significantly expand scope
-   - the remaining failure appears pre-existing on `main`
-
-After behavioral green, validation fixes may touch production code only to correct issues introduced by the implementation, such as type errors, lint violations, build failures, broken imports/exports, or formatting. Do not expand feature scope during validation repair.
-
-### Phase 11 — Push and Pull Request
+### Phase 5 — Push and Pull Request
 
 Before pushing:
 
@@ -260,7 +166,7 @@ Use `Closes #<issue-number>` in the PR body when the implementation is intended 
 
 Do not remove the issue worktree automatically after opening the PR unless the user explicitly asks.
 
-### Phase 12 — Final Report
+### Phase 6 — Final Report
 
 Report:
 
@@ -274,7 +180,7 @@ Report:
 - final validation commands and outcomes
 - any draft PR blockers or follow-up notes
 
-## Blocked States
+## Additional Blocked States
 
 Stop and ask the user if:
 
@@ -283,17 +189,9 @@ Stop and ask the user if:
 - the isolated issue worktree cannot be created
 - the issue-specific worktree path already exists and the user has not approved reusing or replacing it
 - GitHub CLI/auth is unavailable
-- valid behavioral red cannot be created or observed
-- production edits would be required before valid behavioral red
-- fixing validation would require unrelated cleanup or significant scope expansion
 - product behavior is impossible to infer from the issue
 
-When blocked on strict TDD, report:
-
-1. behavior that needs testing
-2. test surface you inspected or created
-3. why strict TDD is blocked
-4. recommended options, such as creating a new test harness, authorizing a one-time implementation-first exception, or clarifying expected behavior
+When blocked on strict TDD, use the shared core blocked-state report format.
 
 ## PR Body Requirements
 
@@ -313,9 +211,4 @@ Include:
 
 ## Quality Bar
 
-- Prefer small, issue-focused changes.
-- Prefer existing project patterns over new abstractions.
-- Preserve existing behavior unless the issue requires changing it.
-- Keep tests behavioral, not implementation-detail-heavy.
-- Do not claim success unless commands were actually run and passed.
-- Do not hide failures; document them clearly in draft PRs and final reports.
+Use the shared core quality expectations. In particular, keep changes issue-scoped, preserve existing behavior unless the issue requires changing it, keep tests behavioral, and document failures honestly.

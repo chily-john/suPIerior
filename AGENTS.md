@@ -1,6 +1,6 @@
 # suPIerior Rules
 
-suPIerior Rules is a pnpm/Turborepo monorepo for Pi-focused rules/context packages and extensions. The active package is `@supierior/pi-rules`, a TypeScript Pi package for `.pi/rules` discovery, injection, commands, skills, and background rule maintenance; workflow guidance lives separately in `@supierior/dev-workflow`.
+suPIerior Rules is a pnpm/Turborepo monorepo for Pi-focused rules/context packages, workflow orchestration packages, and installable Pi skills. Packages are TypeScript Pi extensions unless their package rules say they are Markdown-only skill packages.
 
 This root context file contains a map of the codebase. The rest of the information —
 coding rules, directory-specific details, and component inventories — lives in
@@ -13,8 +13,10 @@ Use injected `.pi/rules` context as the first source of project-specific guidanc
 ├── packages/ # Workspace packages; enter before changing package-specific runtime, docs, or workflow assets
 │ ├── pi-rules/ # Pi package for hierarchical rules discovery, injection, commands, skills, and maintainer runtime
 │ ├── tui-tools/ # Reusable Pi TUI primitives for guided workflow packages
-│ ├── feature-flow/ # Pi package for the `/feature` guided discovery workflow and generated artifacts
-│ └── dev-workflow/ # Repository workflow docs, schemas, and reusable GitHub issue/PR templates
+│ ├── workflower/ # Pi package for named workflow orchestration and `/workflow` + `/next` commands
+│ ├── workflower-authoring/ # Markdown-only skill package for creating Workflower workflow packages
+│ ├── feature-workflow/ # Tiny Workflower greeting workflow smoke-test package
+│ └── ruleplementor/ # Markdown-only strict TDD GitHub issue implementation skill package
 ├── .changeset/ # Changesets release configuration; enter only for release/versioning workflow changes
 ├── package.json # Root workspace scripts delegated through Turborepo
 ├── pnpm-workspace.yaml # Workspace package discovery and pnpm build dependency policy
@@ -34,7 +36,7 @@ pnpm format
 pnpm format:check
 ```
 
-Package-local commands should also work from each package, especially `packages/pi-rules`.
+Package-local commands should also work from each package.
 
 ## Environment Variables
 
@@ -42,6 +44,6 @@ None required by this repository.
 
 ## Gotchas
 
-- Keep `packages/pi-rules` Pi-aware. If reusable rules logic is later extracted, move Pi-independent code into a separate package rather than diluting the extension package boundary.
-- Root `.pi/rules/` is the canonical rules tree for this monorepo; any package-local `.pi/rules/` content is stale and expected to be removed.
+- Root `.pi/rules/` is the canonical rules tree for this monorepo; package-local `.pi/rules/` content is stale unless explicitly being removed or migrated.
+- Keep Pi extension packages Pi-aware. If reusable logic becomes independent of Pi runtime APIs, extract it into a separate package rather than diluting extension boundaries.
 - Think before coding: state assumptions, ask on ambiguity, push back on unnecessarily complex approaches, and stop when confused rather than guessing.

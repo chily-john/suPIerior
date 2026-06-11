@@ -1,0 +1,16 @@
+import { defineConfig } from "tsup";
+
+const external = ["@mariozechner/pi-coding-agent", "@supierior/workflower"];
+
+export default defineConfig({
+  entry: { index: "extension-src/feature-workflow/index.ts" },
+  outDir: "dist",
+  format: ["esm", "cjs"],
+  platform: "node",
+  target: "node20",
+  dts: true,
+  sourcemap: true,
+  clean: true,
+  bundle: true,
+  external,
+});

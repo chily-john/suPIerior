@@ -5,7 +5,7 @@ import type {
 } from "@/domains/questions/shared/models/question-definition";
 import type { PiQuestionUi, PiWidgetComponent } from "./models/pi-question-ui";
 
-const promptWidgetKey = "feature-flow-question";
+const promptWidgetKey = "question-session-question";
 const defaultLoadingMessage = "Thinking…";
 
 export interface SessionLoadingOptions {

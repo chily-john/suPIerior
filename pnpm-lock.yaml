@@ -20,40 +20,17 @@ importers:
         specifier: ^2.5.2
         version: 2.9.9
 
-  packages/dev-workflow: {}
-
-  packages/feature-flow:
+  packages/feature-workflow:
     dependencies:
-      "@mariozechner/pi-ai":
-        specifier: "*"
-        version: 0.73.0(ws@8.20.0)(zod@4.4.3)
       "@mariozechner/pi-coding-agent":
         specifier: "*"
         version: 0.73.0(ws@8.20.0)(zod@4.4.3)
-      "@supierior/kanban-converters":
+      "@supierior/ruleplementor":
         specifier: workspace:*
-        version: link:../kanban-converters
-    devDependencies:
-      "@types/node":
-        specifier: ^22.15.0
-        version: 22.19.17
-      dependency-cruiser:
-        specifier: ^16.10.4
-        version: 16.10.4
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.1.3
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(postcss@8.5.14)(typescript@5.9.3)(yaml@2.8.4)
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-      vitest:
-        specifier: ^3.1.2
-        version: 3.2.4(@types/node@22.19.17)(yaml@2.8.4)
-
-  packages/kanban-converters:
+        version: link:../ruleplementor
+      "@supierior/workflower":
+        specifier: workspace:*
+        version: link:../workflower
     devDependencies:
       "@types/node":
         specifier: ^22.15.0
@@ -153,6 +130,8 @@ importers:
       vitest:
         specifier: ^3.1.2
         version: 3.2.4(@types/node@22.19.17)(yaml@2.8.4)
+
+  packages/workflower-authoring: {}
 
 packages:
   "@anthropic-ai/sdk@0.91.1":

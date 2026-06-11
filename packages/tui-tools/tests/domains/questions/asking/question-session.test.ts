@@ -153,7 +153,7 @@ describe("createQuestionSession", () => {
 
     expect(harness.events()).toEqual([
       "onTerminalInput unsubscribe",
-      "setWidget feature-flow-question cleared",
+      "setWidget question-session-question cleared",
       "working:visible false",
       "working:message default",
       "working:indicator",

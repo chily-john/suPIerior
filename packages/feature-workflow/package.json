@@ -1,0 +1,62 @@
+{
+  "name": "@supierior/feature-workflow",
+  "version": "0.1.0-beta.0",
+  "description": "Workflower package for turning feature ideas into reviewed GitHub issues or implementation plans.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "workflow",
+    "workflower",
+    "github-issues"
+  ],
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "extension-src/feature-workflow/internals/skills",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "pnpm run lint:deps",
+    "lint:deps": "depcruise extension-src --config scripts/.dependency-cruiser.cjs",
+    "clean": "rimraf dist coverage .turbo",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "@supierior/ruleplementor": "workspace:*",
+    "@supierior/workflower": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "dependency-cruiser": "^16.10.4",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/index.mjs"
+    ],
+    "skills": [
+      "./extension-src/feature-workflow/internals/skills",
+      "./node_modules/@supierior/ruleplementor/skills"
+    ]
+  }
+}

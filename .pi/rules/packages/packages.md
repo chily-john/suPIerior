@@ -7,24 +7,24 @@ triggers:
   - workspace package
   - monorepo package
   - packages/pi-rules
-  - packages/dev-workflow
   - packages/tui-tools
-  - packages/feature-flow
-  - packages/kanban-converters
+  - packages/feature-workflow
   - packages/ruleplementor
+  - packages/workflower
+  - packages/workflower-authoring
 ---
 
 # Packages
 
-Enter here when deciding which workspace package owns a change. Keep runtime Pi extension work in `pi-rules`; keep repository collaboration and process documentation in `dev-workflow`.
+Enter here when deciding which workspace package owns a change. Keep `.pi/rules` runtime behavior in `pi-rules`, reusable TUI primitives in `tui-tools`, workflow orchestration in `workflower`, and workflow-package authoring guidance in `workflower-authoring`.
 
 ## Subdirectories
 
 | Directory            | When to enter                                                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `dev-workflow/`      | Editing GitHub workflow docs, project-board guidance, release policy, schemas, or reusable issue/PR templates.                |
-| `feature-flow/`      | Changing the `/feature` guided discovery workflow or its generated feature/plan artifacts.                                    |
-| `kanban-converters/` | Changing reusable kanban conversion contracts or built-in GitHub issue publishing for feature workflows.                      |
+| `feature-workflow/`  | Changing the Workflower package that turns feature ideas into reviewed GitHub issues or implementation plans.                 |
 | `pi-rules/`          | Changing `.pi/rules` discovery, injection, commands, skills, package build metadata, or background rule-maintenance behavior. |
-| `ruleplementor/`     | Changing the strict TDD GitHub issue implementation skill package and its PR automation guidance.                             |
+| `ruleplementor/`     | Changing strict TDD implementation/review skill workflows, GitHub issue implementation, or PR review guidance.                |
 | `tui-tools/`         | Changing reusable Pi TUI question primitives for guided workflow packages.                                                    |
+| `workflower/`        | Changing named Pi workflow orchestration, workflow registry APIs, `/wf`, `/wf:<id>`, and `/next` commands, or workflow state/artifacts. |
+| `workflower-authoring/` | Changing the standalone skill package that helps agents scaffold Workflower workflow packages. |
