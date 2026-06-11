@@ -3,6 +3,10 @@ export type ActiveWorkflowState = {
   sessionFile?: string;
   id: string;
   name: string;
+  gardenName?: string;
+  gardenPath?: string;
+  activeFlowerName?: string;
+  activeFlowerPath?: string;
   workdir: string;
   currentStepIndex: number;
   contextBoundaryEntryId?: string | null;

@@ -9,13 +9,13 @@ import type { WorkflowCommandContext } from "./start.types";
 
 export async function initializeWorkflowInSession(
   workflow: WorkflowDefinition,
-  workflowName: string,
+  gardenName: string,
   ctx: WorkflowCommandContext,
   initialContextBoundaryEntryId?: string,
 ): Promise<ActiveWorkflowState | undefined> {
   const sessionId = ctx.sessionManager.getSessionId();
   const activeStatePath = resolveActiveStatePath(ctx.cwd, sessionId);
-  const paths = resolveWorkflowPaths(ctx.cwd, workflow.id, workflowName);
+  const paths = resolveWorkflowPaths(ctx.cwd, workflow.id, gardenName);
 
   if (await exists(activeStatePath)) {
     ctx.ui.notify(
@@ -25,9 +25,9 @@ export async function initializeWorkflowInSession(
     return undefined;
   }
 
-  if (await exists(paths.workdir)) {
+  if (await exists(paths.flowerPath)) {
     ctx.ui.notify(
-      `Workflow name already exists for workflow ${workflow.id}: ${workflowName}.`,
+      `Garden already has an initial flower for workflow ${workflow.id}: ${gardenName}.`,
       "error",
     );
     return undefined;
@@ -38,8 +38,12 @@ export async function initializeWorkflowInSession(
     sessionId,
     sessionFile: ctx.sessionManager.getSessionFile(),
     id: workflow.id,
-    name: workflowName,
-    workdir: paths.workdir,
+    name: gardenName,
+    gardenName,
+    gardenPath: paths.gardenPath,
+    activeFlowerName: paths.flowerName,
+    activeFlowerPath: paths.flowerPath,
+    workdir: paths.flowerPath,
     currentStepIndex: 0,
     contextBoundaryEntryId: initialContextBoundaryEntryId,
     startedAt: now,
@@ -47,8 +51,22 @@ export async function initializeWorkflowInSession(
   };
 
   try {
-    await mkdir(paths.workdir, { recursive: true });
-    await writeFile(join(paths.workdir, ".keep"), "", "utf8");
+    await mkdir(paths.flowerPath, { recursive: true });
+    await writeFile(
+      join(paths.flowerPath, "index.json"),
+      `${JSON.stringify(
+        {
+          status: "active",
+          workflowId: workflow.id,
+          flowerPath: paths.flowerPath,
+          pollen: [],
+          pollenPinned: false,
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
     await writeActiveWorkflowState(activeStatePath, state);
     return state;
   } catch (error) {

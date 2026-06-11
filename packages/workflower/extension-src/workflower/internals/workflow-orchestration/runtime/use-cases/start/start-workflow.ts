@@ -1,5 +1,5 @@
 import { findWorkflow } from "@orchestration/definitions/registry/global-registry";
-import { isSafeWorkflowName } from "@orchestration/runtime/artifacts/workflow-name-validation";
+import { isSafeWorkflowName as isSafeGardenName } from "@orchestration/runtime/artifacts/workflow-name-validation";
 import { startWorkflowStep } from "@orchestration/runtime/use-cases/start-step/start-workflow-step";
 import { initializeWorkflowInSession } from "./initialize-workflow-session";
 import { parseWorkflowStartArgs, workflowStartUsage } from "./parse-start-args";
@@ -25,8 +25,8 @@ export async function startWorkflow(
     return;
   }
 
-  if (!isSafeWorkflowName(parsed.workflowName)) {
-    ctx.ui.notify("Invalid workflow-name: workflow-name must be a safe path segment.", "error");
+  if (!isSafeGardenName(parsed.workflowName)) {
+    ctx.ui.notify("Invalid garden-name: garden-name must be a safe path segment.", "error");
     return;
   }
 

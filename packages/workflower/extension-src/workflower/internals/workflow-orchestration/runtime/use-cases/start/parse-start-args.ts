@@ -1,7 +1,7 @@
 import type { ParsedStartArgs } from "./start.types";
 
 export function workflowStartUsage(workflowId: string): string {
-  return `Usage: /wf:${workflowId} <workflow-name>`;
+  return `Usage: /wf:${workflowId} <garden-name>`;
 }
 
 export function parseWorkflowStartArgs(workflowId: string, args: string): ParsedStartArgs {
