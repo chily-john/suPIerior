@@ -29,7 +29,7 @@ Starting a workflow:
 4. opens a fresh Pi session with `ctx.newSession()`; and
 5. sends the step-0 kickoff prompt inside the replacement session.
 
-`<workflow-name>` must be a safe path segment because it becomes part of the workflow artifact path. Missing arguments, extra arguments, unknown workflow ids, unsafe names, and an already-active workflow are reported with friendly error messages.
+Workflow ids must use only lowercase ASCII letters, digits, underscores, and hyphens (`^[a-z0-9_-]+$`) so ids are safe for generated commands and future artifact folders. `<workflow-name>` must be a safe path segment because it becomes part of the workflow artifact path. Missing arguments, extra arguments, unknown workflow ids, unsafe names, and an already-active workflow are reported with friendly error messages.
 
 ### Inspect workflow status
 

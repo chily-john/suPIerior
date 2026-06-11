@@ -1,3 +1,5 @@
+import { assertValidWorkflowId } from "@domain/workflow-id-validation";
+
 export type WorkflowStep = {
   id: string;
   command: string;
@@ -11,5 +13,6 @@ export type WorkflowDefinition = {
 };
 
 export function defineWorkflow(workflow: WorkflowDefinition): WorkflowDefinition {
+  assertValidWorkflowId(workflow.id);
   return workflow;
 }

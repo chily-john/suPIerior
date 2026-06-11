@@ -19,16 +19,33 @@ describe("package smoke", () => {
 });
 
 describe("workflow definitions and registry", () => {
-  it("preserves workflow definitions without adding feature-specific behavior", async () => {
-    const { defineWorkflow } = await loadWorkflower();
-    const workflow = {
-      id: "demo",
-      type: "custom",
-      steps: [{ id: "first", command: "/demo", outputs: ["demo.md"] }],
-    };
+  it.each(["feature", "github_issue", "review-pr"])(
+    "allows folder-safe workflow id %s",
+    async (id) => {
+      const { defineWorkflow } = await loadWorkflower();
+      const workflow = {
+        id,
+        type: "custom",
+        steps: [{ id: "first", command: "/demo", outputs: ["demo.md"] }],
+      };
 
-    expect(defineWorkflow(workflow)).toEqual(workflow);
-  });
+      expect(defineWorkflow(workflow)).toEqual(workflow);
+    },
+  );
+
+  it.each(["github:issue", "Feature", "has space", "../bad", ""])(
+    "rejects unsafe workflow id %j",
+    async (id) => {
+      const { defineWorkflow } = await loadWorkflower();
+      const workflow = {
+        id,
+        type: "custom",
+        steps: [{ id: "first", command: "/demo", outputs: ["demo.md"] }],
+      };
+
+      expect(() => defineWorkflow(workflow)).toThrow(/Invalid workflow id/);
+    },
+  );
 
   it("finds the included feature-to-github-issues workflow", async () => {
     const { findWorkflow } = await loadWorkflower();
