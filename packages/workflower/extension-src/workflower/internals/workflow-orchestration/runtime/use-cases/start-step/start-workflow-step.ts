@@ -21,7 +21,7 @@ export async function startWorkflowStep(
   const kickoffPrompt = renderStepKickoffPrompt({
     id: workflow.id,
     name: state.name,
-    workdir: state.workdir,
+    workdir: state.activeFlowerPath ?? state.workdir,
     currentStepIndex: stepIndex,
     step,
     previousStep: workflow.steps[stepIndex - 1],
