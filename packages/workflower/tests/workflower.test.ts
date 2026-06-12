@@ -837,6 +837,172 @@ describe("/next", () => {
     }
   });
 
+  it("updates unpinned flower pollen from each completed step output without checking file existence", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const workdir = join(dir, ".pi", "workflows", "pollen-replace-demo", "pollen-replace-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      registerWorkflow({
+        id: "pollen-replace-demo",
+        steps: [
+          { id: "first", command: "/first", outputs: ["first.md"] },
+          { id: "second", command: "/second", outputs: ["second.md"] },
+          { id: "third", command: "/third" },
+        ],
+      });
+      await mkdir(workdir, { recursive: true });
+      await writeFile(
+        join(workdir, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "pollen-replace-demo", flowerPath: workdir, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "pollen-replace-demo",
+        name: "pollen-replace-demo",
+        workdir,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+      await expect(
+        readFile(join(workdir, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(workdir, "first.md")],
+        pollenPinned: false,
+      });
+
+      await pi.commands.next.handler("", ctx);
+      await expect(
+        readFile(join(workdir, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(workdir, "second.md")],
+        pollenPinned: false,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("pins configured pollen and preserves it when a later completed step has outputs", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const workdir = join(dir, ".pi", "workflows", "pollen-pin-demo", "pollen-pin-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      registerWorkflow({
+        id: "pollen-pin-demo",
+        pollen: "final.md",
+        cleanupOnCompletion: false,
+        clearOnCompletion: false,
+        steps: [
+          { id: "draft", command: "/draft", outputs: ["draft.md"] },
+          { id: "final", command: "/final", outputs: ["final.md"] },
+          { id: "later", command: "/later", outputs: ["later.md"] },
+        ],
+      });
+      await mkdir(workdir, { recursive: true });
+      await writeFile(
+        join(workdir, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "pollen-pin-demo", flowerPath: workdir, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "pollen-pin-demo",
+        name: "pollen-pin-demo",
+        workdir,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+      await expect(
+        readFile(join(workdir, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(workdir, "draft.md")],
+        pollenPinned: false,
+      });
+
+      await pi.commands.next.handler("", ctx);
+      await expect(
+        readFile(join(workdir, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(workdir, "final.md")],
+        pollenPinned: true,
+      });
+
+      await pi.commands.next.handler("", ctx);
+      await expect(
+        readFile(join(workdir, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(workdir, "final.md")],
+        pollenPinned: true,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("pins all configured pollen paths together when an array pollen output is completed", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const workdir = join(dir, ".pi", "workflows", "pollen-array-demo", "pollen-array-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      registerWorkflow({
+        id: "pollen-array-demo",
+        pollen: ["final.md", "notes.md"],
+        steps: [
+          { id: "final", command: "/final", outputs: ["final.md"] },
+          { id: "done", command: "/done" },
+        ],
+      });
+      await mkdir(workdir, { recursive: true });
+      await writeFile(
+        join(workdir, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "pollen-array-demo", flowerPath: workdir, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "pollen-array-demo",
+        name: "pollen-array-demo",
+        workdir,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+
+      await expect(
+        readFile(join(workdir, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(workdir, "final.md"), join(workdir, "notes.md")],
+        pollenPinned: true,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("advances blindly to the next step and sends previous-output handoff in the current session with a boundary", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));

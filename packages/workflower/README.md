@@ -75,6 +75,8 @@ A step can set `autoNext: true` to advance directly after an agent run completes
 
 Workflower intentionally advances blindly by user intent. It does not check whether output files exist, validate artifacts, or parse prompt text for state. Non-final advancement keeps the visible session and clears model context through `contextBoundaryEntryId` unless `clearOnNext: false`.
 
+Each successful `/next` records pollen in the active flower's `index.json` from the completed step's declared `outputs`. Pollen entries are absolute paths resolved inside the active flower folder. If the workflow does not set `pollen`, each completed step with outputs replaces unpinned pollen. If the workflow sets `pollen` to a string or string array, completing a step whose outputs include one of those configured paths pins pollen: string pollen writes that one absolute path, and array pollen writes all configured absolute paths together. Once `pollenPinned` is `true`, later step outputs do not replace it. Workflower does not check that pollen or output files exist.
+
 When `/next` advances beyond the final step, Workflower clears the current session's active state, deletes the completed workdir by default, and reports workflow completion. A workflow can preserve artifacts with `cleanupOnCompletion: false` and keep completion in the current session with `clearOnCompletion: false`.
 
 ## Register workflows from another package
@@ -90,6 +92,7 @@ const myWorkflow: WorkflowDefinition = {
   clearOnStart: false,
   clearOnCompletion: false,
   cleanupOnCompletion: false,
+  pollen: "second.md",
   steps: [
     {
       id: "first",
@@ -125,7 +128,7 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 - Flower index: `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`
 - Active state: `.pi/tmp/workflows/active/<session-id>.json`
 
-Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
+The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
 
 Workflow artifacts are not deleted by `/wf stop`. By default, `/next` completion deletes the completed workflow workdir; set `cleanupOnCompletion: false` on a workflow definition to preserve those artifacts.
 

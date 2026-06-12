@@ -5,6 +5,7 @@ import {
   writeActiveWorkflowState,
 } from "@orchestration/runtime/active-state/active-state-store";
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
+import { updateFlowerPollen } from "@orchestration/runtime/artifacts/flower-index-store";
 import { startWorkflowStep } from "@orchestration/runtime/use-cases/start-step/start-workflow-step";
 import type { CurrentSessionPromptSender } from "../workflow-runtime.types";
 import type { AdvanceWorkflowOptions, WorkflowAdvanceContext } from "./advance.types";
@@ -50,6 +51,18 @@ async function advanceWorkflowInternal(
     return;
   }
 
+  const previousStep = workflow.steps[state.currentStepIndex];
+  try {
+    await updateFlowerPollen({
+      flowerPath: state.activeFlowerPath ?? state.workdir,
+      workflow,
+      completedStep: previousStep,
+    });
+  } catch (error) {
+    ctx.ui.notify(`Failed to update flower pollen: ${formatError(error)}`, "error");
+    return;
+  }
+
   const nextStepIndex = state.currentStepIndex + 1;
   const nextStep = workflow.steps[nextStepIndex];
   if (!nextStep) {
@@ -57,7 +70,6 @@ async function advanceWorkflowInternal(
     return;
   }
 
-  const previousStep = workflow.steps[state.currentStepIndex];
   const nextState: ActiveWorkflowState = {
     ...state,
     currentStepIndex: nextStepIndex,
