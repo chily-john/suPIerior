@@ -602,21 +602,35 @@ describe("/next", () => {
   it("advances directly and sends a follow-up kickoff after an autoNext step agent run ends", async () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".pi", "workflows", "demo");
+    const activeFlowerPath = join(gardenPath, "0001-auto-next-demo");
+    const staleWorkdir = join(dir, ".pi", "workflows", "auto-next-demo", "demo");
     const pi = createPiHarness();
 
     try {
       registerWorkflow({
         id: "auto-next-demo",
         steps: [
-          { id: "first", command: "/first", autoNext: true },
-          { id: "second", command: "/second" },
+          { id: "first", command: "/first", autoNext: true, outputs: ["first.md"] },
+          { id: "second", command: "/second", outputs: ["second.md"] },
         ],
       });
-      await writeActiveWorkflowState(activeStatePath(dir), {
+      await mkdir(activeFlowerPath, { recursive: true });
+      await writeFile(
+        join(activeFlowerPath, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "auto-next-demo", flowerPath: activeFlowerPath, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "auto-next-demo",
         name: "demo",
-        workdir: join(dir, ".pi", "workflows", "auto-next-demo", "demo"),
+        gardenName: "demo",
+        gardenPath,
+        activeFlowerName: "0001-auto-next-demo",
+        activeFlowerPath,
+        workdir: staleWorkdir,
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T03:04:05.000Z",
@@ -625,12 +639,20 @@ describe("/next", () => {
       registerWorkflower(pi);
       await pi.handlers.agent_end[0]({ type: "agent_end" }, createCommandContext(dir));
 
-      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
         contextBoundaryEntryId: "leaf-id",
       });
+      await expect(
+        readFile(join(activeFlowerPath, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [join(activeFlowerPath, "first.md")],
+        pollenPinned: false,
+      });
       expect(pi.sentUserMessages).toHaveLength(1);
       expect(pi.sentUserMessages[0].prompt).toContain("Current step 1: second");
+      expect(pi.sentUserMessages[0].prompt).toContain(join(activeFlowerPath, "second.md"));
+      expect(pi.sentUserMessages[0].prompt).not.toContain(join(staleWorkdir, "second.md"));
       expect(pi.sentUserMessages[0].prompt).not.toBe("/next");
       expect(pi.sentUserMessages[0].options).toEqual({ deliverAs: "followUp" });
     } finally {
@@ -711,7 +733,11 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "feature",
         name: "demo",
-        workdir: join(dir, ".pi", "workflows", "feature", "demo"),
+        gardenName: "demo",
+        gardenPath: join(dir, ".pi", "workflows", "demo"),
+        activeFlowerName: "0001-feature",
+        activeFlowerPath: join(dir, ".pi", "workflows", "demo", "0001-feature"),
+        workdir: join(dir, ".pi", "workflows", "demo", "0001-feature"),
         currentStepIndex: 0,
         contextBoundaryEntryId: "entry-c",
         startedAt: "2026-01-02T03:04:05.000Z",
@@ -1375,7 +1401,9 @@ describe("/next", () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
-    const workdir = join(dir, ".pi", "workflows", "auto-complete-demo", "auto-complete-demo");
+    const gardenPath = join(dir, ".pi", "workflows", "auto-complete-demo");
+    const activeFlowerPath = join(gardenPath, "0001-auto-complete-demo");
+    const staleWorkdir = join(dir, ".pi", "workflows", "legacy-auto-complete-demo");
     const pi = createPiHarness();
     const ctx = createCommandContext(dir, { newSession: vi.fn() });
 
@@ -1388,18 +1416,28 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "auto-complete-demo",
         name: "auto-complete-demo",
-        workdir,
+        gardenName: "auto-complete-demo",
+        gardenPath,
+        activeFlowerName: "0001-auto-complete-demo",
+        activeFlowerPath,
+        workdir: staleWorkdir,
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T03:04:05.000Z",
       });
-      await mkdir(workdir, { recursive: true });
-      await writeFile(join(workdir, "artifact.md"), "artifact", "utf8");
+      await mkdir(activeFlowerPath, { recursive: true });
+      await writeFile(
+        join(activeFlowerPath, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "auto-complete-demo", flowerPath: activeFlowerPath, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeFile(join(activeFlowerPath, "artifact.md"), "artifact", "utf8");
       registerWorkflower(pi);
       await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
 
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
-      await expect(access(workdir)).rejects.toThrow();
+      await expect(access(activeFlowerPath)).rejects.toThrow();
+      await expect(access(gardenPath)).rejects.toThrow();
       expect(ctx.newSession).not.toHaveBeenCalled();
       expect(ctx.notifications.at(-1)).toEqual([
         "Workflow auto-complete-demo complete. Completion ran from auto-next, so session context was not cleared automatically.",
