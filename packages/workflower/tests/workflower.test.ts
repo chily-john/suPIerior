@@ -120,7 +120,12 @@ describe("paths, state, and prompts", () => {
   it("generates workdir and active-state paths under .pi", async () => {
     const paths = resolveWorkflowPaths("/repo", "feature", "release-notes");
 
-    expect(paths.workdir).toBe(join("/repo", ".pi", "workflows", "feature", "release-notes"));
+    expect(paths.gardenPath).toBe(join("/repo", ".pi", "workflows", "release-notes"));
+    expect(paths.flowerName).toBe("0001-feature");
+    expect(paths.flowerPath).toBe(
+      join("/repo", ".pi", "workflows", "release-notes", "0001-feature"),
+    );
+    expect(paths.workdir).toBe(join("/repo", ".pi", "workflows", "release-notes", "0001-feature"));
     expect(resolveActiveStatePath("/repo", "session-id")).toBe(activeStatePath("/repo"));
   });
 
@@ -1185,17 +1190,34 @@ describe("/wf:<id>", () => {
         "info",
       ]);
       await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
-        name: "release-notes",
+        id: "feature",
+        gardenName: "release-notes",
+        gardenPath: join(dir, ".pi", "workflows", "release-notes"),
+        activeFlowerName: "0001-feature",
+        activeFlowerPath: join(dir, ".pi", "workflows", "release-notes", "0001-feature"),
+        currentStepIndex: 0,
         contextBoundaryEntryId: "leaf-id",
       });
       await expect(
-        readFile(join(dir, ".pi", "workflows", "feature", "release-notes", ".keep"), "utf8"),
-      ).resolves.toBe("");
+        readFile(
+          join(dir, ".pi", "workflows", "release-notes", "0001-feature", "index.json"),
+          "utf8",
+        ).then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "active",
+        workflowId: "feature",
+        flowerPath: join(dir, ".pi", "workflows", "release-notes", "0001-feature"),
+        pollen: [],
+        pollenPinned: false,
+      });
+      await expect(
+        access(join(dir, ".pi", "workflows", "release-notes", "index.json")),
+      ).rejects.toThrow();
       expect(pi.sentUserMessages).toHaveLength(1);
       expect(pi.sentUserMessages[0].prompt).not.toBe("/wf-start-current-step");
       expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /feature-discovery.");
       expect(pi.sentUserMessages[0].prompt).toContain(
-        join(dir, ".pi", "workflows", "feature", "release-notes", "feature.md"),
+        join(dir, ".pi", "workflows", "release-notes", "0001-feature", "feature.md"),
       );
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -1395,7 +1417,7 @@ describe("/wf:<id>", () => {
       await pi.commands["wf:duplicate-name-demo"].handler("shared", sessionB);
 
       expect(sessionB.notifications.at(-1)).toEqual([
-        "Workflow name already exists for workflow duplicate-name-demo: shared.",
+        "Garden already has an initial flower for workflow duplicate-name-demo: shared.",
         "error",
       ]);
       await expect(access(activeStatePath(dir, "duplicate-name-b"))).rejects.toThrow();
@@ -1405,9 +1427,9 @@ describe("/wf:<id>", () => {
   });
 
   it.each([
-    ["", /Usage: \/wf:feature <workflow-name>/],
-    ["demo extra", /Usage: \/wf:feature <workflow-name>/],
-    ["../demo", /workflow-name must be a safe path segment/],
+    ["", /Usage: \/wf:feature <garden-name>/],
+    ["demo extra", /Usage: \/wf:feature <garden-name>/],
+    ["../demo", /garden-name must be a safe path segment/],
   ])("reports invalid start input %s", async (args, pattern) => {
     const { default: registerWorkflower } = await loadWorkflower();
     const pi = createPiHarness();

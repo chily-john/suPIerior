@@ -13,14 +13,14 @@ Workflower registers:
 Workflow command names are created automatically from registered workflow ids. For example, a workflow with id `feature` is started with:
 
 ```text
-/wf:feature <workflow-name>
+/wf:feature <garden-name>
 ```
 
 Namespaced workflow ids can use underscores or hyphens:
 
 ```text
-/wf:github_issue <workflow-name>
-/wf:review-pr <workflow-name>
+/wf:github_issue <garden-name>
+/wf:review-pr <garden-name>
 ```
 
 Workflow ids must match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, underscores, and hyphens only. Exact duplicate workflow ids are rejected during registration because they would create the same `/wf:<id>` command.
@@ -28,7 +28,7 @@ Workflow ids must match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, unders
 ## Start a workflow
 
 ```text
-/wf:<workflow-id> <workflow-name>
+/wf:<workflow-id> <garden-name>
 ```
 
 For example:
@@ -40,14 +40,14 @@ For example:
 Starting a workflow:
 
 1. looks up the registered workflow by id;
-2. creates a workdir at `.pi/workflows/<workflow-id>/<workflow-name>/`;
+2. creates the first flower at `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`;
 3. records a context boundary in the current Pi session unless the workflow sets `clearOnStart: false`;
 4. writes durable active state for the current Pi session to `.pi/tmp/workflows/active/<session-id>.json`; and
 5. sends the step-0 kickoff prompt inside the current session.
 
 `clearOnStart: false` preserves prior conversation context for the first step by disabling the start boundary. With the default start boundary, Workflower keeps the visible session but filters pre-start messages from model context through `contextBoundaryEntryId`.
 
-`<workflow-name>` must be a safe path segment because it becomes part of the workflow artifact path. Workflow names must be unique within a workflow id because artifacts are stored at `.pi/workflows/<workflow-id>/<workflow-name>/`. Missing arguments, extra arguments, unknown workflow ids, unsafe names, duplicate names for the same workflow id, and an already-active workflow in the current Pi session are reported with friendly error messages.
+`<garden-name>` is required when no workflow is active and must be a safe path segment because it becomes part of the workflow artifact path. The initial flower path is `.pi/workflows/<garden-name>/0001-<workflow-id>/`; there is no garden-level index file. Missing arguments, extra arguments, unknown workflow ids, unsafe names, duplicate initial flowers, and an already-active workflow in the current Pi session are reported with friendly error messages.
 
 ## Inspect or stop active workflow state
 
@@ -59,7 +59,7 @@ Starting a workflow:
 
 When no workflow is active in the current Pi session, `/wf status` reports that there is no active workflow. When a workflow is active, status shows the workflow id, name, workdir, and current step id/command. If the saved active state references a workflow id that is no longer registered, status reports that mismatch as a warning.
 
-`/wf stop` clears the current session's `.pi/tmp/workflows/active/<session-id>.json` state and reports which workflow was stopped. It does not delete workflow artifacts or generated files under `.pi/workflows/<workflow-id>/<workflow-name>/`; users can inspect, reuse, or remove those files manually.
+`/wf stop` clears the current session's `.pi/tmp/workflows/active/<session-id>.json` state and reports which workflow was stopped. It does not delete workflow artifacts or generated files under `.pi/workflows/<garden-name>/0001-<workflow-id>/`; users can inspect, reuse, or remove those files manually.
 
 `/wf list` shows all session-scoped active workflow states in the repo and marks entries outside the current Pi session as `stale/other session` so abandoned sessions are visible without automatically adopting them.
 
@@ -110,7 +110,7 @@ export default function myPackageExtension(): void {
 After registration, Workflower automatically exposes the start command:
 
 ```text
-/wf:custom-demo <workflow-name>
+/wf:custom-demo <garden-name>
 ```
 
 The Pi extension entry points at Workflower's public ESM module (`./dist/index.mjs`), and the registry is stored on `globalThis`, so command handlers and external package imports share the same in-process registry even when extension bundles load separately. Workflower registers `/wf:<workflow-id>` commands for workflows already present when the extension loads and for workflows contributed later in the same process.
@@ -121,10 +121,11 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 
 ## State and artifacts
 
-- Workdir: `.pi/workflows/<workflow-id>/<workflow-name>/`
+- Active flower workdir: `.pi/workflows/<garden-name>/0001-<workflow-id>/`
+- Flower index: `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`
 - Active state: `.pi/tmp/workflows/active/<session-id>.json`
 
-Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
+Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
 
 Workflow artifacts are not deleted by `/wf stop`. By default, `/next` completion deletes the completed workflow workdir; set `cleanupOnCompletion: false` on a workflow definition to preserve those artifacts.
 
