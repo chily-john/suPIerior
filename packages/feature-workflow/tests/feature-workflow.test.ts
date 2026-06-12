@@ -16,6 +16,7 @@ describe("feature-workflow package", () => {
     expect(newFeatureWorkflow).toEqual({
       id: "new-feature",
       cleanupOnCompletion: true,
+      pollen: "issues.md",
       steps: [
         { id: "grill", command: "/skill:new-feature-grill", clearOnNext: false },
         {
@@ -43,6 +44,7 @@ describe("feature-workflow package", () => {
       id: "take-it-away",
       cleanupOnCompletion: true,
       clearOnStart: false,
+      pollen: "implementation-review.md",
       steps: [
         {
           id: "summarize-context",

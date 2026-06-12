@@ -17,13 +17,13 @@ Workflow id: `new-feature`
 
 Use this workflow when you want to clarify a new feature from the beginning, generate reviewed GitHub issues, and publish them.
 
-Artifacts are written under the workflow workdir while the workflow is running:
+Artifacts are written under the workflow's flower directory while the workflow is running:
 
 ```text
-.pi/workflows/new-feature/<workflow-name>/
+.pi/workflows/<garden>/0001-new-feature/
 ```
 
-The workflow is configured to clean up its workdir on completion.
+The workflow pins `issues.md` as pollen so downstream flowers in the same garden can receive the reviewed issue artifact without users copying paths manually. The workflow is configured to clean up its workdir on completion.
 
 ### Steps
 
@@ -67,13 +67,13 @@ Workflow id: `take-it-away`
 
 Use this workflow after an organic conversation and exploration phase for a smaller change. It preserves the visible session on start so the first step can summarize the prior context, then clears context between auto-advanced steps so each step works from artifacts.
 
-Artifacts are written under the workflow workdir while the workflow is running:
+Artifacts are written under the workflow's flower directory while the workflow is running:
 
 ```text
-.pi/workflows/take-it-away/<workflow-name>/
+.pi/workflows/<garden>/0001-take-it-away/
 ```
 
-The workflow is configured to clean up its workdir on completion.
+When started as a downstream flower, this workflow accepts incoming pollen by default. It pins `implementation-review.md` as pollen so another flower can receive the implementation review artifact. The workflow is configured to clean up its workdir on completion.
 
 ### Steps
 
@@ -103,6 +103,14 @@ After discussing and exploring a smaller change with Pi, run:
 ```
 
 All steps are configured to auto-advance through summary, planning, plan review, implementation, and implementation review.
+
+To hand off from an active flower in the same garden, start `take-it-away` without a new garden name:
+
+```text
+/wf:take-it-away
+```
+
+Workflower will create the next flower, for example `.pi/workflows/demo/0002-take-it-away/`, and include the previous flower's pollen paths in the kickoff prompt.
 
 ## Useful Workflower commands
 
