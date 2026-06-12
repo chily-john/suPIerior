@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolveActiveStatePath } from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-paths";
@@ -1108,6 +1108,136 @@ describe("/next", () => {
       await expect(access(workdir)).rejects.toThrow();
       expect(ctx.notifications.at(-1)).toEqual(["Workflow feature complete.", "info"]);
       expect(newSession).toHaveBeenCalledOnce();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("removes a completed single-flower garden and clears active state by default", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".pi", "workflows", "single-garden");
+    const flowerPath = join(gardenPath, "0001-garden-single-completion-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "garden-single-completion-demo",
+        steps: [{ id: "only", command: "/only", outputs: ["artifact.md"] }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:garden-single-completion-demo"].handler("single-garden", ctx);
+      await writeFile(join(flowerPath, "artifact.md"), "artifact", "utf8");
+
+      await pi.commands.next.handler("", ctx);
+
+      await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
+      await expect(access(flowerPath)).rejects.toThrow();
+      await expect(access(gardenPath)).rejects.toThrow();
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Workflow garden-single-completion-demo complete.",
+        "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves handed-off flowers until final garden completion and then cleans up per workflow", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".pi", "workflows", "mixed-garden");
+    const firstFlower = join(gardenPath, "0001-garden-keep-source-demo");
+    const secondFlower = join(gardenPath, "0002-garden-clean-target-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const newSession = vi.spyOn(ctx, "newSession");
+
+    try {
+      registerWorkflow({
+        id: "garden-keep-source-demo",
+        cleanupOnCompletion: false,
+        clearOnStart: false,
+        steps: [{ id: "source", command: "/source", outputs: ["source.md"] }],
+      });
+      registerWorkflow({
+        id: "garden-clean-target-demo",
+        clearOnStart: false,
+        steps: [{ id: "target", command: "/target", outputs: ["target.md"] }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:garden-keep-source-demo"].handler("mixed-garden", ctx);
+      await writeFile(join(firstFlower, "source.md"), "source", "utf8");
+      await pi.commands["wf:garden-clean-target-demo"].handler("", ctx);
+
+      await expect(access(firstFlower)).resolves.toBeUndefined();
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        id: "garden-clean-target-demo",
+        activeFlowerPath: secondFlower,
+      });
+      await expect(
+        readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "handedOff",
+      });
+
+      await writeFile(join(secondFlower, "target.md"), "target", "utf8");
+      await pi.commands.next.handler("", ctx);
+
+      await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
+      await expect(access(firstFlower)).resolves.toBeUndefined();
+      await expect(access(join(secondFlower, "target.md"))).rejects.toThrow();
+      await expect(access(secondFlower)).rejects.toThrow();
+      await expect(readdir(gardenPath)).resolves.toEqual(["0001-garden-keep-source-demo"]);
+      await expect(readFile(join(firstFlower, "source.md"), "utf8")).resolves.toBe("source");
+      await expect(
+        readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "handedOff",
+        workflowId: "garden-keep-source-demo",
+      });
+      expect(newSession).toHaveBeenCalledOnce();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("marks the active flower completed before preserving it when cleanup is disabled", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const flowerPath = join(
+      dir,
+      ".pi",
+      "workflows",
+      "completed-status-garden",
+      "0001-garden-completed-status-demo",
+    );
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "garden-completed-status-demo",
+        cleanupOnCompletion: false,
+        steps: [{ id: "only", command: "/only" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:garden-completed-status-demo"].handler("completed-status-garden", ctx);
+
+      await pi.commands.next.handler("", ctx);
+
+      await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
+      await expect(
+        readFile(join(flowerPath, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "completed",
+        workflowId: "garden-completed-status-demo",
+      });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
