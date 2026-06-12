@@ -1,10 +1,10 @@
-import { access, mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, mkdir } from "node:fs/promises";
 import type { WorkflowDefinition } from "@package-api/workflow-definition.types";
 import { resolveActiveStatePath } from "@orchestration/runtime/active-state/active-state-paths";
 import { writeActiveWorkflowState } from "@orchestration/runtime/active-state/active-state-store";
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
 import { resolveWorkflowPaths } from "@orchestration/runtime/artifacts/artifact-paths";
+import { writeInitialFlowerIndex } from "@orchestration/runtime/artifacts/flower-index-store";
 import type { WorkflowCommandContext } from "./start.types";
 
 export async function initializeWorkflowInSession(
@@ -52,21 +52,7 @@ export async function initializeWorkflowInSession(
 
   try {
     await mkdir(paths.flowerPath, { recursive: true });
-    await writeFile(
-      join(paths.flowerPath, "index.json"),
-      `${JSON.stringify(
-        {
-          status: "active",
-          workflowId: workflow.id,
-          flowerPath: paths.flowerPath,
-          pollen: [],
-          pollenPinned: false,
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    );
+    await writeInitialFlowerIndex({ flowerPath: paths.flowerPath, workflowId: workflow.id });
     await writeActiveWorkflowState(activeStatePath, state);
     return state;
   } catch (error) {
