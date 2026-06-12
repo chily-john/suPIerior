@@ -4,6 +4,7 @@ export const takeItAwayWorkflow: WorkflowDefinition = {
   id: "take-it-away",
   cleanupOnCompletion: true,
   clearOnStart: false,
+  pollen: "implementation-review.md",
   steps: [
     {
       id: "summarize-context",
