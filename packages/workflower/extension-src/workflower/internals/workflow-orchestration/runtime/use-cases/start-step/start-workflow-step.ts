@@ -8,6 +8,7 @@ export async function startWorkflowStep(
   state: ActiveWorkflowState,
   stepIndex: number,
   promptSender: CurrentSessionPromptSender,
+  options: { incomingPollen?: string[] } = {},
 ): Promise<boolean> {
   const step = workflow.steps[stepIndex];
   if (!step) return false;
@@ -24,6 +25,7 @@ export async function startWorkflowStep(
     currentStepIndex: stepIndex,
     step,
     previousStep: workflow.steps[stepIndex - 1],
+    incomingPollen: workflow.acceptPollen === false ? undefined : options.incomingPollen,
   });
 
   await promptSender.sendUserMessage(kickoffPrompt);

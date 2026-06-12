@@ -7,4 +7,5 @@ export type StepKickoffPromptInput = {
   currentStepIndex: number;
   step: WorkflowStep;
   previousStep?: WorkflowStep;
+  incomingPollen?: string[];
 };
