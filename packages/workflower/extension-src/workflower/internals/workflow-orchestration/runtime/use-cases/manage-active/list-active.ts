@@ -28,7 +28,14 @@ export async function listWorkflowStates(ctx: WorkflowLifecycleCommandContext): 
       .map((state) => {
         const status =
           state.sessionId === currentSessionId ? "current session" : "stale/other session";
-        return `${state.id} (${state.name}) step ${state.currentStepIndex} - ${status}\nWorkdir: ${state.workdir}`;
+        const gardenName = state.gardenName ?? state.name;
+        const gardenPath = state.gardenPath;
+        const activeFlowerPath = state.activeFlowerPath ?? state.workdir;
+        return [
+          `${state.id} in garden ${gardenName} step ${state.currentStepIndex} - ${status}`,
+          ...(gardenPath ? [`Garden path: ${gardenPath}`] : []),
+          `Active flower path: ${activeFlowerPath}`,
+        ].join("\n");
       })
       .join("\n\n"),
     "info",
