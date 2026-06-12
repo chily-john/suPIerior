@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "echo \"No build for workflower-authoring\"",
-    "test": "echo \"No tests for workflower-authoring\"",
+    "test": "node tests/documentation-guidance.test.mjs",
     "typecheck": "echo \"No typecheck for workflower-authoring\"",
     "lint": "echo \"No lint for workflower-authoring\"",
     "clean": "rimraf dist coverage .turbo || true"

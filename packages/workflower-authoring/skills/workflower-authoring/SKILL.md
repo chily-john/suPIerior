@@ -10,19 +10,24 @@ Use this skill when the user wants a Workflower workflow created or changed.
 
 This is a standalone authoring skill. The user does not need to install or run `@supierior/workflower` just to use this skill. Generated workflow packages should depend on `@supierior/workflower` internally and initialize it from their extension entrypoint, so workflow users can install the generated workflow package rather than manually installing Workflower first.
 
-Workflower runs named multi-step workflows through `/wf:<workflow-id> <workflow-name>` and advances with `/next`. A workflow package usually registers a `WorkflowDefinition` from a Pi extension entrypoint and may ship companion skills used by each step.
+Workflower runs garden-scoped multi-step workflows. Start the first flower with `/wf:<workflow-id> <garden-name>`, hand off to another workflow while active with `/wf:<next-workflow-id>`, and advance steps with `/next`. A workflow package usually registers a `WorkflowDefinition` from a Pi extension entrypoint and may ship companion skills used by each step.
 
 ## First, clarify the workflow
 
 Ask only for missing information. Gather:
 
 1. Workflow id, for example `feature`, `github_issue`, or `release-notes`.
-2. What the workflow should accomplish.
-3. Step list, including each step's purpose.
-4. Command for each step. Prefer `/skill:<skill-name>` when the step should be implemented by a bundled skill.
-5. Expected output files for each step, if any.
-6. Lifecycle preferences:
-   - preserve artifacts after completion? Set `cleanupOnCompletion: false`.
+2. Initial garden name example for README smoke tests, such as `demo-garden`.
+3. What the workflow should accomplish.
+4. Step list, including each step's purpose.
+5. Command for each step. Prefer `/skill:<skill-name>` when the step should be implemented by a bundled skill.
+6. Expected output files for each step, if any.
+7. Pollen behavior:
+   - pass the latest completed step outputs by default when handing off to another workflow;
+   - set workflow-level `pollen` when only specific output path(s) should be pinned and handed off;
+   - set workflow-level `acceptPollen: false` when a workflow should ignore incoming pollen paths from a previous flower.
+8. Lifecycle preferences:
+   - preserve artifacts after final garden completion? Set `cleanupOnCompletion: false`.
    - keep same visible session on start? Set `clearOnStart: false`.
    - keep same visible session on completion? Set `clearOnCompletion: false`.
    - keep context between specific steps? Set that step's `clearOnNext: false`.
@@ -32,8 +37,10 @@ Ask only for missing information. Gather:
 
 Before writing files:
 
-- Workflow id must be command-safe: non-empty, no whitespace/control characters, not start with `/`, not start with `wf:`, and avoid quotes, backticks, backslashes, pipes, angle brackets, braces, and square brackets.
-- Workflow name is provided by the user at runtime and becomes `.pi/workflows/<workflow-id>/<workflow-name>/`.
+- Workflow ids must be folder-safe and match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, underscores, and hyphens only. Do not use colon-separated, uppercase, whitespace, slash, dot-segment, or quoted ids.
+- The initial garden name is provided by the user at runtime with `/wf:<workflow-id> <garden-name>` and becomes `.pi/workflows/<garden-name>/`.
+- The first workflow execution creates a flower workdir like `.pi/workflows/<garden-name>/0001-<workflow-id>/` and a flower index at `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`.
+- While a workflow is active, hand off to another workflow with `/wf:<next-workflow-id>` and no garden name; Workflower creates the next flower in the same garden, such as `.pi/workflows/<garden-name>/0002-<next-workflow-id>/`.
 - Step ids should be short, stable, lowercase kebab-case.
 - Step commands should exist or be created as bundled skills/commands.
 - Output paths should be relative file paths under the workflow workdir.
@@ -93,6 +100,8 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 export const myWorkflow: WorkflowDefinition = {
   id: "my-workflow",
   cleanupOnCompletion: false,
+  pollen: "second-step.md",
+  acceptPollen: true,
   steps: [
     {
       id: "first-step",
@@ -125,6 +134,8 @@ export default function myWorkflowExtension(pi: ExtensionAPI): void {
 
 Use `setupWorkflower(pi)` in workflow packages so installing the workflow package also initializes Workflower's `/wf`, `/wf:<id>`, and `/next` commands.
 
+Workflow-level `pollen?: string | string[]` pins the output path or paths that should be referenced when another workflow is started in the same garden. If omitted, completed step outputs become unpinned pollen as `/next` advances. Workflow-level `acceptPollen?: boolean` defaults to `true`; set `acceptPollen: false` when a workflow should not receive previous flower pollen paths in its kickoff prompt. Pollen paths are referenced from the previous flower's `index.json`; files are not copied into the new flower.
+
 ## Step skill template
 
 ```markdown
@@ -144,7 +155,7 @@ Describe the concrete outcome of this step.
 
 ## Instructions
 
-1. Use the workflow kickoff prompt for the workflow id, name, workdir, previous outputs, and expected output paths.
+1. Use the workflow kickoff prompt for the workflow id, garden name, active flower workdir, previous pollen paths, previous outputs, and expected output paths.
 2. Create the declared output file: `first-step.md`.
 3. Write the file at the absolute expected output path shown in the kickoff prompt. If no absolute path is visible, write it relative to the current working directory.
 4. Tell the user what was written and, unless this step has `autoNext: true`, tell them to inspect the output and run `/next` when ready.
@@ -174,16 +185,22 @@ For published packages outside this monorepo, replace `workspace:*` with a real 
 
 ## README smoke test
 
-Document how to run the workflow:
+Document how to run the workflow from a fresh session:
 
 ```text
-/wf:<workflow-id> demo
+/wf:<workflow-id> <garden-name>
 ```
 
 Then after each non-auto step:
 
 ```text
 /next
+```
+
+If the README demonstrates chaining to another workflow while active, use the handoff form with no garden name:
+
+```text
+/wf:<next-workflow-id>
 ```
 
 Also mention:
@@ -197,8 +214,11 @@ Also mention:
 and where artifacts are written:
 
 ```text
-.pi/workflows/<workflow-id>/<workflow-name>/
+.pi/workflows/<garden-name>/0001-<workflow-id>/
+.pi/workflows/<garden-name>/0001-<workflow-id>/index.json
 ```
+
+Cleanup waits until the whole garden completes. Handoffs preserve earlier flowers so their pollen can be referenced by later workflows; final `/next` cleanup applies each flower's producing workflow `cleanupOnCompletion` setting.
 
 ## Final checklist
 
@@ -209,5 +229,9 @@ Before finishing:
 - Every `/skill:<name>` command has a matching bundled skill.
 - Skill instructions and workflow `outputs` agree.
 - The package manifest loads both extension and skills.
-- The README includes a copy-paste smoke test.
+- The README includes a copy-paste smoke test using `/wf:<workflow-id> <garden-name>`.
+- The README and bundled skills explain active handoff with `/wf:<next-workflow-id>` when relevant.
+- Artifact examples use `.pi/workflows/<garden-name>/0001-<workflow-id>/` flower paths and mention `index.json`.
+- Workflow-level `pollen` and `acceptPollen` choices are documented when handoff behavior matters.
+- Cleanup timing is clear: flower artifacts are cleaned only after final garden completion, not during handoff.
 - Run package-local validation when practical: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`.
