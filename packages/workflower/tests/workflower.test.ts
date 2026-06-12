@@ -1650,12 +1650,16 @@ describe("/wf:<id>", () => {
         workdir: secondFlower,
         currentStepIndex: 0,
       });
-      await expect(readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse)).resolves.toMatchObject({
+      await expect(
+        readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
         status: "handedOff",
         workflowId: "handoff-source-demo",
         pollen: [pollenPath],
       });
-      await expect(readFile(join(secondFlower, "index.json"), "utf8").then(JSON.parse)).resolves.toMatchObject({
+      await expect(
+        readFile(join(secondFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
         status: "active",
         workflowId: "handoff-target-demo",
         pollen: [],
@@ -1757,7 +1761,9 @@ describe("/wf:<id>", () => {
         gardenName: "existing",
         activeFlowerName: "0001-feature",
       });
-      await expect(access(join(dir, ".pi", "workflows", "existing", "0002-active-current-session-demo"))).rejects.toThrow();
+      await expect(
+        access(join(dir, ".pi", "workflows", "existing", "0002-active-current-session-demo")),
+      ).rejects.toThrow();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -4,7 +4,10 @@ import type { WorkflowDefinition } from "@package-api/workflow-definition.types"
 import { resolveActiveStatePath } from "@orchestration/runtime/active-state/active-state-paths";
 import { writeActiveWorkflowState } from "@orchestration/runtime/active-state/active-state-store";
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
-import { markFlowerHandedOff, writeInitialFlowerIndex } from "@orchestration/runtime/artifacts/flower-index-store";
+import {
+  markFlowerHandedOff,
+  writeInitialFlowerIndex,
+} from "@orchestration/runtime/artifacts/flower-index-store";
 import type { WorkflowCommandContext } from "./start.types";
 
 export type WorkflowHandoffResult = {

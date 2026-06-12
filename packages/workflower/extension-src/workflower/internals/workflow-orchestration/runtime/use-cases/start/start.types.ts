@@ -10,8 +10,6 @@ export type WorkflowCommandContext = {
   };
 };
 
-export type ParsedStartArgs =
-  | { ok: true; workflowName?: string }
-  | { ok: false; message: string };
+export type ParsedStartArgs = { ok: true; workflowName?: string } | { ok: false; message: string };
 
 export type { CurrentSessionPromptSender };
