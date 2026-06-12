@@ -87,7 +87,7 @@ Each successful `/next` records pollen in the active flower's `index.json` from 
 
 During a handoff, the new workflow's kickoff prompt lists the previous flower's indexed pollen paths when the new workflow accepts pollen. Set `acceptPollen: false` on a workflow definition to omit incoming pollen from handoff kickoff prompts. Pollen files are referenced by path only and are not copied into the new flower.
 
-When `/next` advances beyond the final step, Workflower clears the current session's active state, deletes the completed workdir by default, and reports workflow completion. A workflow can preserve artifacts with `cleanupOnCompletion: false` and keep completion in the current session with `clearOnCompletion: false`.
+When `/next` advances beyond the final step of the active flower, Workflower completes the whole garden: it marks the active flower index as `completed`, clears the current session's active state, applies each flower's producing workflow `cleanupOnCompletion` setting, removes the garden directory if cleanup leaves it empty, and reports workflow completion. Handoffs do not clean up previous flowers; cleanup waits until final garden completion. A workflow can preserve its flower artifacts with `cleanupOnCompletion: false`, and the active workflow can keep completion in the current session with `clearOnCompletion: false`.
 
 ## Register workflows from another package
 
@@ -141,7 +141,7 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 
 The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
 
-Workflow artifacts are not deleted by `/wf stop`. By default, `/next` completion deletes the completed workflow workdir; set `cleanupOnCompletion: false` on a workflow definition to preserve those artifacts.
+Workflow artifacts are not deleted by `/wf stop`. Handoffs preserve earlier flowers in the garden. At final `/next` completion, Workflower evaluates each flower's `workflowId`, looks up that workflow definition, deletes flower artifacts by default, preserves flowers whose producing workflow sets `cleanupOnCompletion: false`, and removes the garden directory only when it becomes empty.
 
 ## Development and validation
 

@@ -73,6 +73,13 @@ export async function markFlowerHandedOff(flowerPath: string): Promise<string[]>
   return index.pollen;
 }
 
+export async function markFlowerCompleted(flowerPath: string): Promise<void> {
+  const index = await readFlowerIndex(flowerPath);
+  if (!index) return;
+
+  await writeFlowerIndex(flowerPath, { ...index, status: "completed" });
+}
+
 function isMissingFileError(error: unknown): boolean {
   return (
     typeof error === "object" &&
