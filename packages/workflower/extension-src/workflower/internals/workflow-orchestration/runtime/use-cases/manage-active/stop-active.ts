@@ -13,9 +13,11 @@ export async function stopWorkflow(ctx: WorkflowLifecycleCommandContext): Promis
     return;
   }
 
+  const gardenName = state.gardenName ?? state.name;
+
   await deleteActiveWorkflowState(activeStatePath);
   ctx.ui.notify(
-    `Stopped workflow ${state.id} (${state.name}). Workflow artifacts were not deleted.`,
+    `Stopped workflow ${state.id} in garden ${gardenName}. Garden and flower artifacts were not deleted.`,
     "info",
   );
 }

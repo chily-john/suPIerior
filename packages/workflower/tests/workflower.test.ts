@@ -340,10 +340,11 @@ describe("/next", () => {
     }
   });
 
-  it("shows active workflow details including the current step", async () => {
+  it("shows active garden and flower details including the current step", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
-    const workdir = join(dir, ".pi", "workflows", "feature", "release-notes");
+    const gardenPath = join(dir, ".pi", "workflows", "release-notes");
+    const activeFlowerPath = join(gardenPath, "0001-feature");
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
 
@@ -352,7 +353,11 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "feature",
         name: "release-notes",
-        workdir,
+        gardenName: "release-notes",
+        gardenPath,
+        activeFlowerName: "0001-feature",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
         currentStepIndex: 1,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T04:05:06.000Z",
@@ -364,8 +369,9 @@ describe("/next", () => {
       const [message, level] = ctx.notifications.at(-1) ?? [];
       expect(level).toBe("info");
       expect(message).toContain("Active workflow: feature");
-      expect(message).toContain("Name: release-notes");
-      expect(message).toContain(`Workdir: ${workdir}`);
+      expect(message).toContain("Garden: release-notes");
+      expect(message).toContain(`Garden path: ${gardenPath}`);
+      expect(message).toContain(`Active flower path: ${activeFlowerPath}`);
       expect(message).toContain("Current step 1: plan-issues");
       expect(message).toContain("Command: /feature-plan-issues");
     } finally {
@@ -408,6 +414,13 @@ describe("/next", () => {
   it("reports active state that references a missing workflow definition", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const activeFlowerPath = join(
+      dir,
+      ".pi",
+      "workflows",
+      "release-notes",
+      "0001-missing-workflow",
+    );
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
 
@@ -416,7 +429,11 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "missing-workflow",
         name: "release-notes",
-        workdir: join(dir, ".pi", "workflows", "feature", "release-notes"),
+        gardenName: "release-notes",
+        gardenPath: join(dir, ".pi", "workflows", "release-notes"),
+        activeFlowerName: "0001-missing-workflow",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T04:05:06.000Z",
@@ -428,6 +445,7 @@ describe("/next", () => {
       expect(ctx.notifications.at(-1)?.[0]).toMatch(
         /Active workflow references unknown workflow id: missing-workflow/,
       );
+      expect(ctx.notifications.at(-1)?.[0]).toContain(`Active flower path: ${activeFlowerPath}`);
       expect(ctx.notifications.at(-1)?.[1]).toBe("warning");
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -450,12 +468,13 @@ describe("/next", () => {
     }
   });
 
-  it("clears active workflow state without deleting workflow artifacts", async () => {
+  it("clears active workflow state without deleting garden or flower artifacts", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
-    const workdir = join(dir, ".pi", "workflows", "feature", "release-notes");
-    const artifactPath = join(workdir, "feature.md");
+    const gardenPath = join(dir, ".pi", "workflows", "release-notes");
+    const activeFlowerPath = join(gardenPath, "0001-feature");
+    const artifactPath = join(activeFlowerPath, "feature.md");
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
 
@@ -464,12 +483,16 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "feature",
         name: "release-notes",
-        workdir,
+        gardenName: "release-notes",
+        gardenPath,
+        activeFlowerName: "0001-feature",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T04:05:06.000Z",
       });
-      await mkdir(workdir, { recursive: true });
+      await mkdir(activeFlowerPath, { recursive: true });
       await writeFile(artifactPath, "artifact", "utf8");
 
       registerWorkflower(pi);
@@ -477,8 +500,10 @@ describe("/next", () => {
 
       await expect(access(statePath)).rejects.toThrow();
       await expect(readFile(artifactPath, "utf8")).resolves.toBe("artifact");
+      await expect(access(gardenPath)).resolves.toBeUndefined();
+      await expect(access(activeFlowerPath)).resolves.toBeUndefined();
       expect(ctx.notifications.at(-1)).toEqual([
-        "Stopped workflow feature (release-notes). Workflow artifacts were not deleted.",
+        "Stopped workflow feature in garden release-notes. Garden and flower artifacts were not deleted.",
         "info",
       ]);
     } finally {
@@ -486,9 +511,11 @@ describe("/next", () => {
     }
   });
 
-  it("lists current-session and stale workflow states", async () => {
+  it("lists current-session and stale workflow states by garden and flower", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const currentFlowerPath = join(dir, ".pi", "workflows", "current", "0001-feature");
+    const staleFlowerPath = join(dir, ".pi", "workflows", "stale-garden", "0002-feature");
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
 
@@ -497,7 +524,11 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "feature",
         name: "current",
-        workdir: join(dir, ".pi", "workflows", "feature", "current"),
+        gardenName: "current",
+        gardenPath: join(dir, ".pi", "workflows", "current"),
+        activeFlowerName: "0001-feature",
+        activeFlowerPath: currentFlowerPath,
+        workdir: currentFlowerPath,
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T03:04:05.000Z",
@@ -506,7 +537,11 @@ describe("/next", () => {
         sessionId: "other-session",
         id: "feature",
         name: "stale",
-        workdir: join(dir, ".pi", "workflows", "feature", "stale"),
+        gardenName: "stale-garden",
+        gardenPath: join(dir, ".pi", "workflows", "stale-garden"),
+        activeFlowerName: "0002-feature",
+        activeFlowerPath: staleFlowerPath,
+        workdir: staleFlowerPath,
         currentStepIndex: 1,
         startedAt: "2026-01-02T04:05:06.000Z",
         updatedAt: "2026-01-02T04:05:06.000Z",
@@ -515,10 +550,14 @@ describe("/next", () => {
       registerWorkflower(pi);
       await pi.commands.wf.handler("list", ctx);
 
-      expect(ctx.notifications.at(-1)?.[0]).toContain("feature (current) step 0 - current session");
       expect(ctx.notifications.at(-1)?.[0]).toContain(
-        "feature (stale) step 1 - stale/other session",
+        "feature in garden current step 0 - current session",
       );
+      expect(ctx.notifications.at(-1)?.[0]).toContain(`Active flower path: ${currentFlowerPath}`);
+      expect(ctx.notifications.at(-1)?.[0]).toContain(
+        "feature in garden stale-garden step 1 - stale/other session",
+      );
+      expect(ctx.notifications.at(-1)?.[0]).toContain(`Active flower path: ${staleFlowerPath}`);
       expect(ctx.notifications.at(-1)?.[1]).toBe("info");
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -1048,8 +1087,9 @@ describe("/next", () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
-    const workdir = join(dir, ".pi", "workflows", "feature", "release-notes");
-    const artifactPath = join(workdir, "feature.md");
+    const gardenPath = join(dir, ".pi", "workflows", "release-notes");
+    const activeFlowerPath = join(gardenPath, "0001-feature");
+    const artifactPath = join(activeFlowerPath, "feature.md");
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
 
@@ -1058,12 +1098,16 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "feature",
         name: "release-notes",
-        workdir,
+        gardenName: "release-notes",
+        gardenPath,
+        activeFlowerName: "0001-feature",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T04:05:06.000Z",
       });
-      await mkdir(workdir, { recursive: true });
+      await mkdir(activeFlowerPath, { recursive: true });
       await writeFile(artifactPath, "artifact", "utf8");
 
       registerWorkflower(pi);
@@ -1072,7 +1116,7 @@ describe("/next", () => {
       await expect(access(statePath)).rejects.toThrow();
       await expect(readFile(artifactPath, "utf8")).resolves.toBe("artifact");
       expect(ctx.notifications.at(-1)).toEqual([
-        "Stopped workflow feature (release-notes). Workflow artifacts were not deleted.",
+        "Stopped workflow feature in garden release-notes. Garden and flower artifacts were not deleted.",
         "info",
       ]);
     } finally {

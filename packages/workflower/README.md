@@ -65,11 +65,11 @@ Workflower marks the previous flower index as `handedOff`, leaves that flower's 
 /wf list
 ```
 
-When no workflow is active in the current Pi session, `/wf status` reports that there is no active workflow. When a workflow is active, status shows the workflow id, name, workdir, and current step id/command. If the saved active state references a workflow id that is no longer registered, status reports that mismatch as a warning.
+When no workflow is active in the current Pi session, `/wf status` reports that there is no active workflow. When a workflow is active, status shows the workflow id, garden, garden path, active flower path, and current step id/command. If the saved active state references a workflow id that is no longer registered, status reports that mismatch as a warning while still showing the garden and active flower path.
 
-`/wf stop` clears the current session's `.pi/tmp/workflows/active/<session-id>.json` state and reports which workflow was stopped. It does not delete workflow artifacts or generated files under `.pi/workflows/<garden-name>/0001-<workflow-id>/`; users can inspect, reuse, or remove those files manually.
+`/wf stop` clears the current session's `.pi/tmp/workflows/active/<session-id>.json` state and reports which workflow and garden were stopped. It does not delete garden or flower artifacts under `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/`; users can inspect, reuse, or remove those files manually.
 
-`/wf list` shows all session-scoped active workflow states in the repo and marks entries outside the current Pi session as `stale/other session` so abandoned sessions are visible without automatically adopting them.
+`/wf list` shows all session-scoped active workflow states in the repo by workflow, garden, and active flower path, and marks entries outside the current Pi session as `stale/other session` so abandoned sessions are visible without automatically adopting them.
 
 ## Advance to the next step
 

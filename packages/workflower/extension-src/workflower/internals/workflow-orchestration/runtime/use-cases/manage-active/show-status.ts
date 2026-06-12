@@ -11,10 +11,19 @@ export async function showWorkflowStatus(ctx: WorkflowLifecycleCommandContext): 
     return;
   }
 
+  const gardenName = state.gardenName ?? state.name;
+  const gardenPath = state.gardenPath;
+  const activeFlowerPath = state.activeFlowerPath ?? state.workdir;
+
   const workflow = findWorkflow(state.id);
   if (!workflow) {
     ctx.ui.notify(
-      `Active workflow references unknown workflow id: ${state.id}. Workdir: ${state.workdir}`,
+      [
+        `Active workflow references unknown workflow id: ${state.id}.`,
+        `Garden: ${gardenName}`,
+        ...(gardenPath ? [`Garden path: ${gardenPath}`] : []),
+        `Active flower path: ${activeFlowerPath}`,
+      ].join("\n"),
       "warning",
     );
     return;
@@ -28,8 +37,9 @@ export async function showWorkflowStatus(ctx: WorkflowLifecycleCommandContext): 
   ctx.ui.notify(
     [
       `Active workflow: ${state.id}`,
-      `Name: ${state.name}`,
-      `Workdir: ${state.workdir}`,
+      `Garden: ${gardenName}`,
+      ...(gardenPath ? [`Garden path: ${gardenPath}`] : []),
+      `Active flower path: ${activeFlowerPath}`,
       currentStep,
     ].join("\n"),
     "info",
