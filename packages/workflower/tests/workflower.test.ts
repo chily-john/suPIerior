@@ -1608,9 +1608,122 @@ describe("/wf:<id>", () => {
     expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });
 
-  it("reports an existing active workflow in the current session", async () => {
+  it("hands off the active flower to another workflow in the same garden", async () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const firstFlower = join(dir, ".pi", "workflows", "run-one", "0001-handoff-source-demo");
+    const secondFlower = join(dir, ".pi", "workflows", "run-one", "0002-handoff-target-demo");
+    const pollenPath = join(firstFlower, "source.md");
+
+    try {
+      registerWorkflow({
+        id: "handoff-source-demo",
+        clearOnStart: false,
+        steps: [
+          { id: "source", command: "/source", outputs: ["source.md"] },
+          { id: "review", command: "/review" },
+        ],
+      });
+      registerWorkflow({
+        id: "handoff-target-demo",
+        clearOnStart: false,
+        steps: [{ id: "target", command: "/target", outputs: ["target.md"] }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:handoff-source-demo"].handler("run-one", ctx);
+      await pi.commands.next.handler("", ctx);
+      pi.sentUserMessages = [];
+
+      await pi.commands["wf:handoff-target-demo"].handler("", ctx);
+
+      expect(ctx.newSession).not.toHaveBeenCalled();
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "handoff-target-demo",
+        name: "run-one",
+        gardenName: "run-one",
+        gardenPath: join(dir, ".pi", "workflows", "run-one"),
+        activeFlowerName: "0002-handoff-target-demo",
+        activeFlowerPath: secondFlower,
+        workdir: secondFlower,
+        currentStepIndex: 0,
+      });
+      await expect(
+        readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "handedOff",
+        workflowId: "handoff-source-demo",
+        pollen: [pollenPath],
+      });
+      await expect(
+        readFile(join(secondFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "active",
+        workflowId: "handoff-target-demo",
+        pollen: [],
+      });
+      await expect(access(firstFlower)).resolves.toBeUndefined();
+      await expect(access(pollenPath)).rejects.toThrow();
+      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: target");
+      expect(pi.sentUserMessages[0].prompt).toContain("Incoming pollen paths:");
+      expect(pi.sentUserMessages[0].prompt).toContain(pollenPath);
+      expect(pi.sentUserMessages[0].prompt).not.toContain("artifact contents");
+      expect(ctx.notifications).toContainEqual([
+        "Started workflow handoff-target-demo as next flower in run-one.",
+        "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("omits incoming pollen during handoff when the new workflow rejects pollen", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const firstFlower = join(dir, ".pi", "workflows", "run-one", "0001-handoff-no-pollen-source");
+    const pollenPath = join(firstFlower, "source.md");
+
+    try {
+      registerWorkflow({
+        id: "handoff-no-pollen-source",
+        clearOnStart: false,
+        steps: [
+          { id: "source", command: "/source", outputs: ["source.md"] },
+          { id: "review", command: "/review" },
+        ],
+      });
+      registerWorkflow({
+        id: "handoff-no-pollen-target",
+        acceptPollen: false,
+        clearOnStart: false,
+        steps: [{ id: "target", command: "/target" }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:handoff-no-pollen-source"].handler("run-one", ctx);
+      await pi.commands.next.handler("", ctx);
+      pi.sentUserMessages = [];
+
+      await pi.commands["wf:handoff-no-pollen-target"].handler("", ctx);
+
+      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: target");
+      expect(pi.sentUserMessages[0].prompt).not.toContain("Incoming pollen paths:");
+      expect(pi.sentUserMessages[0].prompt).not.toContain(pollenPath);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a new garden name while handing off an active workflow", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
     const pi = createPiHarness();
     const ctx = createCommandContext(dir, { newSession: vi.fn() });
 
@@ -1620,21 +1733,37 @@ describe("/wf:<id>", () => {
         clearOnStart: false,
         steps: [{ id: "first", command: "/first" }],
       });
-      await writeActiveWorkflowState(activeStatePath(dir), {
+      await writeActiveWorkflowState(statePath, {
         sessionId: "session-id",
         id: "feature",
         name: "existing",
-        workdir: join(dir, ".pi", "workflows", "feature", "existing"),
+        gardenName: "existing",
+        gardenPath: join(dir, ".pi", "workflows", "existing"),
+        activeFlowerName: "0001-feature",
+        activeFlowerPath: join(dir, ".pi", "workflows", "existing", "0001-feature"),
+        workdir: join(dir, ".pi", "workflows", "existing", "0001-feature"),
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T03:04:05.000Z",
       });
-
       registerWorkflower(pi);
-      await pi.commands["wf:active-current-session-demo"].handler("demo", ctx);
 
-      expect(ctx.notifications.at(-1)?.[0]).toMatch(/An active workflow already exists/);
+      await pi.commands["wf:active-current-session-demo"].handler("new-garden", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Usage: /wf:active-current-session-demo (no garden-name while a workflow is active)",
+        "error",
+      ]);
       expect(ctx.newSession).not.toHaveBeenCalled();
+      expect(pi.sentUserMessages).toHaveLength(0);
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        id: "feature",
+        gardenName: "existing",
+        activeFlowerName: "0001-feature",
+      });
+      await expect(
+        access(join(dir, ".pi", "workflows", "existing", "0002-active-current-session-demo")),
+      ).rejects.toThrow();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -16,5 +16,6 @@ export type WorkflowDefinition = {
   clearOnCompletion?: boolean;
   cleanupOnCompletion?: boolean;
   pollen?: string | string[];
+  acceptPollen?: boolean;
   steps: WorkflowStep[];
 };

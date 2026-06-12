@@ -56,13 +56,21 @@ export async function updateFlowerPollen(input: {
   await writeFlowerIndex(input.flowerPath, nextIndex);
 }
 
-async function readFlowerIndex(flowerPath: string): Promise<FlowerIndex | undefined> {
+export async function readFlowerIndex(flowerPath: string): Promise<FlowerIndex | undefined> {
   try {
     return JSON.parse(await readFile(resolveFlowerIndexPath(flowerPath), "utf8")) as FlowerIndex;
   } catch (error) {
     if (isMissingFileError(error)) return undefined;
     throw error;
   }
+}
+
+export async function markFlowerHandedOff(flowerPath: string): Promise<string[]> {
+  const index = await readFlowerIndex(flowerPath);
+  if (!index) return [];
+
+  await writeFlowerIndex(flowerPath, { ...index, status: "handedOff" });
+  return index.pollen;
 }
 
 function isMissingFileError(error: unknown): boolean {

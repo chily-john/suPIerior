@@ -47,7 +47,15 @@ Starting a workflow:
 
 `clearOnStart: false` preserves prior conversation context for the first step by disabling the start boundary. With the default start boundary, Workflower keeps the visible session but filters pre-start messages from model context through `contextBoundaryEntryId`.
 
-`<garden-name>` is required when no workflow is active and must be a safe path segment because it becomes part of the workflow artifact path. The initial flower path is `.pi/workflows/<garden-name>/0001-<workflow-id>/`; there is no garden-level index file. Missing arguments, extra arguments, unknown workflow ids, unsafe names, duplicate initial flowers, and an already-active workflow in the current Pi session are reported with friendly error messages.
+`<garden-name>` is required when no workflow is active and must be a safe path segment because it becomes part of the workflow artifact path. The initial flower path is `.pi/workflows/<garden-name>/0001-<workflow-id>/`; there is no garden-level index file. Missing arguments, extra arguments, unknown workflow ids, unsafe names, and duplicate initial flowers are reported with friendly error messages.
+
+When a workflow is already active in the current Pi session, start the next flower by running another workflow command with no arguments:
+
+```text
+/wf:<next-workflow-id>
+```
+
+Workflower marks the previous flower index as `handedOff`, leaves that flower's files in place, creates the next numbered flower in the same garden such as `.pi/workflows/<garden-name>/0002-<next-workflow-id>/`, writes a fresh active index for the new flower, and sends the new workflow's step-0 kickoff prompt. Passing a garden name while active is invalid because the current garden is already established.
 
 ## Inspect or stop active workflow state
 
@@ -77,6 +85,8 @@ Workflower intentionally advances blindly by user intent. It does not check whet
 
 Each successful `/next` records pollen in the active flower's `index.json` from the completed step's declared `outputs`. Pollen entries are absolute paths resolved inside the active flower folder. If the workflow does not set `pollen`, each completed step with outputs replaces unpinned pollen. If the workflow sets `pollen` to a string or string array, completing a step whose outputs include one of those configured paths pins pollen: string pollen writes that one absolute path, and array pollen writes all configured absolute paths together. Once `pollenPinned` is `true`, later step outputs do not replace it. Workflower does not check that pollen or output files exist.
 
+During a handoff, the new workflow's kickoff prompt lists the previous flower's indexed pollen paths when the new workflow accepts pollen. Set `acceptPollen: false` on a workflow definition to omit incoming pollen from handoff kickoff prompts. Pollen files are referenced by path only and are not copied into the new flower.
+
 When `/next` advances beyond the final step, Workflower clears the current session's active state, deletes the completed workdir by default, and reports workflow completion. A workflow can preserve artifacts with `cleanupOnCompletion: false` and keep completion in the current session with `clearOnCompletion: false`.
 
 ## Register workflows from another package
@@ -93,6 +103,7 @@ const myWorkflow: WorkflowDefinition = {
   clearOnCompletion: false,
   cleanupOnCompletion: false,
   pollen: "second.md",
+  acceptPollen: true,
   steps: [
     {
       id: "first",
@@ -124,8 +135,8 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 
 ## State and artifacts
 
-- Active flower workdir: `.pi/workflows/<garden-name>/0001-<workflow-id>/`
-- Flower index: `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`
+- Active flower workdir: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/`
+- Flower index: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/index.json`
 - Active state: `.pi/tmp/workflows/active/<session-id>.json`
 
 The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
