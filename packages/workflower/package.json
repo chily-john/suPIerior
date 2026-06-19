@@ -41,6 +41,9 @@
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"
   },
+  "dependencies": {
+    "typebox": "*"
+  },
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*"
   },

@@ -31,11 +31,8 @@ export async function startWorkflow(
     return;
   }
 
-  const startBoundaryEntryId =
-    workflow.clearOnStart === false ? undefined : (ctx.sessionManager.getLeafId?.() ?? undefined);
-
   if (activeState) {
-    const result = await handoffWorkflowInSession(workflow, activeState, ctx, startBoundaryEntryId);
+    const result = await handoffWorkflowInSession(workflow, activeState, ctx);
     if (!result) return;
 
     const sent = await startWorkflowStep(workflow, result.state, 0, currentSession, {
@@ -60,11 +57,15 @@ export async function startWorkflow(
     return;
   }
 
+  const startBoundaryEntryId =
+    workflow.clearOnStart === false ? undefined : (ctx.sessionManager.getLeafId?.() ?? undefined);
+  const runtimeDefaults = currentSession.captureRuntimeDefaults?.();
   const state = await initializeWorkflowInSession(
     workflow,
     parsed.workflowName,
     ctx,
     startBoundaryEntryId,
+    runtimeDefaults,
   );
   if (!state) return;
 

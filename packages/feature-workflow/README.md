@@ -4,11 +4,13 @@ Pi Workflower package for turning feature ideas into reviewed, TDD-first, vertic
 
 This package depends on `@supierior/workflower` and `@supierior/ruleplementor`; installing it also installs the workflow runtime and Ruleplementor implementation/review skills used by `take-it-away`.
 
-It registers two workflows:
+It registers four workflows:
 
 ```text
 new-feature
 take-it-away
+counter
+counter-loop
 ```
 
 ## `new-feature`
@@ -111,6 +113,35 @@ To hand off from an active flower in the same garden, start `take-it-away` witho
 ```
 
 Workflower will create the next flower, for example `.pi/workflows/demo/0002-take-it-away/`, and include the previous flower's pollen paths in the kickoff prompt.
+
+## `counter` and `counter-loop`
+
+Workflow ids: `counter`, `counter-loop`
+
+Use these tiny test workflows to exercise Workflower handoffs and loop-style repetition through skills.
+
+The `counter` workflow initializes `counter-state.json` from user-provided integer values, pins that file as pollen, and hands off to `counter-loop` by calling Workflower's `workflower_handoff` tool. The `counter-loop` workflow accepts the incoming pollen, increments `current`, writes a new `counter-state.json`, and either calls `workflower_handoff` for another `counter-loop` flower when `current < end` or stops when `current >= end`.
+
+Both workflows preserve their workdirs on completion and keep completion in the current session:
+
+```text
+.pi/workflows/<garden>/0001-counter/counter-state.json
+.pi/workflows/<garden>/0002-counter-loop/counter-state.json
+```
+
+### Smoke test
+
+```text
+/wf:counter demo-counter
+```
+
+Enter a starting value and ending value when prompted. After `counter-state.json` is written, run:
+
+```text
+/next
+```
+
+The loop handoff and later loop iterations are configured to auto-advance.
 
 ## Useful Workflower commands
 

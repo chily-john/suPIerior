@@ -17,7 +17,7 @@ The skill helps an agent:
 - scaffold a Pi package that registers a `WorkflowDefinition`;
 - organize generated TypeScript workflow packages with a small entrypoint, `package-api/` for public workflow contracts, and `internals/pi-adapter/` for Pi runtime lifecycle code;
 - teach the garden/flower artifact model, including `.pi/workflows/<garden-name>/0001-<workflow-id>/` and each flower's `index.json`;
-- configure workflow-level `pollen` and `acceptPollen` when chained workflows should pass or ignore previous flower outputs;
+- configure workflow-level `model` and `thinkingLevel` defaults, optional step-level runtime overrides, and workflow-level `pollen`/`acceptPollen` when chained workflows should pass or ignore previous flower outputs;
 - add package metadata that loads the generated extension and skills;
 - document a smoke test using `/wf:<workflow-id> <garden-name>`, optional active handoff with `/wf:<next-workflow-id>`, and `/next`.
 
@@ -37,5 +37,6 @@ Generated guidance should align with Workflower's garden/flower model:
 - Start a fresh garden with `/wf:<workflow-id> <garden-name>`.
 - While a workflow is active, hand off to another workflow in the same garden with `/wf:<next-workflow-id>` and no garden name.
 - Artifacts live in flower folders such as `.pi/workflows/<garden-name>/0001-<workflow-id>/`; each flower has an `index.json` recording status and pollen paths.
+- Use workflow-level `model` and `thinkingLevel` as defaults for all steps; step-level runtime settings override only the current step before falling back to workflow settings and then starting defaults.
 - Use workflow-level `pollen` and `acceptPollen` to control which output paths are referenced during handoff.
 - Cleanup waits until the whole garden completes; handoffs preserve previous flowers for pollen and inspection.

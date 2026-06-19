@@ -28,6 +28,8 @@ export async function completeWorkflow(
     return;
   }
 
+  await options.currentSession?.restoreRuntimeDefaults?.(state.runtimeDefaults);
+
   if (workflow.clearOnCompletion === false) {
     ctx.ui.notify(`Workflow ${state.id} complete.`, "info");
     return;

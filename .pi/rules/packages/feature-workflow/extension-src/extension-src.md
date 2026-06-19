@@ -7,12 +7,13 @@ triggers:
   - feature-workflow extension
   - new-feature workflow registration
   - take-it-away workflow registration
+  - counter workflow registration
   - register feature workflows
 ---
 
 # Extension Source
 
-This package has a minimal extension surface whose job is to register the `new-feature` and `take-it-away` workflows with Workflower. Enter here only when changing how the package contributes those workflows at Pi extension startup.
+This package has a minimal extension surface whose job is to register the `new-feature`, `take-it-away`, `counter`, and `counter-loop` workflows with Workflower. Enter here only when changing how the package contributes those workflows at Pi extension startup.
 
 ## Subdirectories
 

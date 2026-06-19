@@ -14,9 +14,14 @@ type AutoNextContext = {
   };
 };
 
+type AdvanceOnAutoNextOptions = {
+  shouldSuppressAutoNext?(state: ActiveWorkflowState): boolean;
+};
+
 export async function advanceOnAutoNext(
   ctx: AutoNextContext,
   currentSession: CurrentSessionPromptSender,
+  options: AdvanceOnAutoNextOptions = {},
 ): Promise<void> {
   const activeStatePath = resolveActiveStatePath(ctx.cwd, ctx.sessionManager.getSessionId());
 
@@ -26,6 +31,8 @@ export async function advanceOnAutoNext(
   } catch {
     return;
   }
+
+  if (options.shouldSuppressAutoNext?.(state)) return;
 
   const currentStep = findWorkflow(state.id)?.steps[state.currentStepIndex];
   if (currentStep?.autoNext !== true) return;

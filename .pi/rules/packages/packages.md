@@ -22,7 +22,7 @@ Enter here when deciding which workspace package owns a change. Keep `.pi/rules`
 
 | Directory            | When to enter                                                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `feature-workflow/`  | Changing the Workflower package that turns feature ideas into reviewed GitHub issues or implementation plans.                 |
+| `feature-workflow/`  | Changing the Workflower package that turns feature ideas into reviewed GitHub issues or implementation plans, plus counter handoff tests. |
 | `pi-rules/`          | Changing `.pi/rules` discovery, injection, commands, skills, package build metadata, or background rule-maintenance behavior. |
 | `ruleplementor/`     | Changing strict TDD implementation/review skill workflows, GitHub issue implementation, or PR review guidance.                |
 | `tui-tools/`         | Changing reusable Pi TUI question primitives for guided workflow packages.                                                    |

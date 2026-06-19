@@ -203,6 +203,8 @@ describe("command registration", () => {
     expect(pi.commands["wf:missing"]).toBeUndefined();
     expect(pi.handlers.agent_end).toHaveLength(1);
     expect(pi.handlers.context).toHaveLength(1);
+    expect(pi.tools.workflower_handoff).toBeDefined();
+    expect(pi.tools.workflower_handoff.description).toMatch(/Hand off/);
     expect(pi.commands.wf.description).toMatch(/Inspect and stop the active Workflower workflow/);
     expect(typeof pi.commands.wf.handler).toBe("function");
     expect(pi.commands["wf:feature"].description).toMatch(/Start Workflower workflow feature/);
@@ -233,9 +235,11 @@ describe("command registration", () => {
 
     registerWorkflower(pi);
     const commandCountAfterFirstSetup = pi.registeredCommands.length;
+    const toolCountAfterFirstSetup = pi.registeredTools.length;
     registerWorkflower(pi);
 
     expect(pi.registeredCommands).toHaveLength(commandCountAfterFirstSetup);
+    expect(pi.registeredTools).toHaveLength(toolCountAfterFirstSetup);
     expect(pi.registeredCommands.filter((name) => name === "wf")).toHaveLength(1);
     expect(pi.registeredCommands.filter((name) => name === "next")).toHaveLength(1);
     expect(pi.handlers.agent_end).toHaveLength(1);
@@ -1551,6 +1555,253 @@ describe("/next", () => {
   });
 });
 
+describe("workflower_handoff tool", () => {
+  it("registers the workflower_handoff tool", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const pi = createPiHarness();
+
+    registerWorkflower(pi);
+
+    expect(pi.tools.workflower_handoff).toBeDefined();
+    expect(pi.tools.workflower_handoff.description).toMatch(/Hand off/);
+  });
+
+  it("fails when no active workflow exists", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+
+    try {
+      registerWorkflower(pi);
+      const result = await executeHandoffTool(pi, "feature", createCommandContext(dir));
+
+      expect(result.details).toMatchObject({ ok: false });
+      expect(result.content[0].text).toContain("No active Workflower workflow");
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails for an unknown workflow id without mutating the active flower", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const firstFlower = join(dir, ".pi", "workflows", "tool-unknown", "0001-handoff-tool-unknown-source");
+
+    try {
+      registerWorkflow({
+        id: "handoff-tool-unknown-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:handoff-tool-unknown-source"].handler("tool-unknown", ctx);
+      pi.sentUserMessages = [];
+
+      const result = await executeHandoffTool(pi, "missing-workflow", ctx);
+
+      expect(result.details).toMatchObject({ ok: false });
+      expect(result.content[0].text).toContain("Unknown workflow id: missing-workflow");
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "handoff-tool-unknown-source",
+        activeFlowerName: "0001-handoff-tool-unknown-source",
+      });
+      await expect(access(firstFlower)).resolves.toBeUndefined();
+      await expect(
+        access(join(dir, ".pi", "workflows", "tool-unknown", "0002-missing-workflow")),
+      ).rejects.toThrow();
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("starts the target workflow as the next flower, preserving the active context boundary", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const firstFlower = join(dir, ".pi", "workflows", "tool-demo", "0001-handoff-tool-source");
+    const secondFlower = join(dir, ".pi", "workflows", "tool-demo", "0002-handoff-tool-target");
+    const pollenPath = join(firstFlower, "source.md");
+
+    try {
+      registerWorkflow({
+        id: "handoff-tool-source",
+        pollen: "source.md",
+        steps: [
+          { id: "source", command: "/source", outputs: ["source.md"] },
+          { id: "decide", command: "/decide" },
+        ],
+      });
+      registerWorkflow({
+        id: "handoff-tool-target",
+        clearOnStart: true,
+        steps: [{ id: "target-step", command: "/target", outputs: ["target.md"] }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:handoff-tool-source"].handler("tool-demo", ctx);
+      await pi.commands.next.handler("", ctx);
+      pi.sentUserMessages = [];
+
+      const result = await executeHandoffTool(pi, "handoff-tool-target", ctx);
+
+      expect(result.details).toMatchObject({
+        ok: true,
+        workflowId: "handoff-tool-target",
+        gardenName: "tool-demo",
+        activeFlowerName: "0002-handoff-tool-target",
+        activeFlowerPath: secondFlower,
+        incomingPollen: [pollenPath],
+      });
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "handoff-tool-target",
+        gardenName: "tool-demo",
+        activeFlowerName: "0002-handoff-tool-target",
+        activeFlowerPath: secondFlower,
+        workdir: secondFlower,
+        currentStepIndex: 0,
+        contextBoundaryEntryId: "leaf-id",
+      });
+      await expect(
+        readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "handedOff",
+        workflowId: "handoff-tool-source",
+        pollen: [pollenPath],
+        pollenPinned: true,
+      });
+      await expect(
+        readFile(join(secondFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "active",
+        workflowId: "handoff-tool-target",
+        pollen: [],
+      });
+      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(pi.sentUserMessages[0].options).toEqual({ deliverAs: "followUp" });
+      expect(pi.sentUserMessages[0].prompt).toContain("Workflow: handoff-tool-target");
+      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: target-step");
+      expect(pi.sentUserMessages[0].prompt).toContain(`Workdir: ${secondFlower}`);
+      expect(pi.sentUserMessages[0].prompt).toContain("Incoming pollen paths:");
+      expect(pi.sentUserMessages[0].prompt).toContain(pollenPath);
+
+      const scopedContext = await pi.handlers.context[0](
+        { type: "context", messages: [] },
+        createCommandContext(dir, {
+          sessionManager: {
+            getSessionId: () => "session-id",
+            getSessionFile: () => join(dir, "session.jsonl"),
+            getLeafId: () => "target-kickoff",
+            getBranch: () => [
+              messageEntry("old-skill", null, "assistant", "old skill context before boundary"),
+              messageEntry("leaf-id", "old-skill", "assistant", "boundary"),
+              messageEntry("target-kickoff", "leaf-id", "user", "target kickoff"),
+            ],
+          },
+        }),
+      );
+      expect(scopedContext.messages.map((message: any) => message.content)).toEqual([
+        "target kickoff",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("suppresses source-step auto-next after a tool handoff but allows target-step auto-next", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const firstFlower = join(
+      dir,
+      ".pi",
+      "workflows",
+      "auto-tool-demo",
+      "0001-auto-handoff-tool-source",
+    );
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "auto-handoff-tool-source",
+        steps: [{ id: "handoff", command: "/skill:handoff", autoNext: true }],
+      });
+      registerWorkflow({
+        id: "auto-handoff-tool-target",
+        steps: [
+          { id: "first", command: "/target-first", autoNext: true },
+          { id: "second", command: "/target-second" },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:auto-handoff-tool-source"].handler("auto-tool-demo", ctx);
+      pi.sentUserMessages = [];
+
+      await executeHandoffTool(pi, "auto-handoff-tool-target", ctx);
+      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "auto-handoff-tool-target",
+        currentStepIndex: 1,
+      });
+      await expect(
+        readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        status: "handedOff",
+      });
+      expect(pi.sentUserMessages).toHaveLength(2);
+      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: first");
+      expect(pi.sentUserMessages[1].prompt).toContain("Current step 1: second");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("prevents two handoffs in the same agent turn", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "double-handoff-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
+      registerWorkflow({
+        id: "double-handoff-target-a",
+        steps: [{ id: "first", command: "/first" }],
+      });
+      registerWorkflow({
+        id: "double-handoff-target-b",
+        steps: [{ id: "second", command: "/second" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:double-handoff-source"].handler("double-tool-demo", ctx);
+
+      await executeHandoffTool(pi, "double-handoff-target-a", ctx);
+      const secondResult = await executeHandoffTool(pi, "double-handoff-target-b", ctx);
+
+      expect(secondResult.details).toMatchObject({ ok: false });
+      expect(secondResult.content[0].text).toContain(
+        "A Workflower handoff already occurred during this agent turn.",
+      );
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "double-handoff-target-a",
+        activeFlowerName: "0002-double-handoff-target-a",
+      });
+      await expect(
+        access(join(dir, ".pi", "workflows", "double-tool-demo", "0003-double-handoff-target-b")),
+      ).rejects.toThrow();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("/wf:<id>", () => {
   it("registers /wf:<id> and starts a known workflow in the current session with a boundary", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
@@ -1663,6 +1914,262 @@ describe("/wf:<id>", () => {
       expect(pi.setModelCalls).toEqual([model]);
       expect(pi.setThinkingLevelCalls).toEqual(["high"]);
       expect(pi.sentUserMessages).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("selects the first available workflow step model fallback", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const fallbackModel = { provider: "openai", id: "gpt-5.3-codex-spark" };
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      modelRegistry: {
+        find: vi.fn((provider: string, modelId: string) =>
+          provider === "openai" && modelId === "gpt-5.3-codex-spark" ? fallbackModel : undefined,
+        ),
+      },
+    });
+
+    try {
+      registerWorkflow({
+        id: "model-fallback-settings-demo",
+        steps: [
+          {
+            id: "first",
+            command: "/first",
+            model: [
+              "openai-codex/gpt-5.3-codex-spark",
+              "openai/gpt-5.3-codex-spark",
+            ],
+          },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:model-fallback-settings-demo"].handler("demo", ctx);
+
+      expect(ctx.modelRegistry.find).toHaveBeenCalledWith(
+        "openai-codex",
+        "gpt-5.3-codex-spark",
+      );
+      expect(ctx.modelRegistry.find).toHaveBeenCalledWith("openai", "gpt-5.3-codex-spark");
+      expect(pi.setModelCalls).toEqual([fallbackModel]);
+      expect(pi.sentUserMessages).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the current default model when no workflow step model fallback works", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const unavailableModel = { provider: "openai-codex", id: "gpt-5.3-codex-spark" };
+    pi.setModel = vi.fn(async () => false);
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      modelRegistry: { find: vi.fn(() => unavailableModel) },
+    });
+
+    try {
+      registerWorkflow({
+        id: "model-default-fallback-settings-demo",
+        steps: [
+          {
+            id: "first",
+            command: "/first",
+            model: [
+              "openai-codex/gpt-5.3-codex-spark",
+              "openai/gpt-5.3-codex-spark",
+            ],
+          },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:model-default-fallback-settings-demo"].handler("demo", ctx);
+
+      expect(pi.setModel).toHaveBeenCalledTimes(2);
+      expect(ctx.notifications).toContainEqual([
+        expect.stringContaining("using current/default model"),
+        "warning",
+      ]);
+      expect(pi.sentUserMessages).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses workflow runtime settings for steps without step overrides", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const workflowModel = { provider: "openai", id: "workflow-model" };
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      model: { provider: "openai", id: "base-model" },
+      modelRegistry: {
+        find: vi.fn((provider: string, modelId: string) =>
+          provider === "openai" && modelId === "workflow-model" ? workflowModel : undefined,
+        ),
+      },
+    });
+
+    try {
+      registerWorkflow({
+        id: "workflow-runtime-settings-demo",
+        model: "openai/workflow-model",
+        thinkingLevel: "low",
+        steps: [
+          { id: "first", command: "/first" },
+          { id: "second", command: "/second" },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:workflow-runtime-settings-demo"].handler("demo", ctx);
+      await pi.commands.next.handler("", ctx);
+
+      expect(pi.setModelCalls).toEqual([workflowModel, workflowModel]);
+      expect(pi.setThinkingLevelCalls).toEqual(["low", "low"]);
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        runtimeDefaults: { model: "openai/base-model", thinkingLevel: "medium" },
+        currentStepIndex: 1,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reapplies captured runtime defaults after a step-only override", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const baseModel = { provider: "openai", id: "base-model" };
+    const stepModel = { provider: "openai", id: "step-model" };
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      model: baseModel,
+      modelRegistry: {
+        find: vi.fn((provider: string, modelId: string) => {
+          if (provider !== "openai") return undefined;
+          if (modelId === "base-model") return baseModel;
+          if (modelId === "step-model") return stepModel;
+          return undefined;
+        }),
+      },
+    });
+
+    try {
+      registerWorkflow({
+        id: "step-runtime-reset-demo",
+        steps: [
+          {
+            id: "first",
+            command: "/first",
+            model: "openai/step-model",
+            thinkingLevel: "high",
+          },
+          { id: "second", command: "/second" },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:step-runtime-reset-demo"].handler("demo", ctx);
+      await pi.commands.next.handler("", ctx);
+
+      expect(pi.setModelCalls).toEqual([stepModel, baseModel]);
+      expect(pi.setThinkingLevelCalls).toEqual(["high", "medium"]);
+      expect(pi.sentUserMessages.at(-1)?.prompt).toContain("Current step 1: second");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("restores captured runtime defaults after workflow completion", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const baseModel = { provider: "openai", id: "base-model" };
+    const stepModel = { provider: "openai", id: "step-model" };
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      model: baseModel,
+      modelRegistry: {
+        find: vi.fn((provider: string, modelId: string) => {
+          if (provider !== "openai") return undefined;
+          if (modelId === "base-model") return baseModel;
+          if (modelId === "step-model") return stepModel;
+          return undefined;
+        }),
+      },
+    });
+
+    try {
+      registerWorkflow({
+        id: "completion-runtime-reset-demo",
+        clearOnCompletion: false,
+        steps: [
+          {
+            id: "only",
+            command: "/only",
+            model: "openai/step-model",
+            thinkingLevel: "high",
+          },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:completion-runtime-reset-demo"].handler("demo", ctx);
+      await pi.commands.next.handler("", ctx);
+
+      expect(pi.setModelCalls).toEqual([stepModel, baseModel]);
+      expect(pi.setThinkingLevelCalls).toEqual(["high", "medium"]);
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Workflow completion-runtime-reset-demo complete.",
+        "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("tries step model candidates before workflow candidates and captured defaults", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const workflowModel = { provider: "openai", id: "workflow-model" };
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      model: { provider: "openai", id: "base-model" },
+      modelRegistry: {
+        find: vi.fn((provider: string, modelId: string) =>
+          provider === "openai" && modelId === "workflow-model" ? workflowModel : undefined,
+        ),
+      },
+    });
+
+    try {
+      registerWorkflow({
+        id: "step-workflow-model-fallback-demo",
+        model: "openai/workflow-model",
+        steps: [
+          {
+            id: "first",
+            command: "/first",
+            model: ["openai/missing-step-model", "openai/also-missing-step-model"],
+          },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:step-workflow-model-fallback-demo"].handler("demo", ctx);
+
+      expect(ctx.modelRegistry.find).toHaveBeenNthCalledWith(1, "openai", "missing-step-model");
+      expect(ctx.modelRegistry.find).toHaveBeenNthCalledWith(
+        2,
+        "openai",
+        "also-missing-step-model",
+      );
+      expect(ctx.modelRegistry.find).toHaveBeenNthCalledWith(3, "openai", "workflow-model");
+      expect(pi.setModelCalls).toEqual([workflowModel]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1820,7 +2327,7 @@ describe("/wf:<id>", () => {
     expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });
 
-  it("hands off the active flower to another workflow in the same garden", async () => {
+  it("hands off the active flower to another workflow in the same garden with the existing boundary", async () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
@@ -1840,7 +2347,7 @@ describe("/wf:<id>", () => {
       });
       registerWorkflow({
         id: "handoff-target-demo",
-        clearOnStart: false,
+        clearOnStart: true,
         steps: [{ id: "target", command: "/target", outputs: ["target.md"] }],
       });
       registerWorkflower(pi);
@@ -1861,6 +2368,7 @@ describe("/wf:<id>", () => {
         activeFlowerPath: secondFlower,
         workdir: secondFlower,
         currentStepIndex: 0,
+        contextBoundaryEntryId: "leaf-id",
       });
       await expect(
         readFile(join(firstFlower, "index.json"), "utf8").then(JSON.parse),
@@ -2019,20 +2527,26 @@ function createSessionManager(
 
 function createPiHarness(): {
   commands: Record<string, any>;
+  tools: Record<string, any>;
   registeredCommands: string[];
+  registeredTools: string[];
   handlers: Record<string, any[]>;
   sentUserMessages: Array<{ prompt: string; options: any }>;
   setModelCalls: any[];
   setThinkingLevelCalls: string[];
   registerCommand: (name: string, command: any) => void;
+  registerTool: (tool: any) => void;
   on: (name: string, handler: any) => void;
   sendUserMessage: (prompt: string, options?: any) => void;
   setModel: (model: any) => Promise<boolean>;
+  getThinkingLevel: () => string;
   setThinkingLevel: (level: string) => void;
 } {
   return {
     commands: {},
+    tools: {},
     registeredCommands: [],
+    registeredTools: [],
     handlers: {},
     sentUserMessages: [],
     setModelCalls: [],
@@ -2040,6 +2554,10 @@ function createPiHarness(): {
     registerCommand(name, command) {
       this.registeredCommands.push(name);
       this.commands[name] = command;
+    },
+    registerTool(tool) {
+      this.registeredTools.push(tool.name);
+      this.tools[tool.name] = tool;
     },
     on(name, handler) {
       this.handlers[name] ??= [];
@@ -2052,10 +2570,23 @@ function createPiHarness(): {
       this.setModelCalls.push(model);
       return true;
     },
+    getThinkingLevel() {
+      return "medium";
+    },
     setThinkingLevel(level) {
       this.setThinkingLevelCalls.push(level);
     },
   };
+}
+
+async function executeHandoffTool(pi: any, workflowId: string, ctx: any): Promise<any> {
+  return pi.tools.workflower_handoff.execute(
+    "tool-call-id",
+    { workflowId },
+    undefined,
+    undefined,
+    ctx,
+  );
 }
 
 function messageEntry(id: string, parentId: string | null, role: string, content: string): any {
@@ -2070,13 +2601,14 @@ function messageEntry(id: string, parentId: string | null, role: string, content
 
 function createCommandContext(
   cwd: string,
-  overrides: Partial<{ newSession: any; sessionManager: any; modelRegistry: any }> = {},
+  overrides: Partial<{ newSession: any; sessionManager: any; modelRegistry: any; model: any }> = {},
 ): {
   cwd: string;
   notifications: Array<[string, string]>;
   ui: { notify: (message: string, level: string) => void };
   sessionManager: any;
   modelRegistry: any;
+  model?: any;
   newSession: any;
 } {
   const ctx = {

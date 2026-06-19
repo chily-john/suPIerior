@@ -14,7 +14,11 @@ export async function startWorkflowStep(
   if (!step) return false;
 
   if (promptSender.applyStepRuntimeSettings) {
-    const applied = await promptSender.applyStepRuntimeSettings(step);
+    const applied = await promptSender.applyStepRuntimeSettings({
+      workflow,
+      step,
+      runtimeDefaults: state.runtimeDefaults,
+    });
     if (!applied) return false;
   }
 

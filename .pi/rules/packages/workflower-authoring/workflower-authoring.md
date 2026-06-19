@@ -25,6 +25,6 @@ Enter here when changing the standalone skill package that teaches Pi agents how
 
 - Keep `@supierior/workflower-authoring` independent of the Workflower runtime at install time; generated workflow packages should depend on `@supierior/workflower` themselves.
 - Optimize instructions for agents creating packages for users, not for humans reading Workflower runtime internals.
-- Keep examples simple and aligned with the public Workflower API: `registerWorkflow`, `WorkflowDefinition`, and default `setupWorkflower(pi)`.
+- Keep examples simple and aligned with the public Workflower API: `registerWorkflow`, `WorkflowDefinition`, default `setupWorkflower(pi)`, and workflow/step runtime settings when relevant.
 - For package structure guidance, distinguish monorepo package paths from standalone package roots.
 - This is a Markdown-only Pi skill package; avoid extension runtime code unless the package purpose changes explicitly.

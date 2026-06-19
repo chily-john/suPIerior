@@ -19,7 +19,6 @@ export async function handoffWorkflowInSession(
   workflow: WorkflowDefinition,
   activeState: ActiveWorkflowState,
   ctx: WorkflowCommandContext,
-  initialContextBoundaryEntryId?: string,
 ): Promise<WorkflowHandoffResult | undefined> {
   const previousFlowerPath = activeState.activeFlowerPath ?? activeState.workdir;
   const gardenName = activeState.gardenName ?? activeState.name;
@@ -42,7 +41,8 @@ export async function handoffWorkflowInSession(
       activeFlowerPath: flowerPath,
       workdir: flowerPath,
       currentStepIndex: 0,
-      contextBoundaryEntryId: initialContextBoundaryEntryId,
+      contextBoundaryEntryId: activeState.contextBoundaryEntryId,
+      runtimeDefaults: activeState.runtimeDefaults,
       startedAt: now,
       updatedAt: now,
     };

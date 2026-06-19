@@ -100,6 +100,8 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 export const myWorkflow: WorkflowDefinition = {
   id: "my-workflow",
   cleanupOnCompletion: false,
+  model: ["openai-codex/gpt-5.3-codex-spark"],
+  thinkingLevel: "medium",
   pollen: "second-step.md",
   acceptPollen: true,
   steps: [
@@ -107,6 +109,7 @@ export const myWorkflow: WorkflowDefinition = {
       id: "first-step",
       command: "/skill:my-first-step",
       outputs: ["first-step.md"],
+      thinkingLevel: "high",
       clearOnNext: false,
     },
     {
@@ -133,6 +136,8 @@ export default function myWorkflowExtension(pi: ExtensionAPI): void {
 ```
 
 Use `setupWorkflower(pi)` in workflow packages so installing the workflow package also initializes Workflower's `/wf`, `/wf:<id>`, and `/next` commands.
+
+Workflow-level `model` and `thinkingLevel` set defaults for every step. Step-level `model` and `thinkingLevel` override those defaults for only that step; the next step falls back to the workflow settings, then the model and thinking level that were active when the garden started. `model` accepts a `provider/model-id` string or an ordered fallback array.
 
 Workflow-level `pollen?: string | string[]` pins the output path or paths that should be referenced when another workflow is started in the same garden. If omitted, completed step outputs become unpinned pollen as `/next` advances. Workflow-level `acceptPollen?: boolean` defaults to `true`; set `acceptPollen: false` when a workflow should not receive previous flower pollen paths in its kickoff prompt. Pollen paths are referenced from the previous flower's `index.json`; files are not copied into the new flower.
 

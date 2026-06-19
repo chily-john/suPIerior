@@ -1,5 +1,9 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { applyWorkflowStepRuntimeSettings } from "@pi-adapter/apply-workflow-step-runtime-settings";
+import {
+  applyWorkflowStepRuntimeSettings,
+  captureWorkflowRuntimeDefaults,
+  restoreWorkflowRuntimeDefaults,
+} from "@pi-adapter/apply-workflow-step-runtime-settings";
 import {
   listStartableWorkflows,
   onStartableWorkflowRegistered,
@@ -12,7 +16,11 @@ export function registerGeneratedStartCommands(pi: ExtensionAPI): () => void {
       description: `Start Workflower workflow ${workflow.id}`,
       handler: async (args, ctx) => {
         await startWorkflow(workflow.id, args, ctx, {
-          applyStepRuntimeSettings: (step) => applyWorkflowStepRuntimeSettings(pi, ctx, step),
+          captureRuntimeDefaults: () => captureWorkflowRuntimeDefaults(pi, ctx),
+          applyStepRuntimeSettings: (settings) =>
+            applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+          restoreRuntimeDefaults: (runtimeDefaults) =>
+            restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
           sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
         });
       },

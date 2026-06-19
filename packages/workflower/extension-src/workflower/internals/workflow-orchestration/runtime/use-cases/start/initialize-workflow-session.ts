@@ -1,5 +1,8 @@
 import { access, mkdir } from "node:fs/promises";
-import type { WorkflowDefinition } from "@package-api/workflow-definition.types";
+import type {
+  WorkflowDefinition,
+  WorkflowRuntimeDefaults,
+} from "@package-api/workflow-definition.types";
 import { resolveActiveStatePath } from "@orchestration/runtime/active-state/active-state-paths";
 import { writeActiveWorkflowState } from "@orchestration/runtime/active-state/active-state-store";
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
@@ -12,6 +15,7 @@ export async function initializeWorkflowInSession(
   gardenName: string,
   ctx: WorkflowCommandContext,
   initialContextBoundaryEntryId?: string,
+  runtimeDefaults?: WorkflowRuntimeDefaults,
 ): Promise<ActiveWorkflowState | undefined> {
   const sessionId = ctx.sessionManager.getSessionId();
   const activeStatePath = resolveActiveStatePath(ctx.cwd, sessionId);
@@ -46,6 +50,7 @@ export async function initializeWorkflowInSession(
     workdir: paths.flowerPath,
     currentStepIndex: 0,
     contextBoundaryEntryId: initialContextBoundaryEntryId,
+    runtimeDefaults,
     startedAt: now,
     updatedAt: now,
   };

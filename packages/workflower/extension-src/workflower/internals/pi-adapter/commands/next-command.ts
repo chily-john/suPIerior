@@ -1,5 +1,8 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { applyWorkflowStepRuntimeSettings } from "@pi-adapter/apply-workflow-step-runtime-settings";
+import {
+  applyWorkflowStepRuntimeSettings,
+  restoreWorkflowRuntimeDefaults,
+} from "@pi-adapter/apply-workflow-step-runtime-settings";
 import { advanceWorkflow } from "@orchestration/runtime/use-cases/advance/advance-workflow";
 
 const NEXT_USAGE = "Usage: /next";
@@ -14,7 +17,10 @@ export function registerNextCommand(pi: ExtensionAPI): void {
       }
 
       await advanceWorkflow(ctx, {
-        applyStepRuntimeSettings: (step) => applyWorkflowStepRuntimeSettings(pi, ctx, step),
+        applyStepRuntimeSettings: (settings) =>
+          applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+        restoreRuntimeDefaults: (runtimeDefaults) =>
+          restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
         sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
       });
     },

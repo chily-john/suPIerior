@@ -1,3 +1,5 @@
+import type { WorkflowRuntimeDefaults } from "@package-api/workflow-definition.types";
+
 export type ActiveWorkflowState = {
   sessionId: string;
   sessionFile?: string;
@@ -10,6 +12,7 @@ export type ActiveWorkflowState = {
   workdir: string;
   currentStepIndex: number;
   contextBoundaryEntryId?: string | null;
+  runtimeDefaults?: WorkflowRuntimeDefaults;
   startedAt: string;
   updatedAt: string;
 };

@@ -4,6 +4,7 @@ import { registerNextCommand } from "./commands/next-command";
 import { registerWfCommand } from "./commands/wf-command";
 import { registerAutoNextOnAgentEnd } from "./events/auto-next-on-agent-end";
 import { registerScopedContextOnContextRequest } from "./events/scoped-context-on-context-request";
+import { registerHandoffTool } from "./tools/register-handoff-tool";
 
 type WorkflowerRuntimeGlobal = typeof globalThis & {
   __supieriorWorkflowerRegisteredApis?: WeakSet<ExtensionAPI>;
@@ -31,6 +32,7 @@ export function registerExtension(pi: ExtensionAPI): void {
     registeredApis.delete(pi);
   });
 
+  registerHandoffTool(pi);
   registerScopedContextOnContextRequest(pi);
   registerAutoNextOnAgentEnd(pi);
   registerWfCommand(pi);

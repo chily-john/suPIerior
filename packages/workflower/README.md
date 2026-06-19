@@ -25,6 +25,18 @@ Namespaced workflow ids can use underscores or hyphens:
 
 Workflow ids must match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, underscores, and hyphens only. Exact duplicate workflow ids are rejected during registration because they would create the same `/wf:<id>` command.
 
+## Agent handoffs
+
+Workflower registers a model-callable tool named `workflower_handoff`. A workflow step skill can call this tool to start another registered workflow as the next flower in the current garden.
+
+The tool requires an active workflow and accepts:
+
+```json
+{ "workflowId": "next-workflow" }
+```
+
+It marks the current flower as `handedOff`, creates the next flower in the same garden, and includes the previous flower's pollen paths in the target kickoff prompt. Assistant text containing `/wf:<id>` does not execute a slash command; skills should call `workflower_handoff` for autonomous branching or looping.
+
 ## Start a workflow
 
 ```text
@@ -37,7 +49,7 @@ For example:
 /wf:custom-demo my-workflow
 ```
 
-Starting a workflow:
+Starting a new garden:
 
 1. looks up the registered workflow by id;
 2. creates the first flower at `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`;
@@ -45,7 +57,7 @@ Starting a workflow:
 4. writes durable active state for the current Pi session to `.pi/tmp/workflows/active/<session-id>.json`; and
 5. sends the step-0 kickoff prompt inside the current session.
 
-`clearOnStart: false` preserves prior conversation context for the first step by disabling the start boundary. With the default start boundary, Workflower keeps the visible session but filters pre-start messages from model context through `contextBoundaryEntryId`.
+`clearOnStart: false` preserves prior conversation context for the first step of a new garden by disabling the start boundary. With the default start boundary, Workflower keeps the visible session but filters pre-start messages from model context through `contextBoundaryEntryId`.
 
 `<garden-name>` is required when no workflow is active and must be a safe path segment because it becomes part of the workflow artifact path. The initial flower path is `.pi/workflows/<garden-name>/0001-<workflow-id>/`; there is no garden-level index file. Missing arguments, extra arguments, unknown workflow ids, unsafe names, and duplicate initial flowers are reported with friendly error messages.
 
@@ -56,6 +68,8 @@ When a workflow is already active in the current Pi session, start the next flow
 ```
 
 Workflower marks the previous flower index as `handedOff`, leaves that flower's files in place, creates the next numbered flower in the same garden such as `.pi/workflows/<garden-name>/0002-<next-workflow-id>/`, writes a fresh active index for the new flower, and sends the new workflow's step-0 kickoff prompt. Passing a garden name while active is invalid because the current garden is already established.
+
+Handoffs do not apply the target workflow's `clearOnStart`; that setting only affects starting the first flower in a new garden. Handoff isolation comes from the already-active workflow's step boundaries: for a tool-driven handoff step, set `clearOnNext` on the step that advances into that handoff step; for a manual `/wf:<next>` handoff, set `clearOnNext` on the just-completed source step before running the handoff.
 
 ## Inspect or stop active workflow state
 
@@ -89,6 +103,34 @@ During a handoff, the new workflow's kickoff prompt lists the previous flower's 
 
 When `/next` advances beyond the final step of the active flower, Workflower completes the whole garden: it marks the active flower index as `completed`, clears the current session's active state, applies each flower's producing workflow `cleanupOnCompletion` setting, removes the garden directory if cleanup leaves it empty, and reports workflow completion. Handoffs do not clean up previous flowers; cleanup waits until final garden completion. A workflow can preserve its flower artifacts with `cleanupOnCompletion: false`, and the active workflow can keep completion in the current session with `clearOnCompletion: false`.
 
+## Runtime settings
+
+A workflow or workflow step can set `model` to a Pi model reference in `provider/model-id` format. Use Pi's `/models` command to discover the available provider and model id pairs. Workflow-level settings apply to every step unless a step declares its own setting.
+
+```ts
+{
+  id: "first",
+  command: "/my-first-step",
+  model: "openai-codex/gpt-5.3-codex-spark",
+}
+```
+
+`model` can also be an ordered fallback list. Item 0 is preferred; later items are tried when the earlier candidate is missing or cannot be selected. If none can be selected, Workflower leaves Pi on the current/default model and still starts the step.
+
+```ts
+model: [
+  "openai-codex/gpt-5.3-codex-spark",
+  "openai/gpt-5.3-codex-spark",
+  "azure-openai-responses/gpt-5.3-codex-spark",
+],
+```
+
+TypeScript users get a template-literal type requiring the `provider/model-id` shape plus provider-prefix suggestions for common built-in Pi providers. Full model ids remain runtime-discovered because Pi can load custom models and providers.
+
+A workflow or workflow step can also set `thinkingLevel` to `"off"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, or `"xhigh"`.
+
+Runtime settings are resolved for each step start, so step-level overrides affect only that step. Model candidates are tried in this order: step `model`, workflow `model`, then the model that was active when the garden started. Thinking level resolves as `step.thinkingLevel ?? workflow.thinkingLevel ?? starting thinking level`. If no model candidate can be selected, Workflower leaves Pi on the current/default model and still starts the step.
+
 ## Register workflows from another package
 
 Workflower exposes a small workflow-authoring API from the package root. A separate package can contribute a workflow by importing `registerWorkflow` from `@supierior/workflower` during extension startup:
@@ -102,6 +144,8 @@ const myWorkflow: WorkflowDefinition = {
   clearOnStart: false,
   clearOnCompletion: false,
   cleanupOnCompletion: false,
+  model: "openai-codex/gpt-5.3-codex-spark",
+  thinkingLevel: "medium",
   pollen: "second.md",
   acceptPollen: true,
   steps: [
@@ -109,6 +153,7 @@ const myWorkflow: WorkflowDefinition = {
       id: "first",
       command: "/my-first-step",
       outputs: ["first.md"],
+      thinkingLevel: "high",
       clearOnNext: false,
       autoNext: true,
     },
@@ -139,7 +184,7 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 - Flower index: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/index.json`
 - Active state: `.pi/tmp/workflows/active/<session-id>.json`
 
-The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, `startedAt`, and `updatedAt`.
+The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, optional captured `runtimeDefaults`, `startedAt`, and `updatedAt`.
 
 Workflow artifacts are not deleted by `/wf stop`. Handoffs preserve earlier flowers in the garden. At final `/next` completion, Workflower evaluates each flower's `workflowId`, looks up that workflow definition, deletes flower artifacts by default, preserves flowers whose producing workflow sets `cleanupOnCompletion: false`, and removes the garden directory only when it becomes empty.
 

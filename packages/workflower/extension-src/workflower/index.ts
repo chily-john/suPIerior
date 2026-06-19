@@ -7,7 +7,13 @@ export default function workflower(pi: ExtensionAPI): void {
 
 export type {
   WorkflowDefinition,
+  WorkflowModelFallbacks,
+  WorkflowModelProvider,
+  WorkflowModelReference,
+  WorkflowModelSetting,
+  WorkflowRuntimeDefaults,
   WorkflowStep,
+  WorkflowStepModel,
   WorkflowThinkingLevel,
 } from "@package-api/workflow-definition.types";
 export { registerWorkflow } from "@package-api/register-workflow";
