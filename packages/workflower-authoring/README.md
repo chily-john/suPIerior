@@ -18,6 +18,7 @@ The skill helps an agent:
 - organize generated TypeScript workflow packages with a small entrypoint, `package-api/` for public workflow contracts, and `internals/pi-adapter/` for Pi runtime lifecycle code;
 - teach the garden/flower artifact model, including `.pi/workflows/<garden-name>/0001-<workflow-id>/` and each flower's `index.json`;
 - configure workflow-level `model` and `thinkingLevel` defaults, optional step-level runtime overrides, and workflow-level `pollen`/`acceptPollen` when chained workflows should pass or ignore previous flower outputs;
+- document garden state keys, `workflower_state_set` calls, and deterministic router commands/tools when small facts such as review ratings drive later steps;
 - add package metadata that loads the generated extension and skills;
 - document a smoke test using `/wf:<workflow-id> <garden-name>`, optional active handoff with `/wf:<next-workflow-id>`, and `/next`.
 
@@ -39,4 +40,6 @@ Generated guidance should align with Workflower's garden/flower model:
 - Artifacts live in flower folders such as `.pi/workflows/<garden-name>/0001-<workflow-id>/`; each flower has an `index.json` recording status and pollen paths.
 - Use workflow-level `model` and `thinkingLevel` as defaults for all steps; step-level runtime settings override only the current step before falling back to workflow settings and then starting defaults.
 - Use workflow-level `pollen` and `acceptPollen` to control which output paths are referenced during handoff.
+- Use garden state for small JSON-compatible facts that must survive context-clearing boundaries, such as `review.rating`; instruct agents exactly when to call `workflower_state_set`.
+- Use deterministic router code or model-callable tools for autonomous branching; do not rely on assistant text printing slash commands.
 - Cleanup waits until the whole garden completes; handoffs preserve previous flowers for pollen and inspection.

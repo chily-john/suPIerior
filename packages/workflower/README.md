@@ -6,7 +6,7 @@ Workflower is a Pi package for running named, multi-step workflows with configur
 
 Workflower registers:
 
-- `/wf:<workflow-id>` commands for every registered workflow.
+- `/wf:<workflow-id>` commands for registered workflows where `userInvocable !== false`.
 - `/wf` for active workflow lifecycle helpers.
 - `/next` to advance the active workflow to the next step.
 
@@ -25,6 +25,16 @@ Namespaced workflow ids can use underscores or hyphens:
 
 Workflow ids must match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, underscores, and hyphens only. Exact duplicate workflow ids are rejected during registration because they would create the same `/wf:<id>` command.
 
+Workflow definitions are user-invokable by default. Set `userInvocable: false` to prevent Workflower from registering `/wf:<workflow-id>` for humans; the hidden command will not appear in Pi command listings or slash autocomplete, and exact typed `/wf:<workflow-id>` input is blocked with a friendly error.
+
+## Workflow prompt display
+
+When Workflower starts a workflow or advances to a step, it sends the model a full kickoff prompt but shows only a compact label in chat, such as `Workflow: feature — demo-garden` or `Step: discover`. The compact display keeps long generated prompts readable in the transcript. It is not a token-saving feature: the full kickoff prompt still enters model context and still counts like normal context.
+
+If a step uses a Workflower private skill, that private skill may be expanded into the full prompt without showing its Markdown body in the visible transcript. Do not assume private skill injection failed just because the private skill text is not visible in chat; check workflow behavior, expected outputs, or tests instead.
+
+Assistant messages that print `/wf:<id>`, `/next`, or other slash commands do not execute those commands. Autonomous workflow movement should use model-callable tools such as `workflower_handoff`, or deterministic router tools that call Workflower runtime APIs, instead of asking the assistant to print slash commands.
+
 ## Agent handoffs
 
 Workflower registers a model-callable tool named `workflower_handoff`. A workflow step skill can call this tool to start another registered workflow as the next flower in the current garden.
@@ -36,6 +46,120 @@ The tool requires an active workflow and accepts:
 ```
 
 It marks the current flower as `handedOff`, creates the next flower in the same garden, and includes the previous flower's pollen paths in the target kickoff prompt. Assistant text containing `/wf:<id>` does not execute a slash command; skills should call `workflower_handoff` for autonomous branching or looping.
+
+Workflow definitions are model-invokable by default. Hidden user commands (`userInvocable: false`) remain valid `workflower_handoff` targets unless the workflow also sets `modelInvocable: false`.
+
+## Garden state
+
+Garden state is a small JSON state file shared by every flower in one active garden. It is for structured facts that later workflow steps or deterministic router code need after Workflower clears model context.
+
+```text
+.pi/workflows/<garden-name>/state.json
+```
+
+The file is created lazily when the first key is written, uses this shape, and is deleted when the garden completes even if some flower artifacts are preserved with `cleanupOnCompletion: false`:
+
+```json
+{
+  "version": 1,
+  "values": {
+    "review.rating": {
+      "value": 4,
+      "updatedAt": "2026-06-15T18:30:00.000Z"
+    }
+  }
+}
+```
+
+`/wf stop` only clears the current session's active workflow pointer; it does not delete `.pi/workflows/<garden-name>/state.json` or flower artifacts. State keys are flat strings like `review.rating`, `feature_summary`, or `tests-passed`; dots are naming convention only. Keys must match `^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$` and cannot be `__proto__`, `constructor`, or `prototype`.
+
+Use garden state for small facts such as ratings, summaries, booleans, ids, or routing decisions. Use step outputs for large reports, logs, diffs, implementation plans, or review documents. Use pollen to pass selected output file paths from one flower to the next during handoff.
+
+## State tools for agents
+
+Workflower registers these model-callable tools:
+
+- `workflower_state_set` — write a JSON-compatible value for the active garden.
+- `workflower_state_get` — read one active-garden state key.
+- `workflower_state_list` — list active-garden state keys.
+
+Examples:
+
+```json
+{ "key": "review.rating", "value": 3 }
+{ "key": "review.summary", "value": "Needs more tests." }
+{ "key": "review.required_changes", "value": ["Add empty-input tests"] }
+```
+
+Agents should call these tools when workflow instructions name state keys. They should not store large artifacts in state, and should call `workflower_handoff` rather than printing `/wf:<id>` when autonomous handoff is required.
+
+## State commands for humans
+
+Use `/wf state` to inspect or repair the active garden state manually:
+
+```text
+/wf state list
+/wf state get review.rating
+/wf state set review.rating 4
+/wf state set review.summary "Needs more tests"
+/wf state set review.required_changes ["Add edge-case tests","Handle missing active workflow"]
+```
+
+For `set`, everything after the key is parsed as JSON. Strings must be quoted.
+
+## Extension runtime API
+
+Extension authors can use the same underlying operations without invoking tools or slash commands:
+
+```ts
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createWorkflowerRuntime } from "@supierior/workflower";
+
+export default function reviewRouter(pi: ExtensionAPI): void {
+  pi.registerCommand("review-route", {
+    description: "Route the active Workflower garden based on review.rating.",
+    handler: async (_args, ctx) => {
+      const wf = createWorkflowerRuntime(pi, ctx);
+      const rating = await wf.state.getValue("review.rating");
+      if (typeof rating !== "number") return ctx.ui.notify("review.rating must be a number.", "error");
+
+      const nextWorkflow = rating >= 4 ? "feature-next-steps" : "implementation-review-loop";
+      const result = await wf.handoff(nextWorkflow);
+      if (!result.ok) ctx.ui.notify(result.message, "error");
+    },
+  });
+}
+```
+
+`createWorkflowerRuntime(pi, ctx)` is a lightweight facade for the current command/tool handler. Do not cache it globally or reuse it across sessions. In tools, pass `sendUserMessage: (prompt) => pi.sendUserMessage(prompt, { deliverAs: "followUp" })` so handoff kickoff prompts are delivered safely during an agent turn.
+
+## Deterministic review routing example
+
+A reviewer step can write:
+
+```json
+{ "key": "review.rating", "value": 3 }
+```
+
+Then deterministic extension code can route:
+
+```ts
+const rating = await wf.state.getValue("review.rating");
+const nextWorkflow = rating >= 4 ? "feature-next-steps" : "implementation-review-loop";
+await wf.handoff(nextWorkflow);
+```
+
+For fully autonomous routing, expose the router as a model-callable tool as well as, or instead of, a human command.
+
+## Outputs vs pollen vs garden state
+
+- Outputs are durable files produced by workflow steps in the active flower workdir. Use them for large artifacts: plans, reviews, diffs, logs, and reports.
+- Pollen is selected output file paths recorded in a flower index and passed to the next flower during handoff. Use it when the next workflow needs to find a previous file.
+- Garden state is small structured JSON shared by all flowers in one active garden. Use it for facts such as `review.rating`, `review.summary`, feature ids, flags, and deterministic routing inputs.
+
+## Slash command limitation
+
+Workflower step kickoff prompts can tell an agent to run `/review-route`, but assistant text cannot execute slash commands; printed slash commands are just assistant text. Human-triggered deterministic routing works well as a command. Fully autonomous routing should expose deterministic code as a model-callable tool and have that tool call `createWorkflowerRuntime(pi, ctx, { sendUserMessage: (prompt) => pi.sendUserMessage(prompt, { deliverAs: "followUp" }) })` before handoff.
 
 ## Start a workflow
 
@@ -141,6 +265,8 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 const myWorkflow: WorkflowDefinition = {
   id: "custom-demo",
+  userInvocable: true,
+  modelInvocable: true,
   clearOnStart: false,
   clearOnCompletion: false,
   cleanupOnCompletion: false,
@@ -166,13 +292,13 @@ export default function myPackageExtension(): void {
 }
 ```
 
-After registration, Workflower automatically exposes the start command:
+After registration, Workflower automatically exposes the start command unless `userInvocable: false` is set:
 
 ```text
 /wf:custom-demo <garden-name>
 ```
 
-The Pi extension entry points at Workflower's public ESM module (`./dist/index.mjs`), and the registry is stored on `globalThis`, so command handlers and external package imports share the same in-process registry even when extension bundles load separately. Workflower registers `/wf:<workflow-id>` commands for workflows already present when the extension loads and for workflows contributed later in the same process.
+The Pi extension entry points at Workflower's public ESM module (`./dist/index.mjs`), and the registry is stored on `globalThis`, so command handlers and external package imports share the same in-process registry even when extension bundles load separately. Workflower registers `/wf:<workflow-id>` commands for user-invokable workflows already present when the extension loads and for user-invokable workflows contributed later in the same process.
 
 Workflower does not ship workflows itself; it provides the registration and command runtime for workflow packages, published workflow collections, or local workflow extensions.
 
@@ -180,13 +306,14 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 
 ## State and artifacts
 
+- Garden state: `.pi/workflows/<garden-name>/state.json`
 - Active flower workdir: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/`
 - Flower index: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/index.json`
-- Active state: `.pi/tmp/workflows/active/<session-id>.json`
+- Active session state: `.pi/tmp/workflows/active/<session-id>.json`
 
 The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, optional captured `runtimeDefaults`, `startedAt`, and `updatedAt`.
 
-Workflow artifacts are not deleted by `/wf stop`. Handoffs preserve earlier flowers in the garden. At final `/next` completion, Workflower evaluates each flower's `workflowId`, looks up that workflow definition, deletes flower artifacts by default, preserves flowers whose producing workflow sets `cleanupOnCompletion: false`, and removes the garden directory only when it becomes empty.
+Workflow artifacts and garden state are not deleted by `/wf stop`. Handoffs preserve earlier flowers in the garden and share one garden state file. At final `/next` completion, Workflower deletes garden state, evaluates each flower's `workflowId`, looks up that workflow definition, deletes flower artifacts by default, preserves flowers whose producing workflow sets `cleanupOnCompletion: false`, and removes the garden directory only when it becomes empty.
 
 ## Development and validation
 

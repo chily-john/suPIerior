@@ -5,10 +5,8 @@ import {
   restoreWorkflowRuntimeDefaults,
 } from "@pi-adapter/apply-workflow-step-runtime-settings";
 import { handoffWorkflowById } from "@orchestration/runtime/use-cases/handoff/handoff-workflow-by-id";
-import {
-  hasHandoffDuringTurn,
-  markHandoffDuringTurn,
-} from "../workflow-handoff-turn-guard";
+import { sendWorkflowerPrompt } from "../send-workflower-prompt";
+import { hasHandoffDuringTurn, markHandoffDuringTurn } from "../workflow-handoff-turn-guard";
 
 export function registerHandoffTool(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -38,14 +36,16 @@ export function registerHandoffTool(pi: ExtensionAPI): void {
       }
 
       const result = await handoffWorkflowById(params.workflowId, ctx, {
-        applyStepRuntimeSettings: (settings) =>
-          applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+        applyStepRuntimeSettings: (settings) => applyWorkflowStepRuntimeSettings(pi, ctx, settings),
         restoreRuntimeDefaults: (runtimeDefaults) =>
           restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
         sendUserMessage: (prompt) => pi.sendUserMessage(prompt, { deliverAs: "followUp" }),
+        sendWorkflowPrompt: (input) =>
+          sendWorkflowerPrompt(pi, { ...input, deliverAs: "followUp" }),
       });
 
-      if (result.ok) markHandoffDuringTurn(ctx.cwd, ctx.sessionManager.getSessionId(), result.source);
+      if (result.ok)
+        markHandoffDuringTurn(ctx.cwd, ctx.sessionManager.getSessionId(), result.source);
 
       return {
         content: [{ type: "text", text: result.message }],

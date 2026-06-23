@@ -52,6 +52,43 @@ includes(
   "Cleanup waits until the whole garden completes",
   "skill must explain final garden cleanup timing",
 );
+includes(skill, "garden state", "skill must teach garden state guidance");
+includes(
+  skill,
+  "workflower_state_set",
+  "skill must tell authors to document state-setting tool calls",
+);
+includes(
+  skill,
+  "deterministic routing",
+  "skill must teach deterministic routing for state-driven branches",
+);
+includes(
+  skill,
+  "Do not rely on assistant text to invoke",
+  "skill must warn against printed slash-command routing",
+);
+includes(
+  skill,
+  "Do not rely on visible transcript content to verify full private skill injection",
+  "skill must warn against using visible transcript content to verify private skill injection",
+);
+includes(
+  skill,
+  "The model still receives the full kickoff prompt",
+  "skill must explain compact display still sends the full kickoff prompt",
+);
+includes(skill, "This is not a token-saving feature", "skill must explain compact display is not token saving");
+includes(
+  skill,
+  "Autonomous workflow movement should call `workflower_handoff`",
+  "skill must point autonomous movement at the handoff tool",
+);
+includes(
+  skill,
+  "output files for large artifacts",
+  "skill must direct large artifacts to files instead of garden state",
+);
 
 includes(
   readme,
@@ -65,6 +102,8 @@ includes(
   "README must document garden/flower artifact paths",
 );
 includes(readme, "pollen` and `acceptPollen`", "README must mention pollen guidance");
+includes(readme, "workflower_state_set", "README must mention state-setting guidance");
+includes(readme, "deterministic router", "README must mention deterministic routing guidance");
 
 excludes(
   combined,

@@ -19,6 +19,7 @@ This package is the Pi-aware implementation for hierarchical project rules. The 
 
 - Keep `dist/`, `.turbo/`, and package-local `.pi/rules/` out of source-of-truth edits.
 - Build before testing local installation with `pi install -l` or `pi -e`.
+- Keep package root publishing ESM-only: `dist/index.mjs`, `dist/index.d.mts`, and no `require` export.
 - Dependency boundaries are enforced by dependency-cruiser: `shared` cannot import higher layers, `domain` cannot import `features` or `pi`, and `features` cannot import `pi`.
 - Treat package-local `.pi/rules/` as stale; root `.pi/rules/` is canonical for this monorepo.
 

@@ -36,7 +36,9 @@ export async function startWorkflow(
     if (!result) return;
 
     const sent = await startWorkflowStep(workflow, result.state, 0, currentSession, {
+      cwd: ctx.cwd,
       incomingPollen: result.incomingPollen,
+      promptDisplayKind: "workflow",
     }).catch(() => false);
     if (sent) {
       ctx.ui.notify(
@@ -69,7 +71,10 @@ export async function startWorkflow(
   );
   if (!state) return;
 
-  const sent = await startWorkflowStep(workflow, state, 0, currentSession).catch(() => false);
+  const sent = await startWorkflowStep(workflow, state, 0, currentSession, {
+    cwd: ctx.cwd,
+    promptDisplayKind: "workflow",
+  }).catch(() => false);
   if (sent) ctx.ui.notify(`Started workflow ${workflow.id} as ${parsed.workflowName}.`, "info");
 }
 

@@ -4,6 +4,7 @@ import {
   restoreWorkflowRuntimeDefaults,
 } from "@pi-adapter/apply-workflow-step-runtime-settings";
 import { advanceOnAutoNext } from "@orchestration/runtime/use-cases/auto-next/advance-on-auto-next";
+import { sendWorkflowerPrompt } from "../send-workflower-prompt";
 import { consumeHandoffAutoNextSuppressionForState } from "../workflow-handoff-turn-guard";
 
 export function registerAutoNextOnAgentEnd(pi: ExtensionAPI): void {
@@ -11,11 +12,12 @@ export function registerAutoNextOnAgentEnd(pi: ExtensionAPI): void {
     await advanceOnAutoNext(
       ctx,
       {
-        applyStepRuntimeSettings: (settings) =>
-          applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+        applyStepRuntimeSettings: (settings) => applyWorkflowStepRuntimeSettings(pi, ctx, settings),
         restoreRuntimeDefaults: (runtimeDefaults) =>
           restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
         sendUserMessage: (prompt) => pi.sendUserMessage(prompt, { deliverAs: "followUp" }),
+        sendWorkflowPrompt: (input) =>
+          sendWorkflowerPrompt(pi, { ...input, deliverAs: "followUp" }),
       },
       {
         shouldSuppressAutoNext: (state) =>

@@ -8,6 +8,7 @@ import {
 } from "@orchestration/runtime/artifacts/flower-index-store";
 import {
   removeEmptyWorkflowGarden,
+  removeGardenStateFile,
   removeWorkflowWorkdir,
 } from "@orchestration/runtime/artifacts/remove-artifacts";
 import type { AdvanceWorkflowOptions, WorkflowAdvanceContext } from "./advance.types";
@@ -96,6 +97,7 @@ async function cleanupCompletedGarden(
     await removeWorkflowWorkdir(ctx.cwd, state.workdir);
   }
 
+  await removeGardenStateFile(ctx.cwd, gardenPath);
   await removeEmptyWorkflowGarden(ctx.cwd, gardenPath);
 }
 

@@ -11,4 +11,4 @@ triggers:
 
 # Scripts
 
-Enter here when changing package-local validation scripts or dependency-cruiser boundaries. Keep dependency rules aligned with the `package-api/`, `internals/workflow-orchestration/`, and `internals/pi-adapter/` separation documented under `extension-src/workflower/`. Runtime use-case `.types.ts` imports should stay within their owning use-case folder.
+Enter here when changing package-local validation scripts or dependency-cruiser boundaries. Keep dependency rules aligned with the `package-api/`, `internals/workflow-orchestration/`, and `internals/pi-adapter/` separation documented under `extension-src/workflower/`. Foundation folders such as `runtime/garden-state/` stay use-case-free, and runtime use-case `.types.ts` imports should stay within their owning use-case folder.

@@ -1,14 +1,46 @@
 import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { resolveActiveStatePath } from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-paths";
 import {
   readActiveWorkflowState,
   writeActiveWorkflowState,
 } from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store";
 import { resolveWorkflowPaths } from "../extension-src/workflower/internals/workflow-orchestration/runtime/artifacts/artifact-paths";
+import { removeGardenStateFile } from "../extension-src/workflower/internals/workflow-orchestration/runtime/artifacts/remove-artifacts";
+import { resolveGardenStatePath } from "../extension-src/workflower/internals/workflow-orchestration/runtime/garden-state/garden-state-paths";
+import {
+  getGardenStateValue as getStoredGardenStateValue,
+  listGardenStateValues as listStoredGardenStateValues,
+  readGardenStateFile,
+  setGardenStateValue as setStoredGardenStateValue,
+} from "../extension-src/workflower/internals/workflow-orchestration/runtime/garden-state/garden-state-store";
+import { getGardenStateValue as getActiveGardenStateValue } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/garden-state/get-garden-state-value";
+import { listGardenStateValues as listActiveGardenStateValues } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/garden-state/list-garden-state-values";
+import { setGardenStateValue as setActiveGardenStateValue } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/garden-state/set-garden-state-value";
+import { loadPackageWorkflowerSkills } from "../extension-src/workflower/internals/pi-adapter/private-skills/load-package-workflower-skills";
+import { renderWorkflowerPromptMessageText } from "../extension-src/workflower/internals/pi-adapter/rendering/register-workflower-prompt-renderer";
+import { expandPrivateSkillCommand } from "../extension-src/workflower/internals/workflow-orchestration/prompting/private-skills/expand-private-skill-command";
+import {
+  createStepPromptDisplay,
+  createWorkflowPromptDisplay,
+} from "../extension-src/workflower/internals/workflow-orchestration/prompting/workflow-prompt-display";
 import { renderStepKickoffPrompt } from "../extension-src/workflower/internals/workflow-orchestration/prompting/step-kickoff/render-step-kickoff-prompt";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  addWorkflowerCommandToRegistry,
+  clearWorkflowerCommandsForTests,
+  findWorkflowerCommand,
+} from "../extension-src/workflower/internals/workflow-orchestration/definitions/private-commands/private-command-registry";
+import { parseWorkflowerPrivateCommandInvocation } from "../extension-src/workflower/internals/workflow-orchestration/definitions/private-commands/parse-private-command-invocation";
+import { resolveWorkflowerStepCommand } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/start-step/resolve-workflow-step-command";
+import { startWorkflowStep } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/start-step/start-workflow-step";
+import {
+  clearPrivateSkillsForTests,
+  findPrivateSkill,
+  registerPrivateSkill,
+} from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/private-skills/private-skill-registry";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 async function loadWorkflower(): Promise<Record<string, any>> {
   return import("../extension-src/workflower/index");
@@ -35,7 +67,7 @@ beforeAll(async () => {
       throw error;
     }
   }
-});
+}, 30_000);
 
 describe("package smoke", () => {
   it("loads a Pi extension entry point and public workflow API", async () => {
@@ -43,6 +75,8 @@ describe("package smoke", () => {
 
     expect(typeof workflower.default).toBe("function");
     expect(typeof workflower.registerWorkflow).toBe("function");
+    expect(typeof workflower.registerWorkflowerCommand).toBe("function");
+    expect(typeof workflower.createWorkflowerRuntime).toBe("function");
     expect(workflower.defineWorkflow).toBeUndefined();
     expect(workflower.findWorkflow).toBeUndefined();
     expect(workflower.listWorkflows).toBeUndefined();
@@ -60,6 +94,559 @@ describe("package smoke", () => {
     );
 
     expect(manifest.pi.extensions).toEqual(["./dist/index.mjs"]);
+  });
+
+  it("documents garden state, runtime API, compact display, and slash command limitations", async () => {
+    const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+    const authoringSkill = await readFile(
+      new URL("../../workflower-authoring/skills/workflower-authoring/SKILL.md", import.meta.url),
+      "utf8",
+    );
+
+    expect(readme).toContain("createWorkflowerRuntime");
+    expect(readme).toContain("workflower_state_set");
+    expect(readme).toContain("/wf state set review.rating 4");
+    expect(readme).toContain("Outputs vs pollen vs garden state");
+    expect(readme).toContain("Workflow prompt display");
+    expect(readme).toContain("full kickoff prompt still enters model context");
+    expect(readme).toContain("It is not a token-saving feature");
+    expect(readme).toContain("private skill text is not visible in chat");
+    expect(readme).toContain("Assistant messages that print `/wf:<id>`, `/next`, or other slash commands do not execute");
+    expect(readme).toContain("workflower_handoff");
+    expect(authoringSkill).toContain("garden state");
+    expect(authoringSkill).toContain("deterministic routing");
+    expect(authoringSkill).toContain("Use output files for large artifacts");
+    expect(authoringSkill).toContain("Do not rely on visible transcript content to verify full private skill injection");
+  });
+});
+
+describe("workflower private skills", () => {
+  beforeEach(() => {
+    clearPrivateSkillsForTests();
+  });
+
+  it("loads workflower private skills from a package manifest", async () => {
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Private helper skill\n---\n# Private\n`,
+    );
+
+    try {
+      const result = loadPackageWorkflowerSkills(privatePackage.packageUrl);
+
+      expect(result.skills.map((skill) => skill.name)).toEqual(["private-one"]);
+      expect(result.skills[0]).toMatchObject({
+        description: "Private helper skill",
+        filePath: privatePackage.skillPath,
+        baseDir: join(privatePackage.dir, "skills", "private-one"),
+      });
+      expect(result.diagnostics).toEqual([]);
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses frontmatter name when loading a private skill", async () => {
+    const privatePackage = await createPrivateSkillPackage(
+      `---\nname: manifest-name\ndescription: Named private skill\n---\n# Private\n`,
+    );
+
+    try {
+      const result = loadPackageWorkflowerSkills(privatePackage.packageUrl);
+
+      expect(result.skills.map((skill) => skill.name)).toEqual(["manifest-name"]);
+      expect(result.diagnostics).toEqual([]);
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the skill directory name when no private skill name is set", async () => {
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Fallback skill\n---\n`,
+    );
+
+    try {
+      const result = loadPackageWorkflowerSkills(privatePackage.packageUrl);
+
+      expect(result.skills.map((skill) => skill.name)).toEqual(["private-one"]);
+      expect(result.diagnostics).toEqual([]);
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a diagnostic for private skills without descriptions", async () => {
+    const privatePackage = await createPrivateSkillPackage(`---\nname: missing-description\n---\n`);
+
+    try {
+      const result = loadPackageWorkflowerSkills(privatePackage.packageUrl);
+
+      expect(result.skills).toEqual([]);
+      expect(result.diagnostics).toEqual([
+        expect.objectContaining({
+          level: "error",
+          message: expect.stringContaining("missing a description"),
+          path: privatePackage.skillPath,
+        }),
+      ]);
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("registers package private skills when setupWorkflower receives packageUrl", async () => {
+    const { default: setupWorkflower } = await loadWorkflower();
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Registered skill\n---\n`,
+    );
+    const pi = createPiHarness();
+
+    try {
+      setupWorkflower(pi, { packageUrl: privatePackage.packageUrl });
+
+      expect(findPrivateSkill("private-one")).toMatchObject({
+        name: "private-one",
+        description: "Registered skill",
+        filePath: privatePackage.skillPath,
+      });
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not require packageUrl for existing setupWorkflower callers", async () => {
+    const { default: setupWorkflower } = await loadWorkflower();
+    const pi = createPiHarness();
+
+    setupWorkflower(pi);
+
+    expect(pi.commands.wf).toBeDefined();
+    expect(findPrivateSkill("private-one")).toBeUndefined();
+  });
+
+  it("expands a private skill command into a skill block", async () => {
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Private helper skill\n---\n# Body\n`,
+    );
+
+    try {
+      registerPrivateSkill({
+        name: "private-one",
+        description: "Private helper skill",
+        filePath: privatePackage.skillPath,
+        baseDir: dirname(privatePackage.skillPath),
+      });
+
+      const expanded = expandPrivateSkillCommand("/skill:private-one extra args");
+
+      expect(expanded).toContain('<skill name="private-one"');
+      expect(expanded).toContain(`location="${privatePackage.skillPath}"`);
+      expect(expanded).toContain("References are relative to");
+      expect(expanded).toContain("# Body");
+      expect(expanded).not.toContain("description: Private helper skill");
+      expect(expanded).toContain("extra args");
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns undefined when expanding an unknown private skill command", () => {
+    expect(expandPrivateSkillCommand("/skill:public-skill args")).toBeUndefined();
+  });
+
+  it("injects private skill content into the step kickoff prompt", async () => {
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Private helper skill\n---\n# Body\n`,
+    );
+
+    try {
+      registerPrivateSkill({
+        name: "private-one",
+        description: "Private helper skill",
+        filePath: privatePackage.skillPath,
+        baseDir: dirname(privatePackage.skillPath),
+      });
+
+      const prompt = renderStepKickoffPrompt({
+        id: "private-workflow",
+        name: "demo",
+        workdir: join("/repo", ".pi", "workflows", "private-workflow", "demo"),
+        step: { id: "run-private", command: "/skill:private-one extra args" },
+        currentStepIndex: 0,
+      });
+
+      expect(prompt).toContain(
+        "Execute this Workflower private skill for the current workflow step:",
+      );
+      expect(prompt).toContain('<skill name="private-one"');
+      expect(prompt).toContain("# Body");
+      expect(prompt).toContain("extra args");
+      expect(prompt).not.toContain("Execute this command: /skill:private-one");
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps private skill expansion in model content while rendering a compact workflow prompt", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Private helper skill\n---\n# Private Skill Body\nDo not show this body in the TUI.\n`,
+    );
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerPrivateSkill({
+        name: "private-one",
+        description: "Private helper skill",
+        filePath: privatePackage.skillPath,
+        baseDir: dirname(privatePackage.skillPath),
+      });
+      registerWorkflow({
+        id: "private-skill-display-demo",
+        steps: [{ id: "run-private", command: "/skill:private-one extra args" }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:private-skill-display-demo"].handler("private-skill-display", ctx);
+
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].message).toMatchObject({
+        customType: "workflower-prompt",
+        display: true,
+        details: {
+          kind: "workflow",
+          workflowId: "private-skill-display-demo",
+          workflowName: "private-skill-display",
+          label: "Workflow: private-skill-display-demo — private-skill-display",
+        },
+      });
+      expect(prompts[0].prompt).toContain(
+        "Execute this Workflower private skill for the current workflow step:",
+      );
+      expect(prompts[0].prompt).toContain('<skill name="private-one"');
+      expect(prompts[0].prompt).toContain("# Private Skill Body");
+      expect(prompts[0].prompt).toContain("Do not show this body in the TUI.");
+      expect(prompts[0].prompt).toContain("extra args");
+
+      const renderedText = pi.messageRenderers["workflower-prompt"](
+        prompts[0].message,
+        { expanded: true },
+        {},
+      )
+        .render(120)
+        .join("\n");
+      expect(renderedText).toContain("Workflow: private-skill-display-demo — private-skill-display");
+      expect(renderedText).not.toContain("Private Skill Body");
+      expect(renderedText).not.toContain("Do not show this body in the TUI.");
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves non-private step commands unchanged", () => {
+    const prompt = renderStepKickoffPrompt({
+      id: "feature",
+      name: "release-notes",
+      workdir: join("/repo", ".pi", "workflows", "feature", "release-notes"),
+      step: { id: "discover", command: "/feature-discovery" },
+      currentStepIndex: 0,
+    });
+
+    expect(prompt).toContain("Execute this command: /feature-discovery.");
+    expect(prompt).not.toContain("Execute this Workflower private skill");
+  });
+});
+
+describe("workflower private commands", () => {
+  beforeEach(() => {
+    clearWorkflowerCommandsForTests();
+    clearPrivateSkillsForTests();
+  });
+
+  it("registers and finds a workflower private command", async () => {
+    const { registerWorkflowerCommand } = await loadWorkflower();
+
+    registerWorkflowerCommand({
+      name: "feature:prepare-draft",
+      handler: () => ({ kind: "none" }),
+    });
+
+    expect(findWorkflowerCommand("feature:prepare-draft")).toBeDefined();
+  });
+
+  it("does not silently replace a different private command with the same name", () => {
+    const first = {
+      name: "feature:prepare-draft",
+      handler: () => ({ kind: "none" as const }),
+    };
+    const second = {
+      name: "feature:prepare-draft",
+      handler: () => ({ kind: "none" as const }),
+    };
+
+    expect(addWorkflowerCommandToRegistry(first)).toBeUndefined();
+    expect(addWorkflowerCommandToRegistry(second)).toMatchObject({
+      level: "warning",
+      commandName: "feature:prepare-draft",
+    });
+    expect(findWorkflowerCommand("feature:prepare-draft")).toBe(first);
+  });
+
+  it("parses a workflower private command invocation", () => {
+    expect(parseWorkflowerPrivateCommandInvocation("/feature:prepare-draft --strict")).toEqual({
+      name: "feature:prepare-draft",
+      args: "--strict",
+    });
+    expect(parseWorkflowerPrivateCommandInvocation("/skill:private-one args")).toBeUndefined();
+    expect(parseWorkflowerPrivateCommandInvocation("not-a-command")).toBeUndefined();
+  });
+
+  it("executes a private command referenced by a workflow step", async () => {
+    const seen: any[] = [];
+    addWorkflowerCommandToRegistry({
+      name: "feature:prepare-draft",
+      handler: (args, ctx) => {
+        seen.push({ args, ctx });
+        return { kind: "prompt", content: "Private command prompt content." };
+      },
+    });
+
+    const result = await resolveWorkflowerStepCommand(
+      { id: "draft", command: "/feature:prepare-draft --strict" },
+      {
+        workflowId: "feature",
+        workflowName: "release-notes",
+        gardenName: "release-notes",
+        cwd: "/repo",
+      },
+    );
+
+    expect(result).toEqual({
+      kind: "private-command-prompt",
+      content: "Private command prompt content.",
+    });
+    expect(seen).toEqual([
+      {
+        args: "--strict",
+        ctx: {
+          workflowId: "feature",
+          workflowName: "release-notes",
+          gardenName: "release-notes",
+          cwd: "/repo",
+          stepId: "draft",
+        },
+      },
+    ]);
+  });
+
+  it("injects a private command prompt when a workflow step starts", async () => {
+    const {
+      default: registerWorkflower,
+      registerWorkflow,
+      registerWorkflowerCommand,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflowerCommand({
+        name: "feature:prepare-draft",
+        handler: (args: string, commandCtx: any) => ({
+          kind: "prompt",
+          content: `Private command prompt content for ${commandCtx.stepId} with ${args} in ${commandCtx.cwd}.`,
+        }),
+      });
+      registerWorkflow({
+        id: "private-command-step-demo",
+        steps: [{ id: "draft", command: "/feature:prepare-draft --strict" }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:private-command-step-demo"].handler("private-command", ctx);
+
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts[0].message).toMatchObject({
+        customType: "workflower-prompt",
+        display: true,
+        details: {
+          kind: "workflow",
+          workflowId: "private-command-step-demo",
+          workflowName: "private-command",
+          label: "Workflow: private-command-step-demo — private-command",
+        },
+      });
+      expect(prompts[0].prompt).toContain(
+        "Execute this Workflower private command for the current workflow step:",
+      );
+      expect(prompts[0].prompt).toContain(
+        `Private command prompt content for draft with --strict in ${dir}.`,
+      );
+      expect(prompts[0].prompt).not.toContain("Execute this command: /feature:prepare-draft");
+
+      const renderedText = pi.messageRenderers["workflower-prompt"](
+        prompts[0].message,
+        { expanded: true },
+        {},
+      )
+        .render(120)
+        .join("\n");
+      expect(renderedText).toContain("Workflow: private-command-step-demo — private-command");
+      expect(renderedText).not.toContain("Private command prompt content for draft");
+      expect(renderedText).not.toContain("Execute this Workflower private command");
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("omits command-specific prompt content when a private command returns none", async () => {
+    const {
+      default: registerWorkflower,
+      registerWorkflow,
+      registerWorkflowerCommand,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflowerCommand({
+        name: "feature:prepare-none",
+        handler: () => ({ kind: "none" }),
+      });
+      registerWorkflow({
+        id: "private-command-none-step-demo",
+        steps: [{ id: "draft", command: "/feature:prepare-none --strict" }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:private-command-none-step-demo"].handler("private-command-none", ctx);
+
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts[0].prompt).toContain("Start this Workflower workflow step.");
+      expect(prompts[0].prompt).not.toContain(
+        "Execute this Workflower private command for the current workflow step:",
+      );
+      expect(prompts[0].prompt).not.toContain(
+        "Execute this command: /feature:prepare-none --strict",
+      );
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves public or unknown commands as normal command text", async () => {
+    const commandResolution = await resolveWorkflowerStepCommand(
+      { id: "draft", command: "/some-public-command args" },
+      {
+        workflowId: "feature",
+        workflowName: "release-notes",
+        gardenName: "release-notes",
+        cwd: "/repo",
+      },
+    );
+
+    const prompt = renderStepKickoffPrompt({
+      id: "feature",
+      name: "release-notes",
+      workdir: join("/repo", ".pi", "workflows", "feature", "release-notes"),
+      step: { id: "draft", command: "/some-public-command args" },
+      currentStepIndex: 0,
+      commandResolution,
+    });
+
+    expect(commandResolution).toBeUndefined();
+    expect(prompt).toContain("Execute this command: /some-public-command args.");
+    expect(prompt).not.toContain("Execute this Workflower private command");
+  });
+
+  it("prioritizes private skill expansion for /skill commands", async () => {
+    const privatePackage = await createPrivateSkillPackage(
+      `---\ndescription: Private helper skill\n---\n# Private Skill Body\n`,
+    );
+    const privateCommandHandler = vi.fn(() => ({
+      kind: "prompt" as const,
+      content: "Private command should not run.",
+    }));
+
+    try {
+      registerPrivateSkill({
+        name: "private-one",
+        description: "Private helper skill",
+        filePath: privatePackage.skillPath,
+        baseDir: dirname(privatePackage.skillPath),
+      });
+      addWorkflowerCommandToRegistry({
+        name: "skill:private-one",
+        handler: privateCommandHandler,
+      });
+
+      const commandResolution = await resolveWorkflowerStepCommand(
+        { id: "draft", command: "/skill:private-one extra args" },
+        {
+          workflowId: "feature",
+          workflowName: "release-notes",
+          gardenName: "release-notes",
+          cwd: "/repo",
+        },
+      );
+      const prompt = renderStepKickoffPrompt({
+        id: "feature",
+        name: "release-notes",
+        workdir: join("/repo", ".pi", "workflows", "feature", "release-notes"),
+        step: { id: "draft", command: "/skill:private-one extra args" },
+        currentStepIndex: 0,
+        commandResolution,
+      });
+
+      expect(commandResolution).toMatchObject({ kind: "private-skill-prompt" });
+      expect(privateCommandHandler).not.toHaveBeenCalled();
+      expect(prompt).toContain(
+        "Execute this Workflower private skill for the current workflow step:",
+      );
+      expect(prompt).toContain("# Private Skill Body");
+      expect(prompt).toContain("extra args");
+      expect(prompt).not.toContain("Private command should not run.");
+      expect(prompt).not.toContain("Execute this command: /skill:private-one extra args");
+    } finally {
+      await rm(privatePackage.dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not register private commands with Pi", async () => {
+    const { default: registerWorkflower, registerWorkflowerCommand } = await loadWorkflower();
+    const pi = createPiHarness();
+
+    registerWorkflowerCommand({
+      name: "feature:prepare-draft",
+      description: "Prepare a draft",
+      handler: () => ({ kind: "none" }),
+    });
+    registerWorkflower(pi);
+
+    expect(pi.commands["feature:prepare-draft"]).toBeUndefined();
+    expect(pi.registeredCommands).not.toContain("feature:prepare-draft");
+  });
+
+  it("does not consume unknown private command invocations", async () => {
+    await expect(
+      resolveWorkflowerStepCommand(
+        { id: "draft", command: "/feature:unknown --strict" },
+        {
+          workflowId: "feature",
+          workflowName: "release-notes",
+          gardenName: "release-notes",
+          cwd: "/repo",
+        },
+      ),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -114,6 +701,82 @@ describe("workflow definitions and registry", () => {
       ).toThrow(/Invalid workflow id/);
     },
   );
+});
+
+describe("workflow prompt display", () => {
+  it("creates a workflow label with only a workflow id", () => {
+    expect(createWorkflowPromptDisplay({ workflowId: "take-it-away" })).toMatchObject({
+      kind: "workflow",
+      workflowId: "take-it-away",
+      label: "Workflow: take-it-away",
+    });
+  });
+
+  it("creates a workflow label with a user-provided workflow name", () => {
+    expect(
+      createWorkflowPromptDisplay({ workflowId: "take-it-away", workflowName: "my-feature-name" }),
+    ).toMatchObject({
+      kind: "workflow",
+      workflowId: "take-it-away",
+      workflowName: "my-feature-name",
+      label: "Workflow: take-it-away — my-feature-name",
+    });
+  });
+
+  it("creates a step label", () => {
+    expect(
+      createStepPromptDisplay({
+        workflowId: "take-it-away",
+        workflowName: "my-feature-name",
+        stepId: "summarize-context",
+        stepIndex: 1,
+      }),
+    ).toEqual({
+      kind: "step",
+      workflowId: "take-it-away",
+      workflowName: "my-feature-name",
+      stepId: "summarize-context",
+      stepIndex: 1,
+      label: "Step: summarize-context",
+    });
+  });
+
+  it("renders workflower prompts as compact TUI labels without exposing the prompt body", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const pi = createPiHarness();
+    const longPrivatePrompt = [
+      "Execute this Workflower private skill for the current workflow step:",
+      "# Long private skill body",
+      "Do not show this full prompt in the TUI renderer.",
+    ].join("\n");
+
+    registerWorkflower(pi);
+
+    expect(pi.messageRenderers["workflower-prompt"]).toBeDefined();
+    const component = pi.messageRenderers["workflower-prompt"](
+      {
+        role: "custom",
+        customType: "workflower-prompt",
+        content: longPrivatePrompt,
+        display: true,
+        details: createStepPromptDisplay({
+          workflowId: "take-it-away",
+          workflowName: "my-feature-name",
+          stepId: "summarize-context",
+          stepIndex: 1,
+        }),
+        timestamp: Date.now(),
+      },
+      { expanded: false },
+      {},
+    );
+    const renderedText = component.render(120).join("\n");
+
+    expect(renderedText).toContain("Step: summarize-context");
+    expect(renderedText).not.toContain("Long private skill body");
+    expect(renderedText).not.toContain("Execute this Workflower private skill");
+    expect(renderWorkflowerPromptMessageText({ details: undefined })).toBe("Workflower prompt");
+  });
 });
 
 describe("paths, state, and prompts", () => {
@@ -184,6 +847,543 @@ describe("paths, state, and prompts", () => {
     expect(prompt).toContain("Execute this command: /first.");
     expect(prompt).not.toContain("After the user verifies this step's outputs, use /next");
   });
+
+  it("sends workflow prompt display metadata when the prompt sender supports it", async () => {
+    const workflow = {
+      id: "compact-display",
+      steps: [{ id: "summarize-context", command: "/summarize" }],
+    };
+    const state = {
+      sessionId: "session-id",
+      id: workflow.id,
+      name: "my-feature-name",
+      workdir: join("/repo", ".pi", "workflows", "my-feature-name", "0001-compact-display"),
+      currentStepIndex: 0,
+      startedAt: "2026-01-02T03:04:05.000Z",
+      updatedAt: "2026-01-02T03:04:05.000Z",
+    };
+    const expectedPrompt = renderStepKickoffPrompt({
+      id: workflow.id,
+      name: state.name,
+      workdir: state.workdir,
+      step: workflow.steps[0],
+      currentStepIndex: 0,
+    });
+    const sentWorkflowPrompts: Array<{
+      prompt: string;
+      display: ReturnType<typeof createStepPromptDisplay>;
+    }> = [];
+    const sendUserMessage = vi.fn((_prompt: string) => undefined);
+    const sendWorkflowPrompt = vi.fn(
+      (input: { prompt: string; display: ReturnType<typeof createStepPromptDisplay> }) => {
+        sentWorkflowPrompts.push(input);
+      },
+    );
+
+    await expect(
+      startWorkflowStep(
+        workflow,
+        state,
+        0,
+        { sendUserMessage, sendWorkflowPrompt },
+        { cwd: "/repo" },
+      ),
+    ).resolves.toBe(true);
+
+    expect(sendUserMessage).not.toHaveBeenCalled();
+    expect(sendWorkflowPrompt).toHaveBeenCalledTimes(1);
+    expect(sentWorkflowPrompts[0]).toEqual({
+      prompt: expectedPrompt,
+      display: {
+        kind: "step",
+        workflowId: "compact-display",
+        workflowName: "my-feature-name",
+        stepId: "summarize-context",
+        stepIndex: 0,
+        label: "Step: summarize-context",
+      },
+    });
+    expect(sentWorkflowPrompts[0]?.prompt).toContain("Current step 0: summarize-context");
+  });
+
+  it("falls back to plain user messages for prompt senders without display support", async () => {
+    const workflow = {
+      id: "legacy-display",
+      steps: [{ id: "discover", command: "/discover" }],
+    };
+    const state = {
+      sessionId: "session-id",
+      id: workflow.id,
+      name: "legacy-feature-name",
+      workdir: join("/repo", ".pi", "workflows", "legacy-feature-name", "0001-legacy-display"),
+      currentStepIndex: 0,
+      startedAt: "2026-01-02T03:04:05.000Z",
+      updatedAt: "2026-01-02T03:04:05.000Z",
+    };
+    const expectedPrompt = renderStepKickoffPrompt({
+      id: workflow.id,
+      name: state.name,
+      workdir: state.workdir,
+      step: workflow.steps[0],
+      currentStepIndex: 0,
+    });
+    const sendUserMessage = vi.fn((_prompt: string) => undefined);
+
+    await expect(
+      startWorkflowStep(workflow, state, 0, { sendUserMessage }, { cwd: "/repo" }),
+    ).resolves.toBe(true);
+
+    expect(sendUserMessage).toHaveBeenCalledTimes(1);
+    expect(sendUserMessage).toHaveBeenCalledWith(expectedPrompt);
+  });
+});
+
+describe("garden state foundations", () => {
+  it("resolves the garden state path under the garden directory", () => {
+    expect(resolveGardenStatePath(join("/repo", ".pi", "workflows", "demo"))).toBe(
+      join("/repo", ".pi", "workflows", "demo", "state.json"),
+    );
+  });
+
+  it("reads a missing garden state file as empty state", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    try {
+      await expect(readGardenStateFile(join(dir, ".pi", "workflows", "demo"))).resolves.toEqual({
+        version: 1,
+        values: {},
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("writes, reads, and lists garden state values as pretty JSON", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const gardenPath = join(dir, ".pi", "workflows", "demo");
+
+    try {
+      await setStoredGardenStateValue(gardenPath, "review.summary", "Needs tests");
+      await setStoredGardenStateValue(gardenPath, "review.rating", 4);
+      await setStoredGardenStateValue(gardenPath, "review.required_changes", ["Add tests"]);
+
+      await expect(getStoredGardenStateValue(gardenPath, "review.rating")).resolves.toMatchObject({
+        value: 4,
+      });
+      await expect(
+        getStoredGardenStateValue(gardenPath, "review.required_changes"),
+      ).resolves.toMatchObject({ value: ["Add tests"] });
+      await expect(listStoredGardenStateValues(gardenPath).then(Object.keys)).resolves.toEqual([
+        "review.rating",
+        "review.required_changes",
+        "review.summary",
+      ]);
+      await expect(readFile(resolveGardenStatePath(gardenPath), "utf8")).resolves.toContain(
+        '  "version": 1,',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("removes only garden state files from workflow gardens", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const gardenPath = join(dir, ".pi", "workflows", "demo");
+    const artifactPath = join(gardenPath, "artifact.md");
+    const outsidePath = join(dir, "outside");
+    const outsideStatePath = join(outsidePath, "state.json");
+
+    try {
+      await mkdir(gardenPath, { recursive: true });
+      await mkdir(outsidePath, { recursive: true });
+      await writeFile(resolveGardenStatePath(gardenPath), "{}", "utf8");
+      await writeFile(artifactPath, "artifact", "utf8");
+      await writeFile(outsideStatePath, "{}", "utf8");
+
+      await removeGardenStateFile(dir, gardenPath);
+      await expect(access(resolveGardenStatePath(gardenPath))).rejects.toThrow();
+      await expect(readFile(artifactPath, "utf8")).resolves.toBe("artifact");
+      await expect(removeGardenStateFile(dir, gardenPath)).resolves.toBeUndefined();
+      await expect(removeGardenStateFile(dir, outsidePath)).rejects.toThrow(/Refusing to delete/);
+      await expect(readFile(outsideStatePath, "utf8")).resolves.toBe("{}");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["", "../bad", "review/rating", "has space", "__proto__", "constructor", "prototype"])(
+    "rejects invalid garden state key %j",
+    async (key) => {
+      await expect(
+        setStoredGardenStateValue("/repo/.pi/workflows/demo", key, true),
+      ).rejects.toThrow(/Invalid garden state key/);
+    },
+  );
+
+  it.each([undefined, Number.NaN, Infinity, () => undefined, Symbol("bad")])(
+    "rejects JSON-incompatible garden state value %s",
+    async (value) => {
+      await expect(
+        setStoredGardenStateValue("/repo/.pi/workflows/demo", "review.rating", value),
+      ).rejects.toThrow(/Invalid garden state value/);
+    },
+  );
+});
+
+describe("active-garden state use cases", () => {
+  it("returns a friendly failure when no workflow is active for the session", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+
+    try {
+      await expect(
+        getActiveGardenStateValue(createCommandContext(dir) as any, "review.rating"),
+      ).resolves.toEqual({
+        ok: false,
+        message:
+          "No active Workflower workflow. Garden state is only available inside an active garden.",
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("sets active garden state using gardenPath and records active workflow producer metadata", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const gardenPath = join(dir, ".pi", "workflows", "state-use-case");
+    const flowerPath = join(gardenPath, "0001-feature");
+    const ctx = createCommandContext(dir) as any;
+
+    try {
+      await writeActiveWorkflowState(activeStatePath(dir), {
+        sessionId: "session-id",
+        id: "feature",
+        name: "state-use-case",
+        gardenName: "state-use-case",
+        gardenPath,
+        activeFlowerName: "0001-feature",
+        activeFlowerPath: flowerPath,
+        workdir: flowerPath,
+        currentStepIndex: 1,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      await expect(setActiveGardenStateValue(ctx, "review.rating", 4)).resolves.toMatchObject({
+        ok: true,
+        key: "review.rating",
+        entry: {
+          value: 4,
+          producer: {
+            workflowId: "feature",
+            stepId: "plan-issues",
+            stepIndex: 1,
+            gardenName: "state-use-case",
+            gardenPath,
+            flowerName: "0001-feature",
+            flowerPath,
+          },
+        },
+      });
+      await expect(readGardenStateFile(gardenPath)).resolves.toMatchObject({
+        values: { "review.rating": { value: 4 } },
+      });
+      await expect(getActiveGardenStateValue(ctx, "missing.key")).resolves.toEqual({
+        ok: true,
+        key: "missing.key",
+        found: false,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the workdir parent when active state lacks modern garden fields", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const gardenPath = join(dir, ".pi", "workflows", "legacy-state");
+    const flowerPath = join(gardenPath, "0001-feature");
+    const ctx = createCommandContext(dir) as any;
+
+    try {
+      await writeActiveWorkflowState(activeStatePath(dir), {
+        sessionId: "session-id",
+        id: "feature",
+        name: "legacy-state",
+        workdir: flowerPath,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      await expect(listActiveGardenStateValues(ctx)).resolves.toEqual({
+        ok: true,
+        values: {},
+        keys: [],
+      });
+      await expect(setActiveGardenStateValue(ctx, "legacy.flag", true)).resolves.toMatchObject({
+        ok: true,
+        entry: {
+          value: true,
+          producer: {
+            workflowId: "feature",
+            stepId: "discover",
+            stepIndex: 0,
+            gardenName: "legacy-state",
+            gardenPath,
+            flowerName: "0001-feature",
+            flowerPath,
+          },
+        },
+      });
+      await expect(readGardenStateFile(gardenPath)).resolves.toMatchObject({
+        values: { "legacy.flag": { value: true } },
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("garden state runtime, tools, and commands", () => {
+  it("exposes a lightweight public runtime for active-garden state", async () => {
+    const {
+      createWorkflowerRuntime,
+      default: registerWorkflower,
+      registerWorkflow,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "runtime-state-demo",
+        steps: [{ id: "review", command: "/review" }],
+      });
+      registerWorkflower(pi);
+      const runtime = createWorkflowerRuntime(pi, ctx);
+      expect(pi.sentUserMessages).toEqual([]);
+
+      await pi.commands["wf:runtime-state-demo"].handler("runtime-state", ctx);
+      await expect(runtime.state.set("review.rating", 4)).resolves.toMatchObject({ ok: true });
+      await expect(runtime.state.getValue("review.rating")).resolves.toBe(4);
+      await expect(runtime.state.getValue("missing.key")).resolves.toBeUndefined();
+      await expect(runtime.state.list()).resolves.toMatchObject({
+        ok: true,
+        keys: ["review.rating"],
+      });
+
+      const state = JSON.parse(
+        await readFile(join(dir, ".pi", "workflows", "runtime-state", "state.json"), "utf8"),
+      );
+      expect(state.values["review.rating"].producer).toMatchObject({
+        workflowId: "runtime-state-demo",
+        stepId: "review",
+        stepIndex: 0,
+        gardenName: "runtime-state",
+        flowerName: "0001-runtime-state-demo",
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the public runtime handoff facade with Pi custom messages by default", async () => {
+    const {
+      createWorkflowerRuntime,
+      default: registerWorkflower,
+      registerWorkflow,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "runtime-default-handoff-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
+      registerWorkflow({
+        id: "runtime-default-handoff-target",
+        steps: [{ id: "target", command: "/target" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:runtime-default-handoff-source"].handler("runtime-handoff", ctx);
+      resetPiMessages(pi);
+
+      const runtime = createWorkflowerRuntime(pi, ctx);
+      await expect(runtime.handoff("runtime-default-handoff-target")).resolves.toMatchObject({
+        ok: true,
+        workflowId: "runtime-default-handoff-target",
+      });
+
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].message).toMatchObject({
+        customType: "workflower-prompt",
+        display: true,
+        details: {
+          kind: "workflow",
+          workflowId: "runtime-default-handoff-target",
+          workflowName: "runtime-handoff",
+          label: "Workflow: runtime-default-handoff-target — runtime-handoff",
+        },
+      });
+      expect(prompts[0].prompt).toContain("Workflow: runtime-default-handoff-target");
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the public runtime handoff facade and honors a custom sender", async () => {
+    const {
+      createWorkflowerRuntime,
+      default: registerWorkflower,
+      registerWorkflow,
+    } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const sent: string[] = [];
+
+    try {
+      registerWorkflow({
+        id: "runtime-handoff-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
+      registerWorkflow({
+        id: "runtime-handoff-target",
+        steps: [{ id: "target", command: "/target" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:runtime-handoff-source"].handler("runtime-handoff", ctx);
+      resetPiMessages(pi);
+
+      const runtime = createWorkflowerRuntime(pi, ctx, {
+        sendUserMessage: (prompt: string) => sent.push(prompt),
+      });
+      await expect(runtime.handoff("runtime-handoff-target")).resolves.toMatchObject({
+        ok: true,
+        workflowId: "runtime-handoff-target",
+        activeFlowerName: "0002-runtime-handoff-target",
+      });
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toContain("Workflow: runtime-handoff-target");
+      expect(pi.sentUserMessages).toEqual([]);
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "runtime-handoff-target",
+        activeFlowerName: "0002-runtime-handoff-target",
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("registers and executes active-garden state tools", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({ id: "state-tool-demo", steps: [{ id: "review", command: "/review" }] });
+      registerWorkflower(pi);
+      expect(pi.tools.workflower_state_set.promptGuidelines.join("\n")).toContain(
+        "workflower_state_get",
+      );
+
+      const missing = await executeStateSetTool(pi, "review.rating", 4, ctx);
+      expect(missing.details).toMatchObject({ ok: false });
+
+      await pi.commands["wf:state-tool-demo"].handler("state-tool", ctx);
+      const set = await executeStateSetTool(pi, "review.rating", 4, ctx);
+      expect(set.details).toMatchObject({ ok: true, key: "review.rating" });
+      const get = await executeStateGetTool(pi, "review.rating", ctx);
+      expect(get.details).toMatchObject({ ok: true, found: true, entry: { value: 4 } });
+      const list = await executeStateListTool(pi, ctx);
+      expect(list.details).toMatchObject({ ok: true, keys: ["review.rating"] });
+      const invalid = await executeStateSetTool(pi, "review/rating", 4, ctx);
+      expect(invalid.details).toMatchObject({ ok: false });
+      expect(invalid.content[0].text).toContain("Invalid garden state key");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("supports /wf state list, get, and set commands", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({ id: "state-command-demo", steps: [{ id: "review", command: "/review" }] });
+      registerWorkflower(pi);
+      await pi.commands.wf.handler("state list", ctx);
+      expect(ctx.notifications.at(-1)).toEqual([
+        "No active Workflower workflow. Garden state is only available inside an active garden.",
+        "error",
+      ]);
+
+      await pi.commands["wf:state-command-demo"].handler("state-command", ctx);
+      await pi.commands.wf.handler("state list", ctx);
+      expect(ctx.notifications.at(-1)).toEqual(["No garden state keys are set.", "info"]);
+      await pi.commands.wf.handler("state set review.rating 4", ctx);
+      await pi.commands.wf.handler('state set review.summary "Needs tests"', ctx);
+      await pi.commands.wf.handler('state set review.required_changes ["Add tests"]', ctx);
+      await pi.commands.wf.handler("state get review.rating", ctx);
+      expect(ctx.notifications.at(-1)).toEqual(["Garden state review.rating: 4", "info"]);
+      await pi.commands.wf.handler("state get missing.key", ctx);
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Garden state key missing.key is not set.",
+        "info",
+      ]);
+      await pi.commands.wf.handler("state set review.rating not-json", ctx);
+      expect(ctx.notifications.at(-1)?.[0]).toContain("Invalid JSON value");
+
+      const state = JSON.parse(
+        await readFile(join(dir, ".pi", "workflows", "state-command", "state.json"), "utf8"),
+      );
+      expect(state.values["review.rating"].value).toBe(4);
+      expect(state.values["review.summary"].value).toBe("Needs tests");
+      expect(state.values["review.required_changes"].value).toEqual(["Add tests"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("deletes garden state on completion but not stop", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const stoppedStatePath = join(dir, ".pi", "workflows", "state-stop", "state.json");
+    const completedStatePath = join(dir, ".pi", "workflows", "state-cleanup", "state.json");
+
+    try {
+      registerWorkflow({
+        id: "state-cleanup-demo",
+        cleanupOnCompletion: false,
+        clearOnCompletion: false,
+        steps: [{ id: "only", command: "/only" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:state-cleanup-demo"].handler("state-stop", ctx);
+      await pi.commands.wf.handler("state set review.rating 4", ctx);
+      await expect(access(stoppedStatePath)).resolves.toBeUndefined();
+      await pi.commands.wf.handler("stop", ctx);
+      await expect(access(stoppedStatePath)).resolves.toBeUndefined();
+
+      await pi.commands["wf:state-cleanup-demo"].handler("state-cleanup", ctx);
+      await pi.commands.wf.handler("state set review.rating 5", ctx);
+      await pi.commands.next.handler("", ctx);
+      await expect(access(completedStatePath)).rejects.toThrow();
+      await expect(
+        access(join(dir, ".pi", "workflows", "state-cleanup", "0001-state-cleanup-demo")),
+      ).resolves.toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("command registration", () => {
@@ -205,12 +1405,30 @@ describe("command registration", () => {
     expect(pi.handlers.context).toHaveLength(1);
     expect(pi.tools.workflower_handoff).toBeDefined();
     expect(pi.tools.workflower_handoff.description).toMatch(/Hand off/);
+    expect(pi.tools.workflower_state_get).toBeDefined();
+    expect(pi.tools.workflower_state_set).toBeDefined();
+    expect(pi.tools.workflower_state_list).toBeDefined();
     expect(pi.commands.wf.description).toMatch(/Inspect and stop the active Workflower workflow/);
     expect(typeof pi.commands.wf.handler).toBe("function");
     expect(pi.commands["wf:feature"].description).toMatch(/Start Workflower workflow feature/);
     expect(typeof pi.commands["wf:feature"].handler).toBe("function");
     expect(pi.commands.next.description).toMatch(/Advance the active Workflower workflow/);
     expect(typeof pi.commands.next.handler).toBe("function");
+  });
+
+  it("does not register /wf:<id> commands for user-hidden workflows", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const pi = createPiHarness();
+
+    registerWorkflow({
+      id: "hidden-start-demo",
+      userInvocable: false,
+      steps: [{ id: "first", command: "/hidden" }],
+    });
+
+    registerWorkflower(pi);
+
+    expect(pi.commands["wf:hidden-start-demo"]).toBeUndefined();
   });
 
   it("registers /wf:<id> commands for workflows contributed after extension load", async () => {
@@ -229,6 +1447,46 @@ describe("command registration", () => {
     expect(typeof pi.commands["wf:late-demo"].handler).toBe("function");
   });
 
+  it("does not register late /wf:<id> commands for user-hidden workflows", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const pi = createPiHarness();
+
+    registerWorkflower(pi);
+    expect(pi.commands["wf:late-hidden-demo"]).toBeUndefined();
+
+    registerWorkflow({
+      id: "late-hidden-demo",
+      userInvocable: false,
+      steps: [{ id: "first", command: "/hidden" }],
+    });
+
+    expect(pi.commands["wf:late-hidden-demo"]).toBeUndefined();
+  });
+
+  it("blocks exact user-hidden workflow input before it reaches the model", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const pi = createPiHarness();
+    const ctx = createCommandContext("/repo");
+
+    registerWorkflow({
+      id: "hidden-input-demo",
+      userInvocable: false,
+      steps: [{ id: "first", command: "/hidden" }],
+    });
+    registerWorkflower(pi);
+
+    const result = await pi.handlers.input[0](
+      { type: "input", text: "/wf:hidden-input-demo", source: "interactive" },
+      ctx,
+    );
+
+    expect(result).toEqual({ action: "handled" });
+    expect(ctx.notifications.at(-1)).toEqual([
+      "Workflow hidden-input-demo is not user-invokable.",
+      "error",
+    ]);
+  });
+
   it("sets up Workflower commands and events idempotently for the same Pi instance", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const pi = createPiHarness();
@@ -244,6 +1502,7 @@ describe("command registration", () => {
     expect(pi.registeredCommands.filter((name) => name === "next")).toHaveLength(1);
     expect(pi.handlers.agent_end).toHaveLength(1);
     expect(pi.handlers.context).toHaveLength(1);
+    expect(pi.handlers.input).toHaveLength(1);
   });
 
   it("re-registers Workflower commands after Pi tears down a session and reuses the API object", async () => {
@@ -378,6 +1637,47 @@ describe("/next", () => {
       expect(message).toContain(`Active flower path: ${activeFlowerPath}`);
       expect(message).toContain("Current step 1: plan-issues");
       expect(message).toContain("Command: /feature-plan-issues");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("shows active status for user-hidden workflows", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const gardenPath = join(dir, ".pi", "workflows", "hidden-status");
+    const activeFlowerPath = join(gardenPath, "0001-hidden-status-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "hidden-status-demo",
+        userInvocable: false,
+        steps: [{ id: "private-step", command: "/private" }],
+      });
+      await writeActiveWorkflowState(activeStatePath(dir), {
+        sessionId: "session-id",
+        id: "hidden-status-demo",
+        name: "hidden-status",
+        gardenName: "hidden-status",
+        gardenPath,
+        activeFlowerName: "0001-hidden-status-demo",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T04:05:06.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.wf.handler("status", ctx);
+
+      const [message, level] = ctx.notifications.at(-1) ?? [];
+      expect(level).toBe("info");
+      expect(message).toContain("Active workflow: hidden-status-demo");
+      expect(message).toContain("Current step 0: private-step");
+      expect(message).toContain("Command: /private");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -577,7 +1877,7 @@ describe("/next", () => {
     await pi.commands.wf.handler("frobnicate", ctx);
 
     expect(ctx.notifications.at(-1)?.[0]).toMatch(
-      /Unknown wf command: frobnicate\. Available commands: status, stop, list\./,
+      /Unknown wf command: frobnicate\. Available commands: status, stop, list, state\./,
     );
     expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });
@@ -653,12 +1953,14 @@ describe("/next", () => {
         pollen: [join(activeFlowerPath, "first.md")],
         pollenPinned: false,
       });
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 1: second");
-      expect(pi.sentUserMessages[0].prompt).toContain(join(activeFlowerPath, "second.md"));
-      expect(pi.sentUserMessages[0].prompt).not.toContain(join(staleWorkdir, "second.md"));
-      expect(pi.sentUserMessages[0].prompt).not.toBe("/next");
-      expect(pi.sentUserMessages[0].options).toEqual({ deliverAs: "followUp" });
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 1: second");
+      expect(prompts[0].prompt).toContain(join(activeFlowerPath, "second.md"));
+      expect(prompts[0].prompt).not.toContain(join(staleWorkdir, "second.md"));
+      expect(prompts[0].prompt).not.toBe("/next");
+      expect(prompts[0].options).toEqual({ triggerTurn: true, deliverAs: "followUp" });
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -696,7 +1998,8 @@ describe("/next", () => {
         currentStepIndex: 1,
         contextBoundaryEntryId: "existing-boundary",
       });
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 1: second");
+      expect(sentWorkflowerPrompts(pi)[0].prompt).toContain("Current step 1: second");
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -894,9 +2197,19 @@ describe("/next", () => {
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
       });
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 1: second");
-      expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /second.");
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].display).toMatchObject({
+        kind: "step",
+        workflowId: "same-session-demo",
+        workflowName: "same-session-demo",
+        stepId: "second",
+        stepIndex: 1,
+        label: "Step: second",
+      });
+      expect(prompts[0].prompt).toContain("Current step 1: second");
+      expect(prompts[0].prompt).toContain("Execute this command: /second.");
+      expect(pi.sentUserMessages).toEqual([]);
       expect(ctx.notifications.at(-1)).toEqual([
         "Advanced workflow same-session-demo to step 1.",
         "info",
@@ -1099,15 +2412,15 @@ describe("/next", () => {
         contextBoundaryEntryId: "leaf-id",
       });
       expect(ctx.newSession).not.toHaveBeenCalled();
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 1: plan-issues");
-      expect(pi.sentUserMessages[0].prompt).toContain(
-        "Execute this command: /feature-plan-issues.",
-      );
-      expect(pi.sentUserMessages[0].prompt).toContain("Previous step outputs:");
-      expect(pi.sentUserMessages[0].prompt).toContain(join(workdir, "feature.md"));
-      expect(pi.sentUserMessages[0].prompt).toContain("Expected outputs:");
-      expect(pi.sentUserMessages[0].prompt).toContain(join(workdir, "issues.md"));
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 1: plan-issues");
+      expect(prompts[0].prompt).toContain("Execute this command: /feature-plan-issues.");
+      expect(prompts[0].prompt).toContain("Previous step outputs:");
+      expect(prompts[0].prompt).toContain(join(workdir, "feature.md"));
+      expect(prompts[0].prompt).toContain("Expected outputs:");
+      expect(prompts[0].prompt).toContain(join(workdir, "issues.md"));
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1321,8 +2634,10 @@ describe("/next", () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const statePath = activeStatePath(dir);
-    const workdir = join(dir, ".pi", "workflows", "keep-artifacts-demo", "keep-artifacts-demo");
+    const gardenPath = join(dir, ".pi", "workflows", "keep-artifacts-demo");
+    const workdir = join(gardenPath, "keep-artifacts-demo");
     const artifactPath = join(workdir, "artifact.md");
+    const gardenStatePath = resolveGardenStatePath(gardenPath);
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
     const newSession = vi.spyOn(ctx, "newSession");
@@ -1344,10 +2659,12 @@ describe("/next", () => {
       });
       await mkdir(workdir, { recursive: true });
       await writeFile(artifactPath, "artifact", "utf8");
+      await writeFile(gardenStatePath, "{}", "utf8");
       registerWorkflower(pi);
       await pi.commands.next.handler("", ctx);
 
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
+      await expect(access(gardenStatePath)).rejects.toThrow();
       await expect(readFile(artifactPath, "utf8")).resolves.toBe("artifact");
       expect(ctx.notifications.at(-1)).toEqual(["Workflow keep-artifacts-demo complete.", "info"]);
       expect(newSession).toHaveBeenCalledOnce();
@@ -1588,7 +2905,13 @@ describe("workflower_handoff tool", () => {
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
     const ctx = createCommandContext(dir);
-    const firstFlower = join(dir, ".pi", "workflows", "tool-unknown", "0001-handoff-tool-unknown-source");
+    const firstFlower = join(
+      dir,
+      ".pi",
+      "workflows",
+      "tool-unknown",
+      "0001-handoff-tool-unknown-source",
+    );
 
     try {
       registerWorkflow({
@@ -1597,7 +2920,7 @@ describe("workflower_handoff tool", () => {
       });
       registerWorkflower(pi);
       await pi.commands["wf:handoff-tool-unknown-source"].handler("tool-unknown", ctx);
-      pi.sentUserMessages = [];
+      resetPiMessages(pi);
 
       const result = await executeHandoffTool(pi, "missing-workflow", ctx);
 
@@ -1644,7 +2967,7 @@ describe("workflower_handoff tool", () => {
 
       await pi.commands["wf:handoff-tool-source"].handler("tool-demo", ctx);
       await pi.commands.next.handler("", ctx);
-      pi.sentUserMessages = [];
+      resetPiMessages(pi);
 
       const result = await executeHandoffTool(pi, "handoff-tool-target", ctx);
 
@@ -1680,13 +3003,21 @@ describe("workflower_handoff tool", () => {
         workflowId: "handoff-tool-target",
         pollen: [],
       });
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].options).toEqual({ deliverAs: "followUp" });
-      expect(pi.sentUserMessages[0].prompt).toContain("Workflow: handoff-tool-target");
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: target-step");
-      expect(pi.sentUserMessages[0].prompt).toContain(`Workdir: ${secondFlower}`);
-      expect(pi.sentUserMessages[0].prompt).toContain("Incoming pollen paths:");
-      expect(pi.sentUserMessages[0].prompt).toContain(pollenPath);
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].options).toEqual({ triggerTurn: true, deliverAs: "followUp" });
+      expect(prompts[0].display).toMatchObject({
+        kind: "workflow",
+        workflowId: "handoff-tool-target",
+        workflowName: "tool-demo",
+        label: "Workflow: handoff-tool-target — tool-demo",
+      });
+      expect(prompts[0].prompt).toContain("Workflow: handoff-tool-target");
+      expect(prompts[0].prompt).toContain("Current step 0: target-step");
+      expect(prompts[0].prompt).toContain(`Workdir: ${secondFlower}`);
+      expect(prompts[0].prompt).toContain("Incoming pollen paths:");
+      expect(prompts[0].prompt).toContain(pollenPath);
+      expect(pi.sentUserMessages).toEqual([]);
 
       const scopedContext = await pi.handlers.context[0](
         { type: "context", messages: [] },
@@ -1706,6 +3037,105 @@ describe("workflower_handoff tool", () => {
       expect(scopedContext.messages.map((message: any) => message.content)).toEqual([
         "target kickoff",
       ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows model handoff to start a user-hidden workflow", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const secondFlower = join(
+      dir,
+      ".pi",
+      "workflows",
+      "hidden-tool-demo",
+      "0002-handoff-tool-user-hidden-target",
+    );
+
+    try {
+      registerWorkflow({
+        id: "handoff-tool-user-hidden-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
+      registerWorkflow({
+        id: "handoff-tool-user-hidden-target",
+        userInvocable: false,
+        steps: [{ id: "target", command: "/target" }],
+      });
+      registerWorkflower(pi);
+
+      expect(pi.commands["wf:handoff-tool-user-hidden-target"]).toBeUndefined();
+      await pi.commands["wf:handoff-tool-user-hidden-source"].handler("hidden-tool-demo", ctx);
+      resetPiMessages(pi);
+
+      const result = await executeHandoffTool(pi, "handoff-tool-user-hidden-target", ctx);
+
+      expect(result.details).toMatchObject({
+        ok: true,
+        workflowId: "handoff-tool-user-hidden-target",
+        activeFlowerName: "0002-handoff-tool-user-hidden-target",
+      });
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "handoff-tool-user-hidden-target",
+        activeFlowerPath: secondFlower,
+      });
+      expect(sentWorkflowerPrompts(pi)[0].prompt).toContain(
+        "Workflow: handoff-tool-user-hidden-target",
+      );
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects model handoff to a model-hidden workflow without mutating active state", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "handoff-tool-model-hidden-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
+      registerWorkflow({
+        id: "handoff-tool-model-hidden-target",
+        modelInvocable: false,
+        steps: [{ id: "target", command: "/target" }],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:handoff-tool-model-hidden-source"].handler(
+        "model-hidden-tool-demo",
+        ctx,
+      );
+      resetPiMessages(pi);
+
+      const result = await executeHandoffTool(pi, "handoff-tool-model-hidden-target", ctx);
+
+      expect(result.details).toMatchObject({ ok: false });
+      expect(result.content[0].text).toContain(
+        "Workflow handoff-tool-model-hidden-target is not model-invokable.",
+      );
+      await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
+        id: "handoff-tool-model-hidden-source",
+        activeFlowerName: "0001-handoff-tool-model-hidden-source",
+      });
+      await expect(
+        access(
+          join(
+            dir,
+            ".pi",
+            "workflows",
+            "model-hidden-tool-demo",
+            "0002-handoff-tool-model-hidden-target",
+          ),
+        ),
+      ).rejects.toThrow();
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1738,7 +3168,7 @@ describe("workflower_handoff tool", () => {
       });
       registerWorkflower(pi);
       await pi.commands["wf:auto-handoff-tool-source"].handler("auto-tool-demo", ctx);
-      pi.sentUserMessages = [];
+      resetPiMessages(pi);
 
       await executeHandoffTool(pi, "auto-handoff-tool-target", ctx);
       await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
@@ -1752,9 +3182,11 @@ describe("workflower_handoff tool", () => {
       ).resolves.toMatchObject({
         status: "handedOff",
       });
-      expect(pi.sentUserMessages).toHaveLength(2);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: first");
-      expect(pi.sentUserMessages[1].prompt).toContain("Current step 1: second");
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(2);
+      expect(prompts[0].prompt).toContain("Current step 0: first");
+      expect(prompts[1].prompt).toContain("Current step 1: second");
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1842,12 +3274,25 @@ describe("/wf:<id>", () => {
       await expect(
         access(join(dir, ".pi", "workflows", "release-notes", "index.json")),
       ).rejects.toThrow();
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).not.toBe("/wf-start-current-step");
-      expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /feature-discovery.");
-      expect(pi.sentUserMessages[0].prompt).toContain(
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].message).toMatchObject({
+        customType: "workflower-prompt",
+        display: true,
+        details: {
+          kind: "workflow",
+          workflowId: "feature",
+          workflowName: "release-notes",
+          label: "Workflow: feature — release-notes",
+        },
+      });
+      expect(prompts[0].options).toEqual({ triggerTurn: true });
+      expect(prompts[0].prompt).not.toBe("/wf-start-current-step");
+      expect(prompts[0].prompt).toContain("Execute this command: /feature-discovery.");
+      expect(prompts[0].prompt).toContain(
         join(dir, ".pi", "workflows", "release-notes", "0001-feature", "feature.md"),
       );
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1869,9 +3314,11 @@ describe("/wf:<id>", () => {
       await pi.commands["wf:same-session-start-demo"].handler("demo", ctx);
 
       expect(ctx.newSession).not.toHaveBeenCalled();
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: first");
-      expect(pi.sentUserMessages[0].prompt).toContain("Execute this command: /first.");
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 0: first");
+      expect(prompts[0].prompt).toContain("Execute this command: /first.");
+      expect(pi.sentUserMessages).toEqual([]);
       const state = await readActiveWorkflowState(activeStatePath(dir));
       expect(state.id).toBe("same-session-start-demo");
       expect(state).not.toHaveProperty("contextBoundaryEntryId");
@@ -1913,7 +3360,8 @@ describe("/wf:<id>", () => {
       expect(ctx.modelRegistry.find).toHaveBeenCalledWith("openai", "gpt-5.5-spark");
       expect(pi.setModelCalls).toEqual([model]);
       expect(pi.setThinkingLevelCalls).toEqual(["high"]);
-      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(sentWorkflowerPrompts(pi)).toHaveLength(1);
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1940,23 +3388,18 @@ describe("/wf:<id>", () => {
           {
             id: "first",
             command: "/first",
-            model: [
-              "openai-codex/gpt-5.3-codex-spark",
-              "openai/gpt-5.3-codex-spark",
-            ],
+            model: ["openai-codex/gpt-5.3-codex-spark", "openai/gpt-5.3-codex-spark"],
           },
         ],
       });
       registerWorkflower(pi);
       await pi.commands["wf:model-fallback-settings-demo"].handler("demo", ctx);
 
-      expect(ctx.modelRegistry.find).toHaveBeenCalledWith(
-        "openai-codex",
-        "gpt-5.3-codex-spark",
-      );
+      expect(ctx.modelRegistry.find).toHaveBeenCalledWith("openai-codex", "gpt-5.3-codex-spark");
       expect(ctx.modelRegistry.find).toHaveBeenCalledWith("openai", "gpt-5.3-codex-spark");
       expect(pi.setModelCalls).toEqual([fallbackModel]);
-      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(sentWorkflowerPrompts(pi)).toHaveLength(1);
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1980,10 +3423,7 @@ describe("/wf:<id>", () => {
           {
             id: "first",
             command: "/first",
-            model: [
-              "openai-codex/gpt-5.3-codex-spark",
-              "openai/gpt-5.3-codex-spark",
-            ],
+            model: ["openai-codex/gpt-5.3-codex-spark", "openai/gpt-5.3-codex-spark"],
           },
         ],
       });
@@ -1995,7 +3435,8 @@ describe("/wf:<id>", () => {
         expect.stringContaining("using current/default model"),
         "warning",
       ]);
-      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(sentWorkflowerPrompts(pi)).toHaveLength(1);
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -2079,7 +3520,8 @@ describe("/wf:<id>", () => {
 
       expect(pi.setModelCalls).toEqual([stepModel, baseModel]);
       expect(pi.setThinkingLevelCalls).toEqual(["high", "medium"]);
-      expect(pi.sentUserMessages.at(-1)?.prompt).toContain("Current step 1: second");
+      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain("Current step 1: second");
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -2191,8 +3633,10 @@ describe("/wf:<id>", () => {
       await pi.commands["wf:fresh-session-start-demo"].handler("demo", ctx);
 
       expect(ctx.newSession).not.toHaveBeenCalled();
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: first");
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 0: first");
+      expect(pi.sentUserMessages).toEqual([]);
       await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
         contextBoundaryEntryId: "leaf-id",
       });
@@ -2223,7 +3667,8 @@ describe("/wf:<id>", () => {
       await pi.commands["wf:no-start-boundary-demo"].handler("demo", ctx);
 
       expect(ctx.newSession).not.toHaveBeenCalled();
-      expect(pi.sentUserMessages).toHaveLength(1);
+      expect(sentWorkflowerPrompts(pi)).toHaveLength(1);
+      expect(pi.sentUserMessages).toEqual([]);
       const state = await readActiveWorkflowState(activeStatePath(dir));
       expect(state.id).toBe("no-start-boundary-demo");
       expect(state).not.toHaveProperty("contextBoundaryEntryId");
@@ -2354,7 +3799,7 @@ describe("/wf:<id>", () => {
 
       await pi.commands["wf:handoff-source-demo"].handler("run-one", ctx);
       await pi.commands.next.handler("", ctx);
-      pi.sentUserMessages = [];
+      resetPiMessages(pi);
 
       await pi.commands["wf:handoff-target-demo"].handler("", ctx);
 
@@ -2386,11 +3831,13 @@ describe("/wf:<id>", () => {
       });
       await expect(access(firstFlower)).resolves.toBeUndefined();
       await expect(access(pollenPath)).rejects.toThrow();
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: target");
-      expect(pi.sentUserMessages[0].prompt).toContain("Incoming pollen paths:");
-      expect(pi.sentUserMessages[0].prompt).toContain(pollenPath);
-      expect(pi.sentUserMessages[0].prompt).not.toContain("artifact contents");
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 0: target");
+      expect(prompts[0].prompt).toContain("Incoming pollen paths:");
+      expect(prompts[0].prompt).toContain(pollenPath);
+      expect(prompts[0].prompt).not.toContain("artifact contents");
+      expect(pi.sentUserMessages).toEqual([]);
       expect(ctx.notifications).toContainEqual([
         "Started workflow handoff-target-demo as next flower in run-one.",
         "info",
@@ -2427,14 +3874,16 @@ describe("/wf:<id>", () => {
 
       await pi.commands["wf:handoff-no-pollen-source"].handler("run-one", ctx);
       await pi.commands.next.handler("", ctx);
-      pi.sentUserMessages = [];
+      resetPiMessages(pi);
 
       await pi.commands["wf:handoff-no-pollen-target"].handler("", ctx);
 
-      expect(pi.sentUserMessages).toHaveLength(1);
-      expect(pi.sentUserMessages[0].prompt).toContain("Current step 0: target");
-      expect(pi.sentUserMessages[0].prompt).not.toContain("Incoming pollen paths:");
-      expect(pi.sentUserMessages[0].prompt).not.toContain(pollenPath);
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 0: target");
+      expect(prompts[0].prompt).not.toContain("Incoming pollen paths:");
+      expect(prompts[0].prompt).not.toContain(pollenPath);
+      expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -2507,6 +3956,37 @@ describe("/wf:<id>", () => {
   });
 });
 
+async function createPrivateSkillPackage(
+  skillSource: string,
+  options: { skillDirName?: string; workflowerSkills?: string[] } = {},
+): Promise<{ dir: string; packageUrl: string; skillPath: string }> {
+  const skillDirName = options.skillDirName ?? "private-one";
+  const dir = await mkdtemp(join(tmpdir(), "workflower-private-skills-"));
+  const distDir = join(dir, "dist");
+  const skillDir = join(dir, "skills", skillDirName);
+  const extensionPath = join(distDir, "index.mjs");
+  const skillPath = join(skillDir, "SKILL.md");
+
+  await mkdir(distDir, { recursive: true });
+  await mkdir(skillDir, { recursive: true });
+  await writeFile(extensionPath, "export default function setup() {}\n", "utf8");
+  await writeFile(skillPath, skillSource, "utf8");
+  await writeFile(
+    join(dir, "package.json"),
+    JSON.stringify(
+      {
+        name: "fake-workflower-package",
+        pi: { workflowerSkills: options.workflowerSkills ?? ["skills"] },
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  return { dir, packageUrl: pathToFileURL(extensionPath).href, skillPath };
+}
+
 function activeStatePath(cwd: string, sessionId = "session-id"): string {
   return join(cwd, ".pi", "tmp", "workflows", "active", `${sessionId}.json`);
 }
@@ -2532,12 +4012,16 @@ function createPiHarness(): {
   registeredTools: string[];
   handlers: Record<string, any[]>;
   sentUserMessages: Array<{ prompt: string; options: any }>;
+  sentMessages: Array<{ message: any; options: any }>;
+  messageRenderers: Record<string, any>;
   setModelCalls: any[];
   setThinkingLevelCalls: string[];
   registerCommand: (name: string, command: any) => void;
   registerTool: (tool: any) => void;
   on: (name: string, handler: any) => void;
   sendUserMessage: (prompt: string, options?: any) => void;
+  sendMessage: (message: any, options?: any) => void;
+  registerMessageRenderer: (customType: string, renderer: any) => void;
   setModel: (model: any) => Promise<boolean>;
   getThinkingLevel: () => string;
   setThinkingLevel: (level: string) => void;
@@ -2549,6 +4033,8 @@ function createPiHarness(): {
     registeredTools: [],
     handlers: {},
     sentUserMessages: [],
+    sentMessages: [],
+    messageRenderers: {},
     setModelCalls: [],
     setThinkingLevelCalls: [],
     registerCommand(name, command) {
@@ -2566,6 +4052,12 @@ function createPiHarness(): {
     sendUserMessage(prompt, options) {
       this.sentUserMessages.push({ prompt, options });
     },
+    sendMessage(message, options) {
+      this.sentMessages.push({ message, options });
+    },
+    registerMessageRenderer(customType, renderer) {
+      this.messageRenderers[customType] = renderer;
+    },
     async setModel(model) {
       this.setModelCalls.push(model);
       return true;
@@ -2579,6 +4071,27 @@ function createPiHarness(): {
   };
 }
 
+function sentWorkflowerPrompts(pi: any): Array<{
+  prompt: string;
+  display: any;
+  message: any;
+  options: any;
+}> {
+  return pi.sentMessages
+    .filter(({ message }: any) => message.customType === "workflower-prompt")
+    .map(({ message, options }: any) => ({
+      prompt: message.content,
+      display: message.details,
+      message,
+      options,
+    }));
+}
+
+function resetPiMessages(pi: any): void {
+  pi.sentUserMessages = [];
+  pi.sentMessages = [];
+}
+
 async function executeHandoffTool(pi: any, workflowId: string, ctx: any): Promise<any> {
   return pi.tools.workflower_handoff.execute(
     "tool-call-id",
@@ -2587,6 +4100,24 @@ async function executeHandoffTool(pi: any, workflowId: string, ctx: any): Promis
     undefined,
     ctx,
   );
+}
+
+async function executeStateSetTool(pi: any, key: string, value: unknown, ctx: any): Promise<any> {
+  return pi.tools.workflower_state_set.execute(
+    "tool-call-id",
+    { key, value },
+    undefined,
+    undefined,
+    ctx,
+  );
+}
+
+async function executeStateGetTool(pi: any, key: string, ctx: any): Promise<any> {
+  return pi.tools.workflower_state_get.execute("tool-call-id", { key }, undefined, undefined, ctx);
+}
+
+async function executeStateListTool(pi: any, ctx: any): Promise<any> {
+  return pi.tools.workflower_state_list.execute("tool-call-id", {}, undefined, undefined, ctx);
 }
 
 function messageEntry(id: string, parentId: string | null, role: string, content: string): any {

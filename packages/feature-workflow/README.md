@@ -120,13 +120,14 @@ Workflow ids: `counter`, `counter-loop`
 
 Use these tiny test workflows to exercise Workflower handoffs and loop-style repetition through skills.
 
-The `counter` workflow initializes `counter-state.json` from user-provided integer values, pins that file as pollen, and hands off to `counter-loop` by calling Workflower's `workflower_handoff` tool. The `counter-loop` workflow accepts the incoming pollen, increments `current`, writes a new `counter-state.json`, and either calls `workflower_handoff` for another `counter-loop` flower when `current < end` or stops when `current >= end`.
+The `counter` workflow initializes the active garden state key `counter` from user-provided integer values, then hands off to `counter-loop` by calling Workflower's `workflower_handoff` tool. The `counter-loop` workflow reads that garden state, increments `current`, saves the updated `counter` value, and either calls `workflower_handoff` for another `counter-loop` flower when `current < end` or stops when `current >= end`.
 
-Both workflows preserve their workdirs on completion and keep completion in the current session:
+`counter-loop` is an internal handoff workflow: it does not register a user-facing `/wf:counter-loop` command. Users start `/wf:counter`; the loop is entered and repeated through `workflower_handoff`. The counter workflows use `workflower_state_get` and `workflower_state_set` instead of output files or pollen.
+
+During the active garden, the state is stored at:
 
 ```text
-.pi/workflows/<garden>/0001-counter/counter-state.json
-.pi/workflows/<garden>/0002-counter-loop/counter-state.json
+.pi/workflows/<garden>/state.json
 ```
 
 ### Smoke test
@@ -135,13 +136,58 @@ Both workflows preserve their workdirs on completion and keep completion in the 
 /wf:counter demo-counter
 ```
 
-Enter a starting value and ending value when prompted. After `counter-state.json` is written, run:
+Enter a starting value and ending value when prompted. After the `counter` garden state is saved, run:
 
 ```text
 /next
 ```
 
 The loop handoff and later loop iterations are configured to auto-advance.
+
+## Review-loop garden state example
+
+Reviewer steps can publish deterministic routing facts to Workflower garden state. For example, after `take-it-away` runs the `review-implementation` step, the reviewer skill or a companion router tool can call `workflower_state_set` three times:
+
+```json
+{ "key": "review.rating", "value": 3 }
+{ "key": "review.summary", "value": "Implementation is close, but needs edge-case tests." }
+{ "key": "review.required_changes", "value": ["Add empty-input tests"] }
+```
+
+A human can inspect or repair those values with:
+
+```text
+/wf state list
+/wf state get review.rating
+/wf state set review.rating 4
+```
+
+A deterministic router command/tool can read the rating and hand off to another workflow without asking the model to guess:
+
+```ts
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createWorkflowerRuntime } from "@supierior/workflower";
+
+export function registerReviewRouter(pi: ExtensionAPI): void {
+  pi.registerCommand("feature-review-route", {
+    description: "Route the active feature garden based on review.rating.",
+    handler: async (_args, ctx) => {
+      const wf = createWorkflowerRuntime(pi, ctx);
+      const rating = await wf.state.getValue("review.rating");
+      if (typeof rating !== "number") {
+        ctx.ui.notify("review.rating must be a number.", "error");
+        return;
+      }
+
+      const nextWorkflow = rating >= 4 ? "feature-next-steps" : "implementation-review-loop";
+      const result = await wf.handoff(nextWorkflow);
+      ctx.ui.notify(result.message, result.ok ? "info" : "error");
+    },
+  });
+}
+```
+
+For autonomous loops, expose the same router as a model-callable tool and use `pi.sendUserMessage(prompt, { deliverAs: "followUp" })` in the runtime options. Do not rely on a workflow step printing `/feature-review-route`; assistant text does not execute slash commands.
 
 ## Useful Workflower commands
 

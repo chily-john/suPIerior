@@ -36,10 +36,7 @@ export type WorkflowModelProvider =
 export type WorkflowModelReference = `${WorkflowModelProvider}/${string}`;
 
 /** Ordered model candidates. Item 0 is preferred; later items are fallbacks. */
-export type WorkflowModelFallbacks = readonly [
-  WorkflowModelReference,
-  ...WorkflowModelReference[],
-];
+export type WorkflowModelFallbacks = readonly [WorkflowModelReference, ...WorkflowModelReference[]];
 
 export type WorkflowModelSetting = WorkflowModelReference | WorkflowModelFallbacks;
 export type WorkflowStepModel = WorkflowModelSetting;
@@ -68,6 +65,10 @@ export type WorkflowStep = {
 
 export type WorkflowDefinition = {
   id: string;
+  /** Whether Workflower should register /wf:<id> for user invocation. Defaults to true. */
+  userInvocable?: boolean;
+  /** Whether workflower_handoff may start this workflow. Defaults to true. */
+  modelInvocable?: boolean;
   /** Default model candidates for steps that do not specify their own model. */
   model?: WorkflowModelSetting;
   /** Default thinking level for steps that do not specify their own thinking level. */

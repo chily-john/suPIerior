@@ -7,12 +7,10 @@ export const counterWorkflow: WorkflowDefinition = {
   cleanupOnCompletion: true,
   model: ["openai/gpt-5.4-mini"],
   thinkingLevel: "low",
-  pollen: "counter-state.json",
   steps: [
     {
       id: "initialize-counter",
       command: "/skill:counter-init",
-      outputs: ["counter-state.json"],
       clearOnNext: true,
     },
     {

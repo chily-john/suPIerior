@@ -24,7 +24,7 @@ module.exports = {
       severity: "error",
       from: { path: "^extension-src/workflower/internals/pi-adapter/" },
       to: {
-        path: "^extension-src/workflower/internals/workflow-orchestration/(definitions|runtime/active-state|runtime/artifacts|prompting)/",
+        path: "^extension-src/workflower/internals/workflow-orchestration/(definitions|runtime/active-state|runtime/artifacts|runtime/garden-state|prompting)/",
       },
     },
     {
@@ -43,7 +43,7 @@ module.exports = {
       name: "orchestration-foundations-no-use-cases",
       severity: "error",
       from: {
-        path: "^extension-src/workflower/internals/workflow-orchestration/(definitions|runtime/active-state|runtime/artifacts|prompting)/",
+        path: "^extension-src/workflower/internals/workflow-orchestration/(definitions|runtime/active-state|runtime/artifacts|runtime/garden-state|prompting)/",
       },
       to: { path: "^extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/" },
     },

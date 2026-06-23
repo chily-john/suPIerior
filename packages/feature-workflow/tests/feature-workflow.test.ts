@@ -1,11 +1,42 @@
 import { readFile } from "node:fs/promises";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  clearPrivateSkillsForTests,
+  findPrivateSkill,
+  listPrivateSkills,
+} from "../../workflower/extension-src/workflower/internals/workflow-orchestration/runtime/private-skills/private-skill-registry";
+
+const privateSkillDirectory = "./extension-src/feature-workflow/internals/skills";
+const ruleplementorSkillDirectory = "./node_modules/@supierior/ruleplementor/skills";
 
 async function loadFeatureWorkflow(): Promise<Record<string, any>> {
   return import("../extension-src/feature-workflow/index");
 }
 
+async function loadFeatureWorkflowManifest(): Promise<Record<string, any>> {
+  return JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+}
+
+async function readCounterSkill(name: string): Promise<string> {
+  return readFile(
+    new URL(`../extension-src/feature-workflow/internals/skills/${name}/SKILL.md`, import.meta.url),
+    "utf8",
+  );
+}
+
 describe("feature-workflow package", () => {
+  beforeEach(() => {
+    clearPrivateSkillsForTests();
+  });
+
+  it("declares workflow-only skills as workflowerSkills instead of public pi skills", async () => {
+    const pkg = await loadFeatureWorkflowManifest();
+
+    expect(pkg.pi.skills).toEqual([ruleplementorSkillDirectory]);
+    expect(pkg.pi.skills).not.toContain(privateSkillDirectory);
+    expect(pkg.pi.workflowerSkills).toEqual([privateSkillDirectory]);
+  });
+
   it("exports, registers, and initializes the feature workflows", async () => {
     const {
       counterLoopWorkflow,
@@ -89,18 +120,12 @@ describe("feature-workflow package", () => {
       clearOnStart: true,
       clearOnCompletion: false,
       cleanupOnCompletion: true,
-      model: [
-        "openai/gpt-5.3-codex-spark",
-        "azure-openai-responses/gpt-5.3-codex-spark",
-        "openai-codex/gpt-5.3-codex-spark",
-      ],
+      model: ["openai/gpt-5.4-mini"],
       thinkingLevel: "low",
-      pollen: "counter-state.json",
       steps: [
         {
           id: "initialize-counter",
           command: "/skill:counter-init",
-          outputs: ["counter-state.json"],
           clearOnNext: true,
         },
         {
@@ -113,21 +138,17 @@ describe("feature-workflow package", () => {
     });
     expect(counterLoopWorkflow).toEqual({
       id: "counter-loop",
+      userInvocable: false,
+      modelInvocable: true,
       clearOnStart: true,
       clearOnCompletion: false,
       cleanupOnCompletion: true,
-      model: [
-        "openai/gpt-5.3-codex-spark",
-        "azure-openai-responses/gpt-5.3-codex-spark",
-        "openai-codex/gpt-5.3-codex-spark",
-      ],
+      model: ["openai/gpt-5.4-mini"],
       thinkingLevel: "low",
-      pollen: "counter-state.json",
       steps: [
         {
           id: "increment-counter",
           command: "/skill:counter-increment",
-          outputs: ["counter-state.json"],
           autoNext: true,
           clearOnNext: true,
         },
@@ -147,7 +168,7 @@ describe("feature-workflow package", () => {
     expect(pi.commands["wf:new-feature"]).toBeDefined();
     expect(pi.commands["wf:take-it-away"]).toBeDefined();
     expect(pi.commands["wf:counter"]).toBeDefined();
-    expect(pi.commands["wf:counter-loop"]).toBeDefined();
+    expect(pi.commands["wf:counter-loop"]).toBeUndefined();
   }, 10_000);
 
   it("can initialize repeatedly across Pi extension rebinds", async () => {
@@ -162,29 +183,60 @@ describe("feature-workflow package", () => {
     expect(pi.commands["wf:new-feature"]).toBeDefined();
     expect(pi.commands["wf:take-it-away"]).toBeDefined();
     expect(pi.commands["wf:counter"]).toBeDefined();
-    expect(pi.commands["wf:counter-loop"]).toBeDefined();
+    expect(pi.commands["wf:counter-loop"]).toBeUndefined();
   });
 
-  it("counter handoff skills instruct the agent to call workflower_handoff", async () => {
-    const startLoop = await readFile(
-      new URL(
-        "../extension-src/feature-workflow/internals/skills/counter-start-loop/SKILL.md",
-        import.meta.url,
-      ),
-      "utf8",
-    );
-    const continueLoop = await readFile(
-      new URL(
-        "../extension-src/feature-workflow/internals/skills/counter-continue/SKILL.md",
-        import.meta.url,
-      ),
-      "utf8",
-    );
+  it("loads feature workflow private skills during extension setup", async () => {
+    const { default: registerFeatureWorkflow } = await loadFeatureWorkflow();
+    const pi = createPiHarness();
 
+    expect(findPrivateSkill("new-feature-grill")).toBeUndefined();
+
+    registerFeatureWorkflow(pi);
+
+    expect(findPrivateSkill("new-feature-grill")).toMatchObject({
+      name: "new-feature-grill",
+      description: expect.stringContaining("clarifies"),
+    });
+    expect(findPrivateSkill("counter-start-loop")).toBeDefined();
+
+    const privateSkillCount = listPrivateSkills().length;
+    registerFeatureWorkflow(pi);
+
+    expect(listPrivateSkills()).toHaveLength(privateSkillCount);
+  });
+
+  it("counter skills use garden state and handoff instead of output files", async () => {
+    const init = await readCounterSkill("counter-init");
+    const startLoop = await readCounterSkill("counter-start-loop");
+    const increment = await readCounterSkill("counter-increment");
+    const continueLoop = await readCounterSkill("counter-continue");
+
+    expect(init).toContain("workflower_state_set");
+    expect(startLoop).toContain("workflower_state_get");
+    expect(increment).toContain("workflower_state_get");
+    expect(increment).toContain("workflower_state_set");
+    expect(continueLoop).toContain("workflower_state_get");
     expect(startLoop).toContain("workflower_handoff");
     expect(continueLoop).toContain("workflower_handoff");
     expect(startLoop).toContain("Do not print or send `/wf:counter-loop` as text");
     expect(continueLoop).toContain("Do not print or send `/wf:counter-loop` as text");
+    expect(`${init}\n${startLoop}\n${increment}\n${continueLoop}`).not.toContain("counter-state.json");
+  });
+
+  it("documents review-loop garden state routing", async () => {
+    const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+
+    expect(readme).toContain("Review-loop garden state example");
+    expect(readme).toContain("workflower_state_set");
+    expect(readme).toContain("review.rating");
+    expect(readme).toContain("review.summary");
+    expect(readme).toContain("review.required_changes");
+    expect(readme).toContain("createWorkflowerRuntime");
+    expect(readme).toContain("implementation-review-loop");
+    expect(readme).toContain("feature-next-steps");
+    expect(readme).toContain("wf.handoff");
+    expect(readme).toContain("assistant text does not execute slash commands");
   });
 });
 

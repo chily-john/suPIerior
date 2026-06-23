@@ -10,14 +10,13 @@
     "github-issues"
   ],
   "license": "Apache-2.0",
-  "main": "./dist/index.js",
+  "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     }
   },
   "files": [
@@ -55,8 +54,10 @@
       "./dist/index.mjs"
     ],
     "skills": [
-      "./extension-src/feature-workflow/internals/skills",
       "./node_modules/@supierior/ruleplementor/skills"
+    ],
+    "workflowerSkills": [
+      "./extension-src/feature-workflow/internals/skills"
     ]
   }
 }

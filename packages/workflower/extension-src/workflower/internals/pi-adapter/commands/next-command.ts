@@ -4,6 +4,7 @@ import {
   restoreWorkflowRuntimeDefaults,
 } from "@pi-adapter/apply-workflow-step-runtime-settings";
 import { advanceWorkflow } from "@orchestration/runtime/use-cases/advance/advance-workflow";
+import { sendWorkflowerPrompt } from "../send-workflower-prompt";
 
 const NEXT_USAGE = "Usage: /next";
 
@@ -17,11 +18,11 @@ export function registerNextCommand(pi: ExtensionAPI): void {
       }
 
       await advanceWorkflow(ctx, {
-        applyStepRuntimeSettings: (settings) =>
-          applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+        applyStepRuntimeSettings: (settings) => applyWorkflowStepRuntimeSettings(pi, ctx, settings),
         restoreRuntimeDefaults: (runtimeDefaults) =>
           restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
         sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
+        sendWorkflowPrompt: (input) => sendWorkflowerPrompt(pi, input),
       });
     },
   });

@@ -17,5 +17,5 @@ export default function featureWorkflowExtension(pi: ExtensionAPI): void {
     workflowsRegistered = true;
   }
 
-  setupWorkflower(pi);
+  setupWorkflower(pi, { packageUrl: import.meta.url });
 }

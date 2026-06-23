@@ -5,7 +5,7 @@ const external = ["@mariozechner/pi-coding-agent", "@supierior/workflower"];
 export default defineConfig({
   entry: { index: "extension-src/feature-workflow/index.ts" },
   outDir: "dist",
-  format: ["esm", "cjs"],
+  format: ["esm"],
   platform: "node",
   target: "node20",
   dts: true,

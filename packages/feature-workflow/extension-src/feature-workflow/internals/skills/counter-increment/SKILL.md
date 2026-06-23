@@ -1,7 +1,7 @@
 ---
 name: counter-increment
-description: Increments counter-state.json for the counter-loop test workflow.
-allowed-tools: read write
+description: Increments the counter garden state for the counter-loop test workflow.
+allowed-tools: workflower_state_get workflower_state_set
 ---
 
 # Counter Increment
@@ -10,16 +10,15 @@ You are step 1 of the `counter-loop` Workflower workflow.
 
 ## Goal
 
-Read the incoming counter state, increment `current` by one, and write the new counter state as this flower's output/pollen.
+Read the counter garden state, increment `current` by one, and save the updated counter state.
 
 ## Instructions
 
-1. Use the workflow kickoff prompt for the workflow id, name, workdir, incoming pollen paths, and expected output paths.
-2. Read the incoming pollen `counter-state.json` path shown in the kickoff prompt. If multiple incoming pollen paths are shown, use the one named `counter-state.json`.
-3. Fail with a clear error if the file is missing, is not valid JSON, or does not contain finite integer `current` and `end` values.
+1. Use the workflow kickoff prompt for the workflow id, name, and workdir. This workflow uses garden state, not output files or pollen.
+2. Call the `workflower_state_get` tool with key `"counter"`.
+3. Fail with a clear error if the key is missing or if its value is not an object with finite integer `current` and `end` values.
 4. Add `1` to `current`. Leave `end` unchanged.
-5. Create the declared output file: `counter-state.json`.
-7. The file must contain exactly this JSON shape:
+5. Call the `workflower_state_set` tool with key `"counter"` and this JSON-compatible value:
 
    ```json
    {
@@ -29,4 +28,5 @@ Read the incoming counter state, increment `current` by one, and write the new c
    ```
 
    Replace the example numbers with the incremented `current` and existing `end`.
-8. Report the new `current` and `end` values. This step is configured to advance automatically.
+
+6. Report the new `current` and `end` values. This step is configured to advance automatically.

@@ -51,6 +51,9 @@ export async function handoffWorkflowById(
 
   const workflow = findWorkflow(workflowId);
   if (!workflow) return failure(`Unknown workflow id: ${workflowId}`);
+  if (workflow.modelInvocable === false) {
+    return failure(`Workflow ${workflowId} is not model-invokable.`);
+  }
 
   const source: WorkflowHandoffSource = {
     workflowId: activeState.id,
@@ -65,6 +68,7 @@ export async function handoffWorkflowById(
   try {
     sent = await startWorkflowStep(workflow, handoff.state, 0, currentSession, {
       incomingPollen: handoff.incomingPollen,
+      promptDisplayKind: "workflow",
     });
   } catch (error) {
     return failure(`Failed to send workflow kickoff prompt: ${formatError(error)}`);

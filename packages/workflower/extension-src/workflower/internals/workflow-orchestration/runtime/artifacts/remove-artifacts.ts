@@ -1,5 +1,5 @@
-import { rmdir, rm } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { rmdir, rm, unlink } from "node:fs/promises";
+import { isAbsolute, join, relative, resolve } from "node:path";
 
 export async function removeWorkflowWorkdir(cwd: string, workdir: string): Promise<void> {
   assertWorkflowArtifactPath(cwd, workdir, "workflow workdir");
@@ -13,6 +13,17 @@ export async function removeEmptyWorkflowGarden(cwd: string, gardenPath: string)
     await rmdir(resolve(gardenPath));
   } catch (error) {
     if (isNonEmptyDirectoryError(error) || isMissingFileError(error)) return;
+    throw error;
+  }
+}
+
+export async function removeGardenStateFile(cwd: string, gardenPath: string): Promise<void> {
+  assertWorkflowArtifactPath(cwd, gardenPath, "workflow garden state");
+
+  try {
+    await unlink(resolve(join(gardenPath, "state.json")));
+  } catch (error) {
+    if (isMissingFileError(error)) return;
     throw error;
   }
 }

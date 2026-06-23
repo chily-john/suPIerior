@@ -11,7 +11,8 @@ triggers:
   - counter-loop workflow
   - GitHub issue workflow
   - implementation-plan.md
-  - counter-state.json
+  - counter garden state
+  - review-loop garden state
   - new-feature-grill
   - new-feature-publish-issues
 ---
@@ -31,6 +32,9 @@ Enter here when changing the installable workflow package that turns rough featu
 
 ## Package Rules
 
-- Keep workflow steps aligned with the artifacts documented in the README: `feature-summary.md`, `issues.md`, `context-summary.md`, `implementation-plan.md`, `implementation-review.md`, and `counter-state.json`.
-- The skill package is loaded through `package.json` `pi.skills`; keep feature-workflow and Ruleplementor skill directories publishable with the package.
+- Keep workflow steps aligned with the artifacts documented in the README: `feature-summary.md`, `issues.md`, `context-summary.md`, `implementation-plan.md`, and `implementation-review.md`.
+- Use Workflower garden state for counter loop state and small review-loop routing facts; do not rely on workflow steps printing slash commands to execute routers.
+- Keep `counter-loop` model-invocable but not user-invocable; users start `/wf:counter` and loop through `workflower_handoff`.
+- Ruleplementor skills stay in `package.json` `pi.skills`; feature workflow-only skills stay in `pi.workflowerSkills` and must remain publishable with the package.
+- Keep package root publishing ESM-only: `dist/index.mjs`, `dist/index.d.mts`, and no `require` export.
 - Validate changes with package-local `pnpm test`, `pnpm typecheck`, `pnpm lint`, and `pnpm build` when touching runtime or packaging files.

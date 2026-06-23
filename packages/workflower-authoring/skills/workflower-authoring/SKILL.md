@@ -141,6 +141,49 @@ Workflow-level `model` and `thinkingLevel` set defaults for every step. Step-lev
 
 Workflow-level `pollen?: string | string[]` pins the output path or paths that should be referenced when another workflow is started in the same garden. If omitted, completed step outputs become unpinned pollen as `/next` advances. Workflow-level `acceptPollen?: boolean` defaults to `true`; set `acceptPollen: false` when a workflow should not receive previous flower pollen paths in its kickoff prompt. Pollen paths are referenced from the previous flower's `index.json`; files are not copied into the new flower.
 
+## Garden state and deterministic routing
+
+Use Workflower garden state for small structured facts that must survive context-clearing boundaries or drive deterministic routing. State lives at `.pi/workflows/<garden-name>/state.json`, is shared by all flowers in the garden, and is deleted on final garden completion. Use output files for large artifacts: do not use state for large reports, logs, diffs, or plans; write those as declared output files instead.
+
+When authoring workflows and companion skills:
+
+- Declare expected state keys in README and skill instructions, for example `review.rating`, `review.summary`, and `review.required_changes`.
+- Tell agents exactly when to call `workflower_state_set` and which JSON value shape to write.
+- Tell agents to use `workflower_state_get` when a later step depends on previously saved state.
+- Use code/router commands or model-callable tools for deterministic branching, then call `createWorkflowerRuntime(pi, ctx).handoff(...)` or the `workflower_handoff` tool.
+- For autonomous branching, prefer a model-callable router tool. Do not rely on assistant text to invoke `/wf:<id>` or `/review-route`; printed slash commands are not executed by Pi.
+
+Example reviewer instruction:
+
+```markdown
+After writing `implementation-review.md`, call `workflower_state_set` three times:
+
+1. `{ "key": "review.rating", "value": <integer 1-5> }`
+2. `{ "key": "review.summary", "value": "<one-sentence summary>" }`
+3. `{ "key": "review.required_changes", "value": ["<change>"] }`
+```
+
+Example deterministic router:
+
+```ts
+const rating = await wf.state.getValue("review.rating");
+const nextWorkflow = typeof rating === "number" && rating >= 4
+  ? "feature-next-steps"
+  : "implementation-review-loop";
+await wf.handoff(nextWorkflow);
+```
+
+## Compact kickoff prompt display
+
+Current Workflower shows generated workflow kickoff prompts compactly in chat. A user may see only a label such as `Workflow: my-workflow — demo-garden` or `Step: first-step` instead of the whole generated prompt.
+
+Teach junior workflow authors these rules:
+
+- The model still receives the full kickoff prompt, including workflow id, garden name, workdir, previous pollen paths, previous outputs, expected output paths, and expanded private skill instructions.
+- Private Workflower skills may be injected into model context even when their Markdown body is not visible in the transcript. Do not rely on visible transcript content to verify full private skill injection.
+- This is not a token-saving feature. Keep workflow prompts and private skills concise because the full prompt still uses context.
+- Assistant text that prints `/wf:<id>`, `/next`, or a router command does not execute that slash command. Autonomous workflow movement should call `workflower_handoff` or a deterministic model-callable router tool instead.
+
 ## Step skill template
 
 ```markdown
@@ -163,7 +206,8 @@ Describe the concrete outcome of this step.
 1. Use the workflow kickoff prompt for the workflow id, garden name, active flower workdir, previous pollen paths, previous outputs, and expected output paths.
 2. Create the declared output file: `first-step.md`.
 3. Write the file at the absolute expected output path shown in the kickoff prompt. If no absolute path is visible, write it relative to the current working directory.
-4. Tell the user what was written and, unless this step has `autoNext: true`, tell them to inspect the output and run `/next` when ready.
+4. If this step is expected to write garden state, call `workflower_state_set` with the exact documented key names and JSON-compatible values.
+5. Tell the user what was written and, unless this step has `autoNext: true`, tell them to inspect the output and run `/next` when ready.
 ```
 
 ## package.json requirements
@@ -236,7 +280,10 @@ Before finishing:
 - The package manifest loads both extension and skills.
 - The README includes a copy-paste smoke test using `/wf:<workflow-id> <garden-name>`.
 - The README and bundled skills explain active handoff with `/wf:<next-workflow-id>` when relevant.
+- The README or workflow usage notes explain compact prompt display and warn authors not to verify private skill injection by visible transcript content alone.
 - Artifact examples use `.pi/workflows/<garden-name>/0001-<workflow-id>/` flower paths and mention `index.json`.
 - Workflow-level `pollen` and `acceptPollen` choices are documented when handoff behavior matters.
-- Cleanup timing is clear: flower artifacts are cleaned only after final garden completion, not during handoff.
+- Expected garden state keys and `workflower_state_set` calls are documented when state drives later steps or routing.
+- Deterministic routers are implemented as commands/tools or extension code, not as printed slash-command text.
+- Cleanup timing is clear: flower artifacts are cleaned only after final garden completion, not during handoff; garden state is also deleted on final completion.
 - Run package-local validation when practical: `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`.

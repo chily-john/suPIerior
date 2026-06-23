@@ -95,6 +95,7 @@ async function advanceWorkflowInternal(
       nextState,
       nextStepIndex,
       options.currentSession,
+      { cwd: ctx.cwd },
     );
     if (sent) ctx.ui.notify(`Advanced workflow ${workflow.id} to step ${nextStepIndex}.`, "info");
   } catch {
