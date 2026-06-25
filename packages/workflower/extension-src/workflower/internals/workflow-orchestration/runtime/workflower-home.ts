@@ -54,7 +54,5 @@ async function writeWorkflowerGitignore(home: string): Promise<void> {
 }
 
 function isExistingFileError(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST"
-  );
+  return typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST";
 }

@@ -115,7 +115,9 @@ describe("package smoke", () => {
       "Assistant messages that print `/wf:<id>`, `/next`, or other slash commands do not execute",
     );
     expect(readme).toContain("workflower_handoff");
-    expect(readme).toContain("/wf:<workflow-id> <garden-name> | <workflow-id> [| <workflow-id>...]");
+    expect(readme).toContain(
+      "/wf:<workflow-id> <garden-name> | <workflow-id> [| <workflow-id>...]",
+    );
     expect(readme).toContain("queued workflow targets must be user-invocable");
     expect(readme).toContain("Queued pipeline segments are workflow ids only");
     expect(authoringSkill).toContain("garden state");
