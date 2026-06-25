@@ -2,36 +2,27 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 export const newFeatureWorkflow: WorkflowDefinition = {
   id: "new-feature",
-  cleanupOnCompletion: true,
-  pollen: "issues.md",
+  clearOnStart: true,
+  cleanupOnCompletion: false,
+  pollen: "feature-doc.md",
   steps: [
     {
       id: "grill",
-      command: "/skill:new-feature-grill",
+      command: "/skill:feature-grill",
       clearOnNext: false,
     },
     {
-      id: "summary",
-      command: "/skill:new-feature-summary",
-      outputs: ["feature-summary.md"],
+      id: "create-feature-doc",
+      command: "/skill:feature-doc-create",
+      outputs: ["feature-doc.md"],
       autoNext: true,
+      clearOnNext: true,
     },
     {
-      id: "convert-to-issues-prep",
-      command: "/skill:new-feature-convert-to-issues-prep",
-      outputs: ["issues.md"],
+      id: "start-implementation-doc-loop",
+      command: "/feature-workflow-route start-implementation-doc-loop",
       autoNext: true,
-    },
-    {
-      id: "review-issues",
-      command: "/skill:new-feature-review-issues",
-      outputs: ["issues.md"],
-      autoNext: true,
-    },
-    {
-      id: "publish-issues",
-      command: "/skill:new-feature-publish-issues",
-      autoNext: true,
+      clearOnNext: true,
     },
   ],
 };

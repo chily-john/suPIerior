@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { resolveWorkflowsRoot } from "@orchestration/runtime/workflower-home";
 
 export type WorkflowPaths = {
   gardenPath: string;
@@ -13,10 +14,11 @@ export function resolveWorkflowPaths(
   gardenName: string,
 ): WorkflowPaths {
   const flowerName = `0001-${workflowId}`;
-  const flowerPath = join(cwd, ".pi", "workflows", gardenName, flowerName);
+  const gardenPath = join(resolveWorkflowsRoot(cwd), gardenName);
+  const flowerPath = join(gardenPath, flowerName);
 
   return {
-    gardenPath: join(cwd, ".pi", "workflows", gardenName),
+    gardenPath,
     flowerName,
     flowerPath,
     workdir: flowerPath,

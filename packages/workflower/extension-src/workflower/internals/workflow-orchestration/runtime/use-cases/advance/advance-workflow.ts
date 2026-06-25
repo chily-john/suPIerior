@@ -7,6 +7,7 @@ import {
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
 import { updateFlowerPollen } from "@orchestration/runtime/artifacts/flower-index-store";
 import { startWorkflowStep } from "@orchestration/runtime/use-cases/start-step/start-workflow-step";
+import { handoffWorkflowInSession } from "../start/handoff-workflow-session";
 import type { CurrentSessionPromptSender } from "../workflow-runtime.types";
 import type { AdvanceWorkflowOptions, WorkflowAdvanceContext } from "./advance.types";
 import { completeWorkflow } from "./complete-workflow";
@@ -66,6 +67,11 @@ async function advanceWorkflowInternal(
   const nextStepIndex = state.currentStepIndex + 1;
   const nextStep = workflow.steps[nextStepIndex];
   if (!nextStep) {
+    if (state.queuedWorkflowIds?.length) {
+      await handoffQueuedWorkflowInSession(ctx, state, options);
+      return;
+    }
+
     await completeWorkflow(ctx, state, workflow, activeStatePath, options);
     return;
   }
@@ -98,6 +104,47 @@ async function advanceWorkflowInternal(
       { cwd: ctx.cwd },
     );
     if (sent) ctx.ui.notify(`Advanced workflow ${workflow.id} to step ${nextStepIndex}.`, "info");
+  } catch {
+    return;
+  }
+}
+
+async function handoffQueuedWorkflowInSession(
+  ctx: WorkflowAdvanceContext,
+  state: ActiveWorkflowState,
+  options: AdvanceWorkflowOptions,
+): Promise<void> {
+  const [queuedWorkflowId, ...remainingQueuedWorkflowIds] = state.queuedWorkflowIds ?? [];
+  if (!queuedWorkflowId) return;
+
+  const workflow = findWorkflow(queuedWorkflowId);
+  if (!workflow) {
+    ctx.ui.notify(`Queued workflow definition not found: ${queuedWorkflowId}.`, "error");
+    return;
+  }
+
+  const handoff = await handoffWorkflowInSession(
+    workflow,
+    {
+      ...state,
+      queuedWorkflowIds: remainingQueuedWorkflowIds,
+    },
+    ctx,
+  );
+  if (!handoff || !options.currentSession) return;
+
+  try {
+    const sent = await startWorkflowStep(workflow, handoff.state, 0, options.currentSession, {
+      cwd: ctx.cwd,
+      incomingPollen: handoff.incomingPollen,
+      promptDisplayKind: "workflow",
+    });
+    if (sent) {
+      ctx.ui.notify(
+        `Started workflow ${workflow.id} as next flower in ${handoff.state.gardenName ?? handoff.state.name}.`,
+        "info",
+      );
+    }
   } catch {
     return;
   }

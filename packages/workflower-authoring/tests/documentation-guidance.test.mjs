@@ -29,12 +29,12 @@ includes(
 includes(skill, "/wf:<next-workflow-id>", "skill must show active handoff without a garden name");
 includes(
   skill,
-  ".pi/workflows/<garden-name>/0001-<workflow-id>/",
+  ".workflower/workflows/<garden-name>/0001-<workflow-id>/",
   "skill must show garden/flower artifact paths",
 );
 includes(
   skill,
-  ".pi/workflows/<garden-name>/0001-<workflow-id>/index.json",
+  ".workflower/workflows/<garden-name>/0001-<workflow-id>/index.json",
   "skill must explain flower index path",
 );
 includes(
@@ -78,7 +78,11 @@ includes(
   "The model still receives the full kickoff prompt",
   "skill must explain compact display still sends the full kickoff prompt",
 );
-includes(skill, "This is not a token-saving feature", "skill must explain compact display is not token saving");
+includes(
+  skill,
+  "This is not a token-saving feature",
+  "skill must explain compact display is not token saving",
+);
 includes(
   skill,
   "Autonomous workflow movement should call `workflower_handoff`",
@@ -98,7 +102,7 @@ includes(
 includes(readme, "/wf:<next-workflow-id>", "README must document active handoff command");
 includes(
   readme,
-  ".pi/workflows/<garden-name>/0001-<workflow-id>/",
+  ".workflower/workflows/<garden-name>/0001-<workflow-id>/",
   "README must document garden/flower artifact paths",
 );
 includes(readme, "pollen` and `acceptPollen`", "README must mention pollen guidance");
@@ -112,7 +116,7 @@ excludes(
 );
 excludes(
   combined,
-  ".pi/workflows/<workflow-id>/<workflow-name>/",
+  ".workflower/workflows/<workflow-id>/<workflow-name>/",
   "docs must not use old workflow-id/workflow-name artifact path",
 );
 excludes(combined, "github:issue", "docs must not use colon-separated workflow id examples");

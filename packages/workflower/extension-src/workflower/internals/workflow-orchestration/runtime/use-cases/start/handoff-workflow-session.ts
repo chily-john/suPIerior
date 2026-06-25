@@ -8,7 +8,17 @@ import {
   markFlowerHandedOff,
   writeInitialFlowerIndex,
 } from "@orchestration/runtime/artifacts/flower-index-store";
-import type { WorkflowCommandContext } from "./start.types";
+import { ensureWorkflowerHome } from "@orchestration/runtime/workflower-home";
+import type { WorkflowNotificationUi } from "../workflow-runtime.types";
+
+export type HandoffWorkflowContext = {
+  cwd: string;
+  ui: WorkflowNotificationUi;
+  sessionManager: {
+    getSessionId(): string;
+    getSessionFile?(): string | undefined;
+  };
+};
 
 export type WorkflowHandoffResult = {
   state: ActiveWorkflowState;
@@ -18,7 +28,8 @@ export type WorkflowHandoffResult = {
 export async function handoffWorkflowInSession(
   workflow: WorkflowDefinition,
   activeState: ActiveWorkflowState,
-  ctx: WorkflowCommandContext,
+  ctx: HandoffWorkflowContext,
+  queuedWorkflowIds?: string[],
 ): Promise<WorkflowHandoffResult | undefined> {
   const previousFlowerPath = activeState.activeFlowerPath ?? activeState.workdir;
   const gardenName = activeState.gardenName ?? activeState.name;
@@ -30,9 +41,10 @@ export async function handoffWorkflowInSession(
     const flowerName = await resolveNextFlowerName(gardenPath, workflow.id);
     const flowerPath = join(gardenPath, flowerName);
     const now = new Date().toISOString();
+    const nextQueuedWorkflowIds = queuedWorkflowIds ?? activeState.queuedWorkflowIds ?? [];
     const state: ActiveWorkflowState = {
       sessionId: ctx.sessionManager.getSessionId(),
-      sessionFile: ctx.sessionManager.getSessionFile(),
+      sessionFile: ctx.sessionManager.getSessionFile?.() ?? activeState.sessionFile,
       id: workflow.id,
       name: gardenName,
       gardenName,
@@ -43,10 +55,12 @@ export async function handoffWorkflowInSession(
       currentStepIndex: 0,
       contextBoundaryEntryId: activeState.contextBoundaryEntryId,
       runtimeDefaults: activeState.runtimeDefaults,
+      ...(nextQueuedWorkflowIds.length ? { queuedWorkflowIds: nextQueuedWorkflowIds } : {}),
       startedAt: now,
       updatedAt: now,
     };
 
+    await ensureWorkflowerHome(ctx.cwd);
     await mkdir(flowerPath, { recursive: true });
     await writeInitialFlowerIndex({ flowerPath, workflowId: workflow.id });
     await writeActiveWorkflowState(activeStatePath, state);

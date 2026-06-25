@@ -6,6 +6,7 @@ The brand name intentionally inserts **PI** into **superior**. Published package
 
 ## Packages
 
+- [`@supierior/architecture`](./packages/architecture) — Markdown-only Pi skill package for architecture routing, AI-navigable folder guidance, package layout guidance, and skill-suite guidance.
 - [`@supierior/pi-rules`](./packages/pi-rules) — current Pi package for `.pi/rules` discovery, context injection, commands, skills, and background rule maintenance.
 
 ## Development

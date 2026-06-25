@@ -14,7 +14,7 @@ export default defineConfig([
       index: "extension-src/pi-rules/index.ts",
     },
     outDir: "dist",
-    format: ["esm", "cjs"],
+    format: ["esm"],
     platform: "node",
     target: "node20",
     dts: true,

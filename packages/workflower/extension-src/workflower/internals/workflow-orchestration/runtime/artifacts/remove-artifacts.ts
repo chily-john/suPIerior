@@ -1,5 +1,6 @@
 import { rmdir, rm, unlink } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { resolveWorkflowsRoot } from "@orchestration/runtime/workflower-home";
 
 export async function removeWorkflowWorkdir(cwd: string, workdir: string): Promise<void> {
   assertWorkflowArtifactPath(cwd, workdir, "workflow workdir");
@@ -29,7 +30,7 @@ export async function removeGardenStateFile(cwd: string, gardenPath: string): Pr
 }
 
 function assertWorkflowArtifactPath(cwd: string, path: string, label: string): void {
-  const workflowsRoot = resolve(cwd, ".pi", "workflows");
+  const workflowsRoot = resolve(resolveWorkflowsRoot(cwd));
   const target = resolve(path);
   const relativeTarget = relative(workflowsRoot, target);
 

@@ -1,12 +1,19 @@
+import { readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createWorkflowerRuntime } from "@package-api/create-workflower-runtime";
 import type { JsonValue } from "@package-api/garden-state.types";
 import type { WorkflowerRuntimeContext } from "@package-api/workflower-runtime.types";
+import { resolveActiveStatePath } from "@orchestration/runtime/active-state/active-state-paths";
+import { readActiveWorkflowState } from "@orchestration/runtime/active-state/active-state-store";
+import { removeWorkflowWorkdir } from "@orchestration/runtime/artifacts/remove-artifacts";
+import { isSafeWorkflowName as isSafeGardenName } from "@orchestration/runtime/artifacts/workflow-name-validation";
 import { listWorkflowStates } from "@orchestration/runtime/use-cases/manage-active/list-active";
 import { showWorkflowStatus } from "@orchestration/runtime/use-cases/manage-active/show-status";
 import { stopWorkflow } from "@orchestration/runtime/use-cases/manage-active/stop-active";
+import { resolveWorkflowsRoot } from "@orchestration/runtime/workflower-home";
 
-const WF_COMMANDS = "Available commands: status, stop, list, state.";
+const WF_COMMANDS = "Available commands: status, stop, list, clean, state.";
 const WF_STATE_USAGE =
   'Usage: /wf state list | /wf state get <key> | /wf state set <key> <json-value>. Examples: /wf state set review.rating 4, /wf state set review.summary "Needs tests".';
 
@@ -31,6 +38,11 @@ export function registerWfCommand(pi: ExtensionAPI): void {
         return;
       }
 
+      if (trimmedArgs === "clean" || trimmedArgs.startsWith("clean ")) {
+        await cleanWorkflowGarden(ctx, trimmedArgs.slice("clean".length).trim());
+        return;
+      }
+
       if (trimmedArgs === "state" || trimmedArgs.startsWith("state ")) {
         await handleStateCommand(pi, ctx, trimmedArgs.slice("state".length).trim());
         return;
@@ -40,6 +52,47 @@ export function registerWfCommand(pi: ExtensionAPI): void {
       ctx.ui.notify(`Unknown wf command: ${subcommand}. ${WF_COMMANDS}`, "error");
     },
   });
+}
+
+async function cleanWorkflowGarden(
+  ctx: WorkflowerRuntimeContext,
+  gardenName: string,
+): Promise<void> {
+  if (!gardenName) {
+    ctx.ui.notify("Usage: /wf clean <garden-name>", "error");
+    return;
+  }
+
+  if (!isSafeGardenName(gardenName)) {
+    ctx.ui.notify("Invalid garden-name: garden-name must be a safe path segment.", "error");
+    return;
+  }
+
+  const activeWorkflow = await findActiveWorkflowInGarden(ctx, gardenName);
+  if (activeWorkflow) {
+    ctx.ui.notify(
+      `Refusing to clean active garden ${gardenName}; workflow ${activeWorkflow.id} is still active in session ${activeWorkflow.sessionId}.`,
+      "error",
+    );
+    return;
+  }
+
+  try {
+    await removeWorkflowWorkdir(ctx.cwd, join(resolveWorkflowsRoot(ctx.cwd), gardenName));
+    ctx.ui.notify(`Removed Workflower garden ${gardenName}.`, "info");
+  } catch (error) {
+    ctx.ui.notify(`Failed to clean garden ${gardenName}: ${formatError(error)}`, "error");
+  }
+}
+
+async function findActiveWorkflowInGarden(ctx: WorkflowerRuntimeContext, gardenName: string) {
+  const activeDir = dirname(resolveActiveStatePath(ctx.cwd, ctx.sessionManager.getSessionId()));
+  for (const entry of await readdir(activeDir).catch(() => [])) {
+    if (!entry.endsWith(".json")) continue;
+    const state = await readActiveWorkflowState(join(activeDir, entry)).catch(() => undefined);
+    if ((state?.gardenName ?? state?.name) === gardenName) return state;
+  }
+  return undefined;
 }
 
 async function handleStateCommand(
@@ -100,4 +153,8 @@ async function handleStateCommand(
   }
 
   ctx.ui.notify(WF_STATE_USAGE, "error");
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

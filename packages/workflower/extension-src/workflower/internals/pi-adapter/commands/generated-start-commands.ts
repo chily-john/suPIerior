@@ -9,6 +9,7 @@ import {
   onStartableWorkflowRegistered,
 } from "@orchestration/runtime/use-cases/generated-starts/watch-startable-workflows";
 import { startWorkflow } from "@orchestration/runtime/use-cases/start/start-workflow";
+import { sendWorkflowerPrompt } from "../send-workflower-prompt";
 
 export function registerGeneratedStartCommands(pi: ExtensionAPI): () => void {
   const registerStartCommand = (workflow: ReturnType<typeof listStartableWorkflows>[number]) => {
@@ -22,6 +23,7 @@ export function registerGeneratedStartCommands(pi: ExtensionAPI): () => void {
           restoreRuntimeDefaults: (runtimeDefaults) =>
             restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
           sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
+          sendWorkflowPrompt: (input) => sendWorkflowerPrompt(pi, input),
         });
       },
     });

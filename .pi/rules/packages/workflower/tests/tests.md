@@ -6,6 +6,7 @@ summary: Workflower Vitest coverage for registry, commands, handoff/state tools,
 triggers:
   - workflower tests
   - /wf test
+  - /wf clean test
   - /wf:<id> test
   - /next test
   - workflower_handoff test
@@ -18,6 +19,7 @@ triggers:
   - userInvocable test
   - modelInvocable test
   - autoNext test
+  - workflow pipeline test
   - workflow lifecycle test
 ---
 
@@ -27,8 +29,8 @@ Enter here when changing tests for Workflower's public package API, command beha
 
 ## Patterns & Conventions
 
-- Prefer behavioral command/tool tests over unit tests of private helpers when changing `/wf`, `/wf:<id>`, `/next`, or `workflower_handoff` behavior.
-- Assert file-system side effects under temp `.pi` directories so active state, garden state, and artifacts are covered together.
+- Prefer behavioral command/tool tests over unit tests of private helpers when changing `/wf`, `/wf clean`, `/wf:<id>`, `/next`, or `workflower_handoff` behavior.
+- Assert file-system side effects under temp `.workflower` directories so active state, garden state, artifacts, and generated ignore files are covered together.
 - Use session-scoped active state paths when asserting workflow state.
 - Keep tests explicit about whether session replacement should happen; many lifecycle rules depend on `clearOn*` flags.
 - Cover tool-driven handoffs with active-state, context-boundary, pollen, turn-guard, auto-next, and follow-up prompt assertions.
@@ -36,6 +38,7 @@ Enter here when changing tests for Workflower's public package API, command beha
 - Cover private skill loading, registration, command expansion, and kickoff prompt injection when changing private skill behavior.
 - Cover private command registration, duplicate handling, private-skill precedence, `prompt`/`none` rendering, and step-command resolution when changing `registerWorkflowerCommand` behavior.
 - Cover `userInvocable` and `modelInvocable` behavior across generated commands, hidden input blocking, status visibility, and handoff permissions.
+- Cover `/wf:<id>` pipeline syntax with queued active state persistence, active handoff queuing, final-step queued handoff, and invalid queued workflow rejection.
 - Cover workflow/step runtime settings with selected fallback, current/default-model warning, and captured default restore assertions.
 - Cover workflow prompt custom-message display metadata, model prompt content, and plain-message fallback when changing kickoff prompt delivery.
 - When changing registry behavior, verify the package root remains the shared public module for external workflow registration and generated start commands.

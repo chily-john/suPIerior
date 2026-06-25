@@ -38,9 +38,9 @@ Ask only for missing information. Gather:
 Before writing files:
 
 - Workflow ids must be folder-safe and match `^[a-z0-9_-]+$`: lowercase ASCII letters, digits, underscores, and hyphens only. Do not use colon-separated, uppercase, whitespace, slash, dot-segment, or quoted ids.
-- The initial garden name is provided by the user at runtime with `/wf:<workflow-id> <garden-name>` and becomes `.pi/workflows/<garden-name>/`.
-- The first workflow execution creates a flower workdir like `.pi/workflows/<garden-name>/0001-<workflow-id>/` and a flower index at `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`.
-- While a workflow is active, hand off to another workflow with `/wf:<next-workflow-id>` and no garden name; Workflower creates the next flower in the same garden, such as `.pi/workflows/<garden-name>/0002-<next-workflow-id>/`.
+- The initial garden name is provided by the user at runtime with `/wf:<workflow-id> <garden-name>` and becomes `.workflower/workflows/<garden-name>/`.
+- The first workflow execution creates a flower workdir like `.workflower/workflows/<garden-name>/0001-<workflow-id>/` and a flower index at `.workflower/workflows/<garden-name>/0001-<workflow-id>/index.json`.
+- While a workflow is active, hand off to another workflow with `/wf:<next-workflow-id>` and no garden name; Workflower creates the next flower in the same garden, such as `.workflower/workflows/<garden-name>/0002-<next-workflow-id>/`.
 - Step ids should be short, stable, lowercase kebab-case.
 - Step commands should exist or be created as bundled skills/commands.
 - Output paths should be relative file paths under the workflow workdir.
@@ -143,7 +143,7 @@ Workflow-level `pollen?: string | string[]` pins the output path or paths that s
 
 ## Garden state and deterministic routing
 
-Use Workflower garden state for small structured facts that must survive context-clearing boundaries or drive deterministic routing. State lives at `.pi/workflows/<garden-name>/state.json`, is shared by all flowers in the garden, and is deleted on final garden completion. Use output files for large artifacts: do not use state for large reports, logs, diffs, or plans; write those as declared output files instead.
+Use Workflower garden state for small structured facts that must survive context-clearing boundaries or drive deterministic routing. State lives at `.workflower/workflows/<garden-name>/state.json`, is shared by all flowers in the garden, and is deleted on final garden completion. Use output files for large artifacts: do not use state for large reports, logs, diffs, or plans; write those as declared output files instead.
 
 When authoring workflows and companion skills:
 
@@ -167,9 +167,8 @@ Example deterministic router:
 
 ```ts
 const rating = await wf.state.getValue("review.rating");
-const nextWorkflow = typeof rating === "number" && rating >= 4
-  ? "feature-next-steps"
-  : "implementation-review-loop";
+const nextWorkflow =
+  typeof rating === "number" && rating >= 4 ? "feature-next-steps" : "implementation-review-loop";
 await wf.handoff(nextWorkflow);
 ```
 
@@ -263,8 +262,8 @@ Also mention:
 and where artifacts are written:
 
 ```text
-.pi/workflows/<garden-name>/0001-<workflow-id>/
-.pi/workflows/<garden-name>/0001-<workflow-id>/index.json
+.workflower/workflows/<garden-name>/0001-<workflow-id>/
+.workflower/workflows/<garden-name>/0001-<workflow-id>/index.json
 ```
 
 Cleanup waits until the whole garden completes. Handoffs preserve earlier flowers so their pollen can be referenced by later workflows; final `/next` cleanup applies each flower's producing workflow `cleanupOnCompletion` setting.
@@ -281,7 +280,7 @@ Before finishing:
 - The README includes a copy-paste smoke test using `/wf:<workflow-id> <garden-name>`.
 - The README and bundled skills explain active handoff with `/wf:<next-workflow-id>` when relevant.
 - The README or workflow usage notes explain compact prompt display and warn authors not to verify private skill injection by visible transcript content alone.
-- Artifact examples use `.pi/workflows/<garden-name>/0001-<workflow-id>/` flower paths and mention `index.json`.
+- Artifact examples use `.workflower/workflows/<garden-name>/0001-<workflow-id>/` flower paths and mention `index.json`.
 - Workflow-level `pollen` and `acceptPollen` choices are documented when handoff behavior matters.
 - Expected garden state keys and `workflower_state_set` calls are documented when state drives later steps or routing.
 - Deterministic routers are implemented as commands/tools or extension code, not as printed slash-command text.

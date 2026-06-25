@@ -11,11 +11,13 @@ Use injected `.pi/rules` context as the first source of project-specific guidanc
 ## Project Structure
 
 ├── packages/ # Workspace packages; enter before changing package-specific runtime, docs, or workflow assets
+│ ├── architecture/ # Markdown-only skill package for architecture routing and AI-navigable structure guidance
 │ ├── pi-rules/ # Pi package for hierarchical rules discovery, injection, commands, skills, and maintainer runtime
 │ ├── tui-tools/ # Reusable Pi TUI primitives for guided workflow packages
-│ ├── workflower/ # Pi package for named workflow orchestration and `/workflow` + `/next` commands
+│ ├── workflower/ # Pi package for named workflow orchestration and `/wf` + `/next` commands
 │ ├── workflower-authoring/ # Markdown-only skill package for creating Workflower workflow packages
-│ ├── feature-workflow/ # Tiny Workflower greeting workflow smoke-test package
+│ ├── experimental-workflows/ # Experimental Workflower playground package for engine-pattern workflows
+│ ├── feature-workflow/ # Workflower package for feature ideation, issue drafting, and implementation plans
 │ └── ruleplementor/ # Markdown-only strict TDD GitHub issue implementation skill package
 ├── .changeset/ # Changesets release configuration; enter only for release/versioning workflow changes
 ├── package.json # Root workspace scripts delegated through Turborepo

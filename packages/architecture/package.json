@@ -1,0 +1,30 @@
+{
+  "name": "@supierior/architecture",
+  "version": "0.1.0-beta.0",
+  "description": "Pi skill package for architecture routing and AI-navigable structure guidance.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "skill",
+    "architecture",
+    "folder-architecture",
+    "skill-suite"
+  ],
+  "license": "Apache-2.0",
+  "files": [
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "echo \"No build for architecture\"",
+    "test": "node tests/skill-package.test.mjs",
+    "typecheck": "echo \"No typecheck for architecture\"",
+    "lint": "echo \"No lint for architecture\"",
+    "clean": "rimraf dist coverage .turbo || true"
+  },
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  }
+}

@@ -2,42 +2,22 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 export const takeItAwayWorkflow: WorkflowDefinition = {
   id: "take-it-away",
-  cleanupOnCompletion: true,
   clearOnStart: false,
-  pollen: "implementation-review.md",
+  cleanupOnCompletion: false,
+  pollen: "feature-doc.md",
   steps: [
     {
-      id: "summarize-context",
-      command: "/skill:take-it-away-summary",
-      outputs: ["context-summary.md"],
+      id: "create-feature-doc",
+      command: "/skill:feature-doc-create",
+      outputs: ["feature-doc.md"],
       autoNext: true,
       clearOnNext: true,
     },
     {
-      id: "plan-implementation",
-      command: "/skill:take-it-away-plan",
-      outputs: ["implementation-plan.md"],
+      id: "start-implementation-doc-loop",
+      command: "/feature-workflow-route start-implementation-doc-loop",
       autoNext: true,
       clearOnNext: true,
-    },
-    {
-      id: "review-plan",
-      command: "/skill:take-it-away-review-plan",
-      outputs: ["implementation-plan.md"],
-      autoNext: true,
-      clearOnNext: true,
-    },
-    {
-      id: "implement-plan",
-      command: "/skill:implementor",
-      autoNext: true,
-      clearOnNext: true,
-    },
-    {
-      id: "review-implementation",
-      command: "/skill:reviewer",
-      outputs: ["implementation-review.md"],
-      autoNext: true,
     },
   ],
 };

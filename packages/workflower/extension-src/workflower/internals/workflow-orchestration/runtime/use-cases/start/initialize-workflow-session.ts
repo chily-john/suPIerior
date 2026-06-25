@@ -8,6 +8,7 @@ import { writeActiveWorkflowState } from "@orchestration/runtime/active-state/ac
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
 import { resolveWorkflowPaths } from "@orchestration/runtime/artifacts/artifact-paths";
 import { writeInitialFlowerIndex } from "@orchestration/runtime/artifacts/flower-index-store";
+import { ensureWorkflowerHome } from "@orchestration/runtime/workflower-home";
 import type { WorkflowCommandContext } from "./start.types";
 
 export async function initializeWorkflowInSession(
@@ -16,6 +17,7 @@ export async function initializeWorkflowInSession(
   ctx: WorkflowCommandContext,
   initialContextBoundaryEntryId?: string,
   runtimeDefaults?: WorkflowRuntimeDefaults,
+  queuedWorkflowIds: string[] = [],
 ): Promise<ActiveWorkflowState | undefined> {
   const sessionId = ctx.sessionManager.getSessionId();
   const activeStatePath = resolveActiveStatePath(ctx.cwd, sessionId);
@@ -49,6 +51,7 @@ export async function initializeWorkflowInSession(
     activeFlowerPath: paths.flowerPath,
     workdir: paths.flowerPath,
     currentStepIndex: 0,
+    ...(queuedWorkflowIds.length > 0 ? { queuedWorkflowIds } : {}),
     contextBoundaryEntryId: initialContextBoundaryEntryId,
     runtimeDefaults,
     startedAt: now,
@@ -56,6 +59,7 @@ export async function initializeWorkflowInSession(
   };
 
   try {
+    await ensureWorkflowerHome(ctx.cwd);
     await mkdir(paths.flowerPath, { recursive: true });
     await writeInitialFlowerIndex({ flowerPath: paths.flowerPath, workflowId: workflow.id });
     await writeActiveWorkflowState(activeStatePath, state);

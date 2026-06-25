@@ -11,6 +11,7 @@ export type ActiveWorkflowState = {
   activeFlowerPath?: string;
   workdir: string;
   currentStepIndex: number;
+  queuedWorkflowIds?: string[];
   contextBoundaryEntryId?: string | null;
   runtimeDefaults?: WorkflowRuntimeDefaults;
   startedAt: string;

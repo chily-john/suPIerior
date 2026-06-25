@@ -54,10 +54,10 @@ Workflow definitions are model-invokable by default. Hidden user commands (`user
 Garden state is a small JSON state file shared by every flower in one active garden. It is for structured facts that later workflow steps or deterministic router code need after Workflower clears model context.
 
 ```text
-.pi/workflows/<garden-name>/state.json
+.workflower/workflows/<garden-name>/state.json
 ```
 
-The file is created lazily when the first key is written, uses this shape, and is deleted when the garden completes even if some flower artifacts are preserved with `cleanupOnCompletion: false`:
+The file is created lazily when the first key is written, uses this shape, and is preserved on completion when the active workflow sets `cleanupOnCompletion: false`:
 
 ```json
 {
@@ -71,7 +71,7 @@ The file is created lazily when the first key is written, uses this shape, and i
 }
 ```
 
-`/wf stop` only clears the current session's active workflow pointer; it does not delete `.pi/workflows/<garden-name>/state.json` or flower artifacts. State keys are flat strings like `review.rating`, `feature_summary`, or `tests-passed`; dots are naming convention only. Keys must match `^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$` and cannot be `__proto__`, `constructor`, or `prototype`.
+`/wf stop` only clears the current session's active workflow pointer; it does not delete `.workflower/workflows/<garden-name>/state.json` or flower artifacts. State keys are flat strings like `review.rating`, `feature_summary`, or `tests-passed`; dots are naming convention only. Keys must match `^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$` and cannot be `__proto__`, `constructor`, or `prototype`.
 
 Use garden state for small facts such as ratings, summaries, booleans, ids, or routing decisions. Use step outputs for large reports, logs, diffs, implementation plans, or review documents. Use pollen to pass selected output file paths from one flower to the next during handoff.
 
@@ -94,6 +94,8 @@ Examples:
 Agents should call these tools when workflow instructions name state keys. They should not store large artifacts in state, and should call `workflower_handoff` rather than printing `/wf:<id>` when autonomous handoff is required.
 
 ## State commands for humans
+
+Use `/wf clean <garden-name>` to remove an inactive preserved garden when you are done inspecting it. The command refuses to delete a garden that still has an active workflow in any tracked Pi session.
 
 Use `/wf state` to inspect or repair the active garden state manually:
 
@@ -121,7 +123,8 @@ export default function reviewRouter(pi: ExtensionAPI): void {
     handler: async (_args, ctx) => {
       const wf = createWorkflowerRuntime(pi, ctx);
       const rating = await wf.state.getValue("review.rating");
-      if (typeof rating !== "number") return ctx.ui.notify("review.rating must be a number.", "error");
+      if (typeof rating !== "number")
+        return ctx.ui.notify("review.rating must be a number.", "error");
 
       const nextWorkflow = rating >= 4 ? "feature-next-steps" : "implementation-review-loop";
       const result = await wf.handoff(nextWorkflow);
@@ -173,17 +176,35 @@ For example:
 /wf:custom-demo my-workflow
 ```
 
+### Workflow pipelines
+
+You can queue a simple linear workflow pipeline when starting a garden:
+
+```text
+/wf:<workflow-id> <garden-name> | <workflow-id> [| <workflow-id>...]
+```
+
+For an active workflow handoff, omit the garden name and put queued downstream workflows after the pipe:
+
+```text
+/wf:<next-workflow-id> | <queued-workflow-id>
+```
+
+The pipe is Workflower command syntax, not shell syntax: it does not run processes, connect standard streams, or support shell quoting. The first segment starts or hands off to the named workflow, and each queued segment becomes the next flower after the prior workflow reaches its final step.
+
+All queued workflow targets must be user-invocable. Queued pipeline segments are workflow ids only; they cannot include arguments, per-target garden names, or additional syntax. Final cleanup runs only after the last workflow in the pipeline completes, so earlier flowers remain available for pollen and handoff context until the pipeline is done.
+
 Starting a new garden:
 
 1. looks up the registered workflow by id;
-2. creates the first flower at `.pi/workflows/<garden-name>/0001-<workflow-id>/index.json`;
+2. creates the first flower at `.workflower/workflows/<garden-name>/0001-<workflow-id>/index.json`;
 3. records a context boundary in the current Pi session unless the workflow sets `clearOnStart: false`;
-4. writes durable active state for the current Pi session to `.pi/tmp/workflows/active/<session-id>.json`; and
+4. writes durable active state for the current Pi session to `.workflower/tmp/workflows/active/<session-id>.json`; and
 5. sends the step-0 kickoff prompt inside the current session.
 
 `clearOnStart: false` preserves prior conversation context for the first step of a new garden by disabling the start boundary. With the default start boundary, Workflower keeps the visible session but filters pre-start messages from model context through `contextBoundaryEntryId`.
 
-`<garden-name>` is required when no workflow is active and must be a safe path segment because it becomes part of the workflow artifact path. The initial flower path is `.pi/workflows/<garden-name>/0001-<workflow-id>/`; there is no garden-level index file. Missing arguments, extra arguments, unknown workflow ids, unsafe names, and duplicate initial flowers are reported with friendly error messages.
+`<garden-name>` is required when no workflow is active and must be a safe path segment because it becomes part of the workflow artifact path. The initial flower path is `.workflower/workflows/<garden-name>/0001-<workflow-id>/`; there is no garden-level index file. Missing arguments, extra arguments, unknown workflow ids, unsafe names, and duplicate initial flowers are reported with friendly error messages.
 
 When a workflow is already active in the current Pi session, start the next flower by running another workflow command with no arguments:
 
@@ -191,7 +212,7 @@ When a workflow is already active in the current Pi session, start the next flow
 /wf:<next-workflow-id>
 ```
 
-Workflower marks the previous flower index as `handedOff`, leaves that flower's files in place, creates the next numbered flower in the same garden such as `.pi/workflows/<garden-name>/0002-<next-workflow-id>/`, writes a fresh active index for the new flower, and sends the new workflow's step-0 kickoff prompt. Passing a garden name while active is invalid because the current garden is already established.
+Workflower marks the previous flower index as `handedOff`, leaves that flower's files in place, creates the next numbered flower in the same garden such as `.workflower/workflows/<garden-name>/0002-<next-workflow-id>/`, writes a fresh active index for the new flower, and sends the new workflow's step-0 kickoff prompt. Passing a garden name while active is invalid because the current garden is already established.
 
 Handoffs do not apply the target workflow's `clearOnStart`; that setting only affects starting the first flower in a new garden. Handoff isolation comes from the already-active workflow's step boundaries: for a tool-driven handoff step, set `clearOnNext` on the step that advances into that handoff step; for a manual `/wf:<next>` handoff, set `clearOnNext` on the just-completed source step before running the handoff.
 
@@ -205,7 +226,7 @@ Handoffs do not apply the target workflow's `clearOnStart`; that setting only af
 
 When no workflow is active in the current Pi session, `/wf status` reports that there is no active workflow. When a workflow is active, status shows the workflow id, garden, garden path, active flower path, and current step id/command. If the saved active state references a workflow id that is no longer registered, status reports that mismatch as a warning while still showing the garden and active flower path.
 
-`/wf stop` clears the current session's `.pi/tmp/workflows/active/<session-id>.json` state and reports which workflow and garden were stopped. It does not delete garden or flower artifacts under `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/`; users can inspect, reuse, or remove those files manually.
+`/wf stop` clears the current session's `.workflower/tmp/workflows/active/<session-id>.json` state and reports which workflow and garden were stopped. It does not delete garden or flower artifacts under `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/`; users can inspect, reuse, or remove those files manually with `/wf clean <garden-name>`.
 
 `/wf list` shows all session-scoped active workflow states in the repo by workflow, garden, and active flower path, and marks entries outside the current Pi session as `stale/other session` so abandoned sessions are visible without automatically adopting them.
 
@@ -225,7 +246,7 @@ Each successful `/next` records pollen in the active flower's `index.json` from 
 
 During a handoff, the new workflow's kickoff prompt lists the previous flower's indexed pollen paths when the new workflow accepts pollen. Set `acceptPollen: false` on a workflow definition to omit incoming pollen from handoff kickoff prompts. Pollen files are referenced by path only and are not copied into the new flower.
 
-When `/next` advances beyond the final step of the active flower, Workflower completes the whole garden: it marks the active flower index as `completed`, clears the current session's active state, applies each flower's producing workflow `cleanupOnCompletion` setting, removes the garden directory if cleanup leaves it empty, and reports workflow completion. Handoffs do not clean up previous flowers; cleanup waits until final garden completion. A workflow can preserve its flower artifacts with `cleanupOnCompletion: false`, and the active workflow can keep completion in the current session with `clearOnCompletion: false`.
+When `/next` advances beyond the final step of the active flower, Workflower completes the whole garden: it marks the active flower index as `completed`, clears the current session's active state, applies each flower's producing workflow `cleanupOnCompletion` setting, removes garden state unless the active workflow sets `cleanupOnCompletion: false`, removes the garden directory if cleanup leaves it empty, and reports workflow completion. Handoffs do not clean up previous flowers; cleanup waits until final garden completion. A workflow can preserve its flower artifacts and completion garden state with `cleanupOnCompletion: false`, and the active workflow can keep completion in the current session with `clearOnCompletion: false`.
 
 ## Runtime settings
 
@@ -306,14 +327,17 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 
 ## State and artifacts
 
-- Garden state: `.pi/workflows/<garden-name>/state.json`
-- Active flower workdir: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/`
-- Flower index: `.pi/workflows/<garden-name>/<sequence>-<workflow-id>/index.json`
-- Active session state: `.pi/tmp/workflows/active/<session-id>.json`
+- Runtime root: `.workflower/`
+- Garden state: `.workflower/workflows/<garden-name>/state.json`
+- Active flower workdir: `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/`
+- Flower index: `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/index.json`
+- Active session state: `.workflower/tmp/workflows/active/<session-id>.json`
+
+Workflower automatically creates `.workflower/.gitignore` with `*` when it writes runtime state or artifacts so workflow run data stays untracked by default.
 
 The flower index stores `status`, `workflowId`, `flowerPath`, `pollen`, and `pollenPinned`. Active state stores `sessionId`, optional `sessionFile`, `id`, `name`, `gardenName`, `gardenPath`, `activeFlowerName`, `activeFlowerPath`, `workdir`, `currentStepIndex`, optional `contextBoundaryEntryId`, optional captured `runtimeDefaults`, `startedAt`, and `updatedAt`.
 
-Workflow artifacts and garden state are not deleted by `/wf stop`. Handoffs preserve earlier flowers in the garden and share one garden state file. At final `/next` completion, Workflower deletes garden state, evaluates each flower's `workflowId`, looks up that workflow definition, deletes flower artifacts by default, preserves flowers whose producing workflow sets `cleanupOnCompletion: false`, and removes the garden directory only when it becomes empty.
+Workflow artifacts and garden state are not deleted by `/wf stop`. Handoffs preserve earlier flowers in the garden and share one garden state file. At final `/next` completion, Workflower deletes garden state unless the active workflow sets `cleanupOnCompletion: false`, evaluates each flower's `workflowId`, looks up that workflow definition, deletes flower artifacts by default, preserves flowers whose producing workflow sets `cleanupOnCompletion: false`, and removes the garden directory only when it becomes empty.
 
 ## Development and validation
 

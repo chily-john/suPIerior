@@ -1,13 +1,13 @@
 {
   "name": "@supierior/feature-workflow",
   "version": "0.1.0-beta.0",
-  "description": "Workflower package for turning feature ideas into reviewed GitHub issues or implementation plans.",
+  "description": "Workflower package for turning feature conversations into feature docs, implementation plans, and reviewed story implementations.",
   "keywords": [
     "pi-package",
     "pi",
     "workflow",
     "workflower",
-    "github-issues"
+    "feature-planning"
   ],
   "license": "Apache-2.0",
   "main": "./dist/index.mjs",
@@ -53,9 +53,7 @@
     "extensions": [
       "./dist/index.mjs"
     ],
-    "skills": [
-      "./node_modules/@supierior/ruleplementor/skills"
-    ],
+    "skills": [],
     "workflowerSkills": [
       "./extension-src/feature-workflow/internals/skills"
     ]

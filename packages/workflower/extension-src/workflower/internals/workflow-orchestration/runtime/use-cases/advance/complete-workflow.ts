@@ -97,7 +97,9 @@ async function cleanupCompletedGarden(
     await removeWorkflowWorkdir(ctx.cwd, state.workdir);
   }
 
-  await removeGardenStateFile(ctx.cwd, gardenPath);
+  if (activeWorkflow.cleanupOnCompletion !== false) {
+    await removeGardenStateFile(ctx.cwd, gardenPath);
+  }
   await removeEmptyWorkflowGarden(ctx.cwd, gardenPath);
 }
 

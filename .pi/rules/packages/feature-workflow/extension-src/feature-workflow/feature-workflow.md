@@ -2,29 +2,41 @@
 kind: rules
 paths:
   - "packages/feature-workflow/extension-src/feature-workflow/**/*"
-summary: Feature workflow definitions and Pi extension entrypoint.
+summary: Feature workflow definitions, Pi extension entrypoint, and bundled private skills.
 triggers:
   - newFeatureWorkflow
   - takeItAwayWorkflow
-  - counterWorkflow
-  - counterLoopWorkflow
+  - featureDocWorkflow
+  - implementationDocLoopWorkflow
+  - implementationStoriesSplitWorkflow
+  - storyImplementationLoopWorkflow
   - new-feature workflow id
   - take-it-away workflow id
-  - counter workflow id
-  - counter-loop workflow id
+  - feature-doc workflow id
+  - implementation-doc-loop workflow id
+  - story-implementation-loop workflow id
+  - feature-workflow-route
   - feature-workflow entrypoint
 ---
 
 # Feature Workflow Source
 
-The package root exports `newFeatureWorkflow`, `takeItAwayWorkflow`, `counterWorkflow`, and `counterLoopWorkflow`. All package workflows clean up their workdirs on completion; the counter workflows keep completion in the current session and use the active garden's `counter` state key for loop handoffs. The extension entrypoint registers the root workflows once per process, then initializes the Workflower command runtime with the package URL so `pi.workflowerSkills` are loaded.
+The package root exports `newFeatureWorkflow`, `takeItAwayWorkflow`, `featureDocWorkflow`, `implementationDocLoopWorkflow`, `implementationStoriesSplitWorkflow`, and `storyImplementationLoopWorkflow`. The extension entrypoint registers the workflows and `feature-workflow-route` command once per process, then initializes the Workflower command runtime with the package URL so `pi.workflowerSkills` are loaded from `internals/skills`.
+
+## Subdirectories
+
+| Directory      | When to enter                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| `internals/`   | Editing Pi extension binding or bundled private skill prompts/contracts for feature workflows.       |
+| `package-api/` | Changing exported workflow definitions, ids, step commands, outputs, pollen, or auto-advance flags. |
 
 ## Patterns & Conventions
 
 - Use Workflower's public `registerWorkflow` API and runtime setup with `packageUrl: import.meta.url`; do not duplicate registry, command, or private-skill loading state here.
 - Keep steps aligned with shipped skills and their declared output behavior.
-- Preserve `new-feature` grill conversation context with `clearOnNext: false`; later artifact steps auto-advance through summary, issue prep, issue review, and issue publishing.
-- Preserve `take-it-away` startup context with `clearOnStart: false`, then clear between summary, plan, plan review, implementation, and implementation review steps.
-- `take-it-away` depends on Ruleplementor's `implementor` and `reviewer` skills being installed through package skills metadata.
-- `counter` initializes garden state key `counter` with explicit step runtime settings, then hands off to `counter-loop`; `counter-loop` stays hidden from user `/wf:counter-loop` and repeats until the counter reaches its end value.
-- If changing cleanup behavior, session-clearing flags, runtime settings, garden state, or `autoNext`, update the README smoke-test expectations and package tests together.
+- Keep Workflower-only skill prompts grouped under `internals/skills/<domain>/skills/<step>/SKILL.md`; domain contracts and artifact formats stay beside each domain's `skills/` directory, with shared methodology and garden-state contracts at the skills root.
+- Keep review skills writing structured `implementationDocReview` and `storyReview` objects in garden state; flat score keys are recovery fallback only.
+- Preserve `new-feature` grill conversation context with `clearOnNext: false`; feature-doc creation auto-advances into `feature-workflow-route start-implementation-doc-loop`.
+- Preserve `take-it-away` startup context with `clearOnStart: false`; it starts at feature-doc creation and then routes into the implementation-doc loop.
+- Keep `implementation-doc-loop`, `implementation-stories-split`, and `story-implementation-loop` model-invocable but not user-invocable; route between them with `feature-workflow-route` and `workflower_handoff` instructions.
+- If changing cleanup behavior, session-clearing flags, loop routing, garden-state keys, or `autoNext`, update the README smoke-test expectations and package tests together.

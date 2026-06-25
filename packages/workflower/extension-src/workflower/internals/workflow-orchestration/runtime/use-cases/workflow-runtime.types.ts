@@ -3,6 +3,7 @@ import type {
   WorkflowRuntimeDefaults,
   WorkflowStep,
 } from "@package-api/workflow-definition.types";
+import type { WorkflowerPromptDisplay } from "@orchestration/prompting/workflow-prompt-display.types";
 
 export type WorkflowNotificationLevel = "info" | "warning" | "error";
 
@@ -21,4 +22,8 @@ export type CurrentSessionPromptSender = {
   applyStepRuntimeSettings?(settings: WorkflowStepRuntimeSettings): Promise<boolean> | boolean;
   restoreRuntimeDefaults?(runtimeDefaults?: WorkflowRuntimeDefaults): Promise<void> | void;
   sendUserMessage(prompt: string): Promise<void> | void;
+  sendWorkflowPrompt?(input: {
+    prompt: string;
+    display: WorkflowerPromptDisplay;
+  }): Promise<void> | void;
 };
