@@ -31,18 +31,22 @@ component-name/
 ## Rules
 
 ### Required Files
+
 - **Component.tsx** or **Component.jsx**: The main component implementation
 - **index.ts**: Barrel export that exports the component as the default export
 
 ### Recommended Files
+
 - **component.types.ts**: Type definitions for the component's props and internal types
 
 ### Parts Directory
+
 - For complex components with multiple sub-components, create a `parts/` directory
 - Each part should be in its own file (e.g., `parts/Header.tsx`, `parts/Footer.tsx`)
 - Parts can optionally have their own `index.ts` for barrel exports
 
 ### No Inline Components
+
 - **Do not** define components inline within other component files
 - Every component, no matter how small, should have its own file
 - This ensures better discoverability, testability, and maintainability
@@ -56,6 +60,7 @@ node packages/xtivia-workflows/scripts/validate-component-structure.js --path co
 ```
 
 This script checks:
+
 - ✅ Presence of Component.tsx or Component.jsx
 - ✅ Presence of index.ts
 - ⚠️ Presence of component.types.ts (warning only)
@@ -71,6 +76,7 @@ Button/
 ```
 
 ### Button/Component.tsx
+
 ```tsx
 export const Button = ({ children }: ButtonProps) => {
   return <button>{children}</button>;
@@ -78,17 +84,19 @@ export const Button = ({ children }: ButtonProps) => {
 ```
 
 ### Button/index.ts
+
 ```ts
-export { Button } from './Component';
-export type { ButtonProps } from './component.types';
+export { Button } from "./Component";
+export type { ButtonProps } from "./component.types";
 ```
 
 ### Button/component.types.ts
+
 ```ts
 export interface ButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: "primary" | "secondary";
 }
 ```
 
@@ -107,10 +115,11 @@ Card/
 ```
 
 ### Card/Component.tsx
+
 ```tsx
-import { Header } from './parts/Header';
-import { Body } from './parts/Body';
-import { Footer } from './parts/Footer';
+import { Header } from "./parts/Header";
+import { Body } from "./parts/Body";
+import { Footer } from "./parts/Footer";
 
 export const Card = ({ children }: CardProps) => {
   return (
@@ -124,6 +133,7 @@ export const Card = ({ children }: CardProps) => {
 ```
 
 ### Card/parts/Header.tsx
+
 ```tsx
 export const Header = () => {
   return <div className="card-header">Card Header</div>;

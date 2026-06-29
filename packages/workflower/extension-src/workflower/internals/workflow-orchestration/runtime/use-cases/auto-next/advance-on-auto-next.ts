@@ -61,11 +61,11 @@ export async function advanceOnAutoNext(
   const workflow = findWorkflow(state.id);
   const currentStep = workflow?.steps[state.currentStepIndex];
   if (!workflow) return;
-  
+
   const stepAutoNext = currentStep?.autoNext;
   const workflowAutoNext = workflow.autoNext;
   const shouldAutoNext = stepAutoNext ?? workflowAutoNext ?? false;
-  
+
   if (!shouldAutoNext) return;
 
   const outcome = classifyAutoNextRunOutcome(options.agentEndEvent);
@@ -157,7 +157,10 @@ function renderAutoNextRetryNotice(
 function classifyAutoNextRunOutcome(event: AutoNextAgentEndEvent | undefined): AutoNextRunOutcome {
   const lastAssistantMessage = findLastAssistantMessage(event?.messages ?? []);
   if (!lastAssistantMessage) {
-    return { kind: "unknown", message: "No assistant message was included in the agent_end event." };
+    return {
+      kind: "unknown",
+      message: "No assistant message was included in the agent_end event.",
+    };
   }
 
   if (lastAssistantMessage.stopReason === "error") {

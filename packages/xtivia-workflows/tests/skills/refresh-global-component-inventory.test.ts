@@ -56,7 +56,7 @@ export default function Card() {
 
   it("should create inventory from scratch when file does not exist", async () => {
     const inventoryPath = join(tempDir, ".workflower", "components", "global-components.md");
-    
+
     // Ensure the inventory file does not exist
     await rm(inventoryPath, { force: true, recursive: true });
 
@@ -69,15 +69,15 @@ export default function Card() {
 
     // Should create inventory with discovered components
     expect(inventory).toHaveLength(2);
-    expect(inventory.map(i => i.name)).toContain("Button");
-    expect(inventory.map(i => i.name)).toContain("Card");
-    
+    expect(inventory.map((i) => i.name)).toContain("Button");
+    expect(inventory.map((i) => i.name)).toContain("Card");
+
     // Check that the output file was created
     expect(inventoryContent).toContain("# Global Component Inventory");
     expect(inventoryContent).toContain("## Components");
     expect(inventoryContent).toContain("### Button");
     expect(inventoryContent).toContain("### Card");
-    
+
     // Check result flags
     expect(result.created).toBe(true);
     expect(result.outputPath).toBe(inventoryPath);
@@ -85,7 +85,7 @@ export default function Card() {
 
   it("should merge new components with existing inventory", async () => {
     const inventoryPath = join(tempDir, ".workflower", "components", "global-components.md");
-    
+
     // Create an existing inventory file
     await mkdir(join(tempDir, ".workflower", "components"), { recursive: true });
     const existingInventory = `# Global Component Inventory
@@ -112,10 +112,10 @@ Total components: 1
 
     // Should have both existing and new components
     expect(result.inventory).toHaveLength(3);
-    expect(result.inventory.map(i => i.name)).toContain("ExistingComponent");
-    expect(result.inventory.map(i => i.name)).toContain("Button");
-    expect(result.inventory.map(i => i.name)).toContain("Card");
-    
+    expect(result.inventory.map((i) => i.name)).toContain("ExistingComponent");
+    expect(result.inventory.map((i) => i.name)).toContain("Button");
+    expect(result.inventory.map((i) => i.name)).toContain("Card");
+
     // Should not be marked as created (since file existed)
     expect(result.created).toBe(false);
     expect(result.updated).toBe(true);
@@ -123,7 +123,7 @@ Total components: 1
 
   it("should detect discrepancies when components are missing", async () => {
     const inventoryPath = join(tempDir, ".workflower", "components", "global-components.md");
-    
+
     // Create an existing inventory with a component that doesn't exist
     await mkdir(join(tempDir, ".workflower", "components"), { recursive: true });
     const existingInventory = `# Global Component Inventory
@@ -155,10 +155,7 @@ Total components: 1
       recursive: true,
     }))!;
 
-    await writeFile(
-      join(emptyDir, "package.json"),
-      JSON.stringify({ name: "empty-project" }),
-    );
+    await writeFile(join(emptyDir, "package.json"), JSON.stringify({ name: "empty-project" }));
 
     const result = await refreshGlobalComponentInventory(emptyDir);
 
@@ -175,11 +172,11 @@ Total components: 1
     await rm(inventoryPath, { force: true, recursive: true });
 
     const result = await refreshGlobalComponentInventory(tempDir);
-    
+
     // Find the Button component
-    const buttonComponent = result.inventory.find(i => i.name === "Button");
+    const buttonComponent = result.inventory.find((i) => i.name === "Button");
     expect(buttonComponent).toBeDefined();
-    
+
     // Check that JSDoc metadata was extracted
     expect(buttonComponent!.purpose).toContain("Primary button component");
     expect(buttonComponent!.variants).toContain("primary");

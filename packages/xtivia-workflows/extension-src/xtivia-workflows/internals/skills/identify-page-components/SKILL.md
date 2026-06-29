@@ -56,15 +56,16 @@ Classifies each UI element on a captured page to determine whether it should reu
 ## Example Usage
 
 ```typescript
-import { identifyPageComponents } from './identify-page-components/identify-page-components';
+import { identifyPageComponents } from "./identify-page-components/identify-page-components";
 
-const result = await identifyPageComponents('/path/to/project');
+const result = await identifyPageComponents("/path/to/project");
 console.log(`Classified ${result.classifications.length} components`);
 ```
 
 ## Validation
 
 The skill validates that:
+
 - DOM summary file exists and is readable
 - Atomic elements catalog exists
 - Global component inventory exists

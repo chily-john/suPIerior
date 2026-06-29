@@ -2418,9 +2418,7 @@ describe("/next", () => {
       });
       expect(sentWorkflowerPrompts(pi)).toEqual([]);
       expect(pi.sentUserMessages).toEqual([]);
-      expect(ctx.notifications.at(-1)?.[0]).toContain(
-        "failed after 3 execution-error attempts",
-      );
+      expect(ctx.notifications.at(-1)?.[0]).toContain("failed after 3 execution-error attempts");
       expect(ctx.notifications.at(-1)?.[0]).toContain("remains on step 0");
       expect(ctx.notifications.at(-1)?.[1]).toBe("error");
     } finally {
@@ -2446,7 +2444,13 @@ describe("/next", () => {
         sessionId: "session-id",
         id: "auto-next-aborted-demo",
         name: "aborted-demo",
-        workdir: join(dir, ".workflower", "workflows", "aborted-demo", "0001-auto-next-aborted-demo"),
+        workdir: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "aborted-demo",
+          "0001-auto-next-aborted-demo",
+        ),
         currentStepIndex: 0,
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T03:04:05.000Z",
@@ -2735,7 +2739,10 @@ describe("/next", () => {
       });
 
       resetPiMessages(pi);
-      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        ctx,
+      );
 
       await expect(readResumeState(resumePath)).resolves.toMatchObject({
         workflowId: "resume-movement-demo",
@@ -3533,7 +3540,10 @@ describe("/next", () => {
       await writeFile(sourceOutput, "source pollen", "utf8");
       resetPiMessages(pi);
 
-      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        ctx,
+      );
 
       expect(ctx.newSession).not.toHaveBeenCalled();
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
@@ -3579,7 +3589,10 @@ describe("/next", () => {
       await writeFile(targetOutput, "target pollen", "utf8");
       resetPiMessages(pi);
 
-      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        ctx,
+      );
 
       expect(ctx.newSession).not.toHaveBeenCalled();
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
@@ -3637,7 +3650,10 @@ describe("/next", () => {
       );
       await writeFile(join(activeFlowerPath, "artifact.md"), "artifact", "utf8");
       registerWorkflower(pi);
-      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        ctx,
+      );
 
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
       await expect(access(activeFlowerPath)).rejects.toThrow();
@@ -4066,7 +4082,10 @@ describe("workflower_handoff tool", () => {
       resetPiMessages(pi);
 
       await executeHandoffTool(pi, "auto-handoff-tool-target", ctx);
-      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        ctx,
+      );
 
       await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
         id: "auto-handoff-tool-target",

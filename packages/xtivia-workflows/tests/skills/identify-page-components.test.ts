@@ -1,7 +1,13 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { identifyPageComponents, classifyElement, PageComponentClassification, GlobalComponent, AtomicElement } from "../../extension-src/xtivia-workflows/internals/skills/identify-page-components/identify-page-components";
+import {
+  identifyPageComponents,
+  classifyElement,
+  PageComponentClassification,
+  GlobalComponent,
+  AtomicElement,
+} from "../../extension-src/xtivia-workflows/internals/skills/identify-page-components/identify-page-components";
 
 describe("identify-page-components", () => {
   let tempDir: string;
@@ -112,19 +118,23 @@ Total components: 3
     // Create mock DOM summary from capture
     await writeFile(
       join(tempDir, ".workflower", "capture", "dom-summary.json"),
-      JSON.stringify({
-        pageUrl: "http://localhost:3000/test-page",
-        pageTitle: "Test Page",
-        elements: [
-          {
-            id: "card-1",
-            type: "div",
-            classes: ["card"],
-            textContent: "Feature Card",
-            children: [],
-          },
-        ],
-      }, null, 2),
+      JSON.stringify(
+        {
+          pageUrl: "http://localhost:3000/test-page",
+          pageTitle: "Test Page",
+          elements: [
+            {
+              id: "card-1",
+              type: "div",
+              classes: ["card"],
+              textContent: "Feature Card",
+              children: [],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
       "utf-8",
     );
   });
@@ -146,27 +156,53 @@ Total components: 3
 
     // Mock the global components inventory
     const globalComponents = [
-      { name: "Card", purpose: "Card component for content grouping", variants: ["default", "bordered", "shadow"], atomicElements: ["div"], sourceFilePath: "/components/Card.tsx", usageExamples: ["<Card />"] },
-      { name: "Button", purpose: "Primary button component", variants: ["primary", "secondary", "danger"], atomicElements: ["button", "span"], sourceFilePath: "/components/Button.tsx", usageExamples: ["<Button />"] },
+      {
+        name: "Card",
+        purpose: "Card component for content grouping",
+        variants: ["default", "bordered", "shadow"],
+        atomicElements: ["div"],
+        sourceFilePath: "/components/Card.tsx",
+        usageExamples: ["<Card />"],
+      },
+      {
+        name: "Button",
+        purpose: "Primary button component",
+        variants: ["primary", "secondary", "danger"],
+        atomicElements: ["button", "span"],
+        sourceFilePath: "/components/Button.tsx",
+        usageExamples: ["<Button />"],
+      },
     ];
 
     const atomicElements: AtomicElement[] = [
-      { name: "div", importPath: "raw-html", purpose: "Container", usage: "<div>...</div>", type: "raw-html" },
-      { name: "button", importPath: "raw-html", purpose: "Button", usage: "<button>...</button>", type: "raw-html" },
+      {
+        name: "div",
+        importPath: "raw-html",
+        purpose: "Container",
+        usage: "<div>...</div>",
+        type: "raw-html",
+      },
+      {
+        name: "button",
+        importPath: "raw-html",
+        purpose: "Button",
+        usage: "<button>...</button>",
+        type: "raw-html",
+      },
     ];
 
     const classification = classifyElement(cardElement, globalComponents, atomicElements);
-    
-    expect(classification.decision).toBe('reuse-existing');
-    expect(classification.targetComponent).toBe('Card');
-    expect(classification.rationale).toContain('matches existing global Card component');
+
+    expect(classification.decision).toBe("reuse-existing");
+    expect(classification.targetComponent).toBe("Card");
+    expect(classification.rationale).toContain("matches existing global Card component");
   });
 
   it("should write classified components to .workflower/components/current-page-components.md", async () => {
     const outputPath = join(tempDir, ".workflower", "components", "current-page-components.md");
-    
+
     const result = await identifyPageComponents(tempDir);
-    
+
     // Check that the output file was created
     const content = await readFile(outputPath, "utf-8");
     expect(content).toContain("# Current Page Components");
@@ -195,7 +231,14 @@ Total components: 3
     };
 
     const globalComponents = [
-      { name: "Card", purpose: "Card component", variants: ["default", "bordered", "shadow"], atomicElements: ["div"], sourceFilePath: "/components/Card.tsx", usageExamples: ["<Card />"] },
+      {
+        name: "Card",
+        purpose: "Card component",
+        variants: ["default", "bordered", "shadow"],
+        atomicElements: ["div"],
+        sourceFilePath: "/components/Card.tsx",
+        usageExamples: ["<Card />"],
+      },
     ];
 
     const atomicElements: any[] = [];
@@ -204,10 +247,10 @@ Total components: 3
     const classification2 = classifyElement(cardElement2, globalComponents, atomicElements);
 
     // Both should be classified as reuse-existing with Card component
-    expect(classification1.decision).toBe('reuse-existing');
-    expect(classification1.targetComponent).toBe('Card');
-    
-    expect(classification2.decision).toBe('reuse-existing');
-    expect(classification2.targetComponent).toBe('Card');
+    expect(classification1.decision).toBe("reuse-existing");
+    expect(classification1.targetComponent).toBe("Card");
+
+    expect(classification2.decision).toBe("reuse-existing");
+    expect(classification2.targetComponent).toBe("Card");
   });
 });

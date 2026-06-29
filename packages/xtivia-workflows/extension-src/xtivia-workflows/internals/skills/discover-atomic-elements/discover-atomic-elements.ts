@@ -40,9 +40,7 @@ export async function discoverAtomicElements(
   let isNextJs = false;
 
   try {
-    const packageJson = JSON.parse(
-      await readFile(packageJsonPath, "utf-8"),
-    );
+    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf-8"));
     isNextJs = packageJson.dependencies?.next !== undefined;
   } catch {
     warnings.push("package.json not found or invalid");
@@ -55,24 +53,34 @@ export async function discoverAtomicElements(
       name: "a",
       importPath: "raw-html",
       purpose: "Navigation link",
-      usage: "<a href=\"...\">...</a>",
+      usage: '<a href="...">...</a>',
       type: "raw-html",
     });
     rawHtml.push({
       name: "img",
       importPath: "raw-html",
       purpose: "Image display",
-      usage: "<img src=\"...\" alt=\"...\" />",
+      usage: '<img src="..." alt="..." />',
       type: "raw-html",
     });
   }
 
   // Scan for Next.js built-ins
   const nextBuiltinsData = [
-    { name: "Link", importPath: "next/link", purpose: "Client-side navigation without full page reload", usage: '<Link href="/about">About</Link>' },
-    { name: "Image", importPath: "next/image", purpose: "Optimized image loading with automatic format conversion and lazy loading", usage: '<Image src="/image.jpg" alt="Description" width={500} height={300} />' },
+    {
+      name: "Link",
+      importPath: "next/link",
+      purpose: "Client-side navigation without full page reload",
+      usage: '<Link href="/about">About</Link>',
+    },
+    {
+      name: "Image",
+      importPath: "next/image",
+      purpose: "Optimized image loading with automatic format conversion and lazy loading",
+      usage: '<Image src="/image.jpg" alt="Description" width={500} height={300} />',
+    },
   ];
-  
+
   for (const data of nextBuiltinsData) {
     nextBuiltins.push({
       ...data,
@@ -127,15 +135,21 @@ export async function discoverAtomicElements(
     }
   }
 
-  const catalog: AtomicElementsCatalog = { nextBuiltins, designSystem, rawHtml, isNextJs, warnings };
-  
+  const catalog: AtomicElementsCatalog = {
+    nextBuiltins,
+    designSystem,
+    rawHtml,
+    isNextJs,
+    warnings,
+  };
+
   // Write the catalog to file
   const outputPath = join(projectPath, ".workflower", "components", "atomic-elements.md");
   const markdown = generateAtomicElementsCatalog(catalog);
-  
+
   // Ensure the output directory exists
   await mkdir(join(projectPath, ".workflower", "components"), { recursive: true });
-  
+
   // Write the catalog file
   await writeFile(outputPath, markdown, "utf-8");
 
@@ -145,9 +159,7 @@ export async function discoverAtomicElements(
 /**
  * Generates the markdown catalog from the discovered elements
  */
-export function generateAtomicElementsCatalog(
-  catalog: AtomicElementsCatalog,
-): string {
+export function generateAtomicElementsCatalog(catalog: AtomicElementsCatalog): string {
   const lines: string[] = [];
 
   lines.push("# Atomic Elements Catalog");

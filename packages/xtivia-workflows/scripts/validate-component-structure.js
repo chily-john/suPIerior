@@ -2,11 +2,11 @@
 
 /**
  * Component Directory Structure Validation Script
- * 
+ *
  * Validates that component directories follow the required structure convention.
- * 
+ *
  * Usage: node validate-component-structure.js --path <component-path> [options]
- * 
+ *
  * Options:
  *   --path <path>           Required: Path to the component directory
  *   --requireTypes <bool>   Require component.types.ts (default: false)
@@ -15,10 +15,10 @@
  *   --json                 Output results as JSON
  */
 
-import { parseArgs } from 'node:util';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
-import { cwd } from 'node:process';
+import { parseArgs } from "node:util";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { resolve, relative } from "node:path";
+import { cwd } from "node:process";
 
 function printError(message) {
   console.error(`[ERROR] ${message}`);
@@ -83,59 +83,60 @@ function validateComponentStructure(componentPath, options = {}) {
   const dirNames = files.filter((f) => f.isDirectory()).map((f) => f.name);
 
   // Check for Component.tsx or Component.jsx
-  const hasComponentFile = fileNames.includes('Component.tsx') || fileNames.includes('Component.jsx');
+  const hasComponentFile =
+    fileNames.includes("Component.tsx") || fileNames.includes("Component.jsx");
   if (!hasComponentFile) {
-    errors.push('Missing Component.tsx or Component.jsx');
-    missingFiles.push('Component.tsx');
+    errors.push("Missing Component.tsx or Component.jsx");
+    missingFiles.push("Component.tsx");
   } else if (!quiet) {
-    printSuccess('Component.tsx or Component.jsx found');
+    printSuccess("Component.tsx or Component.jsx found");
   }
 
   // Check for index.ts (required)
-  const hasIndexFile = fileNames.includes('index.ts');
+  const hasIndexFile = fileNames.includes("index.ts");
   if (!hasIndexFile) {
-    errors.push('Missing index.ts');
-    missingFiles.push('index.ts');
+    errors.push("Missing index.ts");
+    missingFiles.push("index.ts");
   } else if (!quiet) {
-    printSuccess('index.ts found');
+    printSuccess("index.ts found");
   }
 
   // Check for component.types.ts
-  const hasTypesFile = fileNames.includes('component.types.ts');
+  const hasTypesFile = fileNames.includes("component.types.ts");
   if (requireTypes && !hasTypesFile) {
-    errors.push('Missing component.types.ts');
-    missingFiles.push('component.types.ts');
+    errors.push("Missing component.types.ts");
+    missingFiles.push("component.types.ts");
   } else if (!requireTypes && !hasTypesFile) {
-    warnings.push('Missing component.types.ts (recommended)');
-    if (!quiet) printWarning('component.types.ts is recommended but not required');
+    warnings.push("Missing component.types.ts (recommended)");
+    if (!quiet) printWarning("component.types.ts is recommended but not required");
   } else if (hasTypesFile && !quiet) {
-    printSuccess('component.types.ts found');
+    printSuccess("component.types.ts found");
   }
 
   // Check for parts directory
-  const hasPartsDir = dirNames.includes('parts');
+  const hasPartsDir = dirNames.includes("parts");
   if (requireParts && !hasPartsDir) {
-    errors.push('Missing parts/ directory');
-    missingFiles.push('parts/');
+    errors.push("Missing parts/ directory");
+    missingFiles.push("parts/");
   } else if (!requireParts && hasPartsDir) {
     // Validate parts directory structure
-    const partsPath = resolve(resolvedPath, 'parts');
+    const partsPath = resolve(resolvedPath, "parts");
     try {
       const partsFiles = readdirSync(partsPath, { withFileTypes: true });
       const partsFileNames = partsFiles.map((f) => f.name);
-      
+
       if (partsFileNames.length === 0) {
-        warnings.push('parts/ directory is empty');
-        if (!quiet) printWarning('parts/ directory is empty');
+        warnings.push("parts/ directory is empty");
+        if (!quiet) printWarning("parts/ directory is empty");
       } else {
-        const hasPartsIndex = partsFileNames.includes('index.ts');
+        const hasPartsIndex = partsFileNames.includes("index.ts");
         if (!hasPartsIndex) {
-          warnings.push('parts/ directory missing index.ts (recommended)');
-          if (!quiet) printWarning('parts/ directory missing index.ts (recommended)');
+          warnings.push("parts/ directory missing index.ts (recommended)");
+          if (!quiet) printWarning("parts/ directory missing index.ts (recommended)");
         } else if (!quiet) {
-          printSuccess('parts/index.ts found');
+          printSuccess("parts/index.ts found");
         }
-        
+
         if (!quiet) printSuccess(`parts/ directory contains ${partsFileNames.length} file(s)`);
       }
     } catch (error) {
@@ -158,39 +159,39 @@ function formatResults(componentPath, result, verbose = true) {
   const { isValid, errors, warnings, missingFiles } = result;
 
   if (verbose) {
-    console.log('\n' + '='.repeat(60));
+    console.log("\n" + "=".repeat(60));
     console.log(`Component Structure Validation: ${componentPath}`);
-    console.log('='.repeat(60));
-    console.log('');
+    console.log("=".repeat(60));
+    console.log("");
   }
 
   if (isValid) {
     if (verbose) {
-      printSuccess('✓ Component structure is valid');
+      printSuccess("✓ Component structure is valid");
     }
   } else {
     if (verbose) {
-      printError('✗ Component structure has errors');
+      printError("✗ Component structure has errors");
       errors.forEach((error) => printError(`  - ${error}`));
     }
   }
 
   if (warnings.length > 0 && verbose) {
-    console.log('');
-    printWarning('Warnings:');
+    console.log("");
+    printWarning("Warnings:");
     warnings.forEach((warning) => printWarning(`  - ${warning}`));
   }
 
   if (missingFiles.length > 0 && verbose) {
-    console.log('');
-    printInfo('Missing files:');
+    console.log("");
+    printInfo("Missing files:");
     missingFiles.forEach((file) => printInfo(`  - ${file}`));
   }
 
   if (verbose) {
-    console.log('');
-    console.log(`Status: ${isValid ? 'PASS' : 'FAIL'}`);
-    console.log('='.repeat(60));
+    console.log("");
+    console.log(`Status: ${isValid ? "PASS" : "FAIL"}`);
+    console.log("=".repeat(60));
   }
 
   return isValid;
@@ -217,12 +218,12 @@ async function main() {
   const args = parseArgs({
     args: process.argv.slice(2),
     options: {
-      path: { type: 'string' },
-      requireTypes: { type: 'boolean' },
-      requireParts: { type: 'boolean' },
-      fix: { type: 'boolean' },
-      json: { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
+      path: { type: "string" },
+      requireTypes: { type: "boolean" },
+      requireParts: { type: "boolean" },
+      fix: { type: "boolean" },
+      json: { type: "boolean" },
+      help: { type: "boolean", short: "h" },
     },
     allowPositionals: true,
   });
@@ -264,24 +265,24 @@ Examples:
 
   // Resolve the component path first
   const resolvedPath = resolve(cwd(), resolvedComponentPath);
-  
+
   // Check if the original path contains glob patterns
-  const hasGlobPattern = resolvedComponentPath.includes('*') || resolvedComponentPath.includes('?');
-  
+  const hasGlobPattern = resolvedComponentPath.includes("*") || resolvedComponentPath.includes("?");
+
   // If glob pattern is present, expand it
   let pathsToValidate = [];
   if (hasGlobPattern) {
     // Simple glob expansion for ** pattern
-    if (resolvedComponentPath.includes('**')) {
+    if (resolvedComponentPath.includes("**")) {
       // Remove the ** part to get the base directory
-      const basePath = resolvedComponentPath.replace(/\/\*\*/g, '').replace(/\\\*\*/g, '');
+      const basePath = resolvedComponentPath.replace(/\/\*\*/g, "").replace(/\\\*\*/g, "");
       const baseDir = resolve(cwd(), basePath);
       if (existsSync(baseDir)) {
         try {
           const items = readdirSync(baseDir, { withFileTypes: true });
           pathsToValidate = items
-            .filter(item => item.isDirectory())
-            .map(item => resolve(baseDir, item.name));
+            .filter((item) => item.isDirectory())
+            .map((item) => resolve(baseDir, item.name));
         } catch (error) {
           // If we can't read the directory, treat it as a single path
           pathsToValidate = [resolvedPath];
@@ -305,13 +306,13 @@ Examples:
 
   // Check for fix flag (not yet implemented)
   if (options.fix) {
-    printWarning('--fix flag is not yet implemented. Use --json for programmatic output.');
+    printWarning("--fix flag is not yet implemented. Use --json for programmatic output.");
   }
 
   // Validate all paths
   let allValid = true;
   if (pathsToValidate.length === 0) {
-    printError('No paths to validate');
+    printError("No paths to validate");
     process.exit(1);
   }
 
@@ -319,9 +320,9 @@ Examples:
     if (!options.json) {
       printInfo(`Validating component structure at: ${pathToValidate}`);
     }
-    const result = validateComponentStructure(pathToValidate, { 
-      ...options, 
-      quiet: options.json 
+    const result = validateComponentStructure(pathToValidate, {
+      ...options,
+      quiet: options.json,
     });
 
     // Output results

@@ -1,7 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { discoverAtomicElements, generateAtomicElementsCatalog } from "../../extension-src/xtivia-workflows/internals/skills/discover-atomic-elements/discover-atomic-elements";
+import {
+  discoverAtomicElements,
+  generateAtomicElementsCatalog,
+} from "../../extension-src/xtivia-workflows/internals/skills/discover-atomic-elements/discover-atomic-elements";
 
 describe("discover-atomic-elements", () => {
   let tempDir: string;
@@ -138,7 +141,13 @@ export default Image;`,
   it("should generate catalog markdown with correct format", async () => {
     const catalog = {
       nextBuiltins: [
-        { name: "Link", importPath: "next/link", purpose: "Navigation", usage: "<Link>", type: "next-builtin" as const },
+        {
+          name: "Link",
+          importPath: "next/link",
+          purpose: "Navigation",
+          usage: "<Link>",
+          type: "next-builtin" as const,
+        },
       ],
       designSystem: [],
       rawHtml: [],

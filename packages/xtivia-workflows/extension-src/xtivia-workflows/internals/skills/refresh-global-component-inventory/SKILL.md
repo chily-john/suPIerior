@@ -41,6 +41,7 @@ Maintains a persistent global component inventory that tracks all reusable compo
 ## Component Metadata
 
 Each component entry includes:
+
 - **name**: Component name
 - **purpose**: Component description/purpose
 - **variants**: Available variants (if any)
@@ -51,15 +52,16 @@ Each component entry includes:
 ## Example Usage
 
 ```typescript
-import { refreshGlobalComponentInventory } from './refresh-global-component-inventory';
+import { refreshGlobalComponentInventory } from "./refresh-global-component-inventory";
 
-const result = await refreshGlobalComponentInventory('/path/to/project');
+const result = await refreshGlobalComponentInventory("/path/to/project");
 console.log(`Inventory updated with ${result.inventory.length} components`);
 ```
 
 ## Validation
 
 The skill validates that:
+
 - All components in the inventory still exist at their declared paths
 - No duplicate components exist (by source path)
 - Component metadata is complete

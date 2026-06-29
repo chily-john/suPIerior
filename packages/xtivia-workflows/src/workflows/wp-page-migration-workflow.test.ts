@@ -29,15 +29,18 @@ describe("wp-page-migration workflow", () => {
   it("should produce atomic-elements.md when run", async () => {
     // This test verifies that the workflow produces atomic-elements.md
     // as one of its outputs after all steps are integrated
-    
+
     // The workflow should have steps that produce atomic-elements.md
     const hasAtomicElementsOutput = wpPageMigrationWorkflow.steps.some(
-      (step: any) => step.outputs && step.outputs.includes("components/atomic-elements.md")
+      (step: any) => step.outputs && step.outputs.includes("components/atomic-elements.md"),
     );
-    
+
     // Verify the workflow has the discover-atomic-elements step
-    expect(hasAtomicElementsOutput, "Workflow should have a step that outputs atomic-elements.md").toBe(true);
-    
+    expect(
+      hasAtomicElementsOutput,
+      "Workflow should have a step that outputs atomic-elements.md",
+    ).toBe(true);
+
     // Verify the step order: discover-atomic-elements should come after capture-source-page
     const stepIds = wpPageMigrationWorkflow.steps.map((step: any) => step.id);
     const captureIndex = stepIds.indexOf("capture-source-page");
@@ -45,7 +48,7 @@ describe("wp-page-migration workflow", () => {
     expect(captureIndex).toBeGreaterThan(-1);
     expect(discoverIndex).toBeGreaterThan(-1);
     expect(discoverIndex).toBeGreaterThan(captureIndex);
-    
+
     // Verify all three new steps are present
     expect(stepIds).toContain("refresh-global-component-inventory");
     expect(stepIds).toContain("identify-page-components");

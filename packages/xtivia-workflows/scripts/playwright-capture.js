@@ -2,12 +2,12 @@
 
 /**
  * Reusable Playwright Capture Script
- * 
+ *
  * Captures a webpage at multiple viewports, generating screenshots, HTML snapshots,
  * DOM summaries, and image inventories.
- * 
+ *
  * Usage: node playwright-capture.js --url <url> --outputDir <dir> [options]
- * 
+ *
  * Options:
  *   --url <url>              Required: URL to capture
  *   --outputDir <dir>        Required: Output directory for artifacts
@@ -20,10 +20,10 @@
  *   --cookies <json>        JSON string of cookies to set
  */
 
-import { parseArgs } from 'node:util';
-import { existsSync, mkdirSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { parseArgs } from "node:util";
+import { existsSync, mkdirSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 // Viewport configurations
 const VIEWPORT_PRESETS = {
@@ -31,8 +31,8 @@ const VIEWPORT_PRESETS = {
   tablet: { width: 768, height: 1024 },
   mobile: { width: 375, height: 667 },
   // XTIVIA workflow contract viewports
-  '1440x900': { width: 1440, height: 900 },
-  '390x844': { width: 390, height: 844 }
+  "1440x900": { width: 1440, height: 900 },
+  "390x844": { width: 390, height: 844 },
 };
 
 /**
@@ -44,7 +44,7 @@ function parseViewport(viewportStr) {
   if (match) {
     return {
       width: parseInt(match[1], 10),
-      height: parseInt(match[2], 10)
+      height: parseInt(match[2], 10),
     };
   }
   // Otherwise, use preset or default to desktop
@@ -56,7 +56,7 @@ const DEFAULT_CONFIG = {
   retries: 3,
   retryDelay: 5000,
   timeout: 30000,
-  headless: true
+  headless: true,
 };
 
 /**
@@ -72,64 +72,64 @@ function generateDOMSummaryFromDOM(page) {
         h3: [],
         h4: [],
         h5: [],
-        h6: []
+        h6: [],
       },
       links: [],
       images: [],
       forms: [],
-      interactiveElements: []
+      interactiveElements: [],
     };
 
     // Extract headings
     for (let i = 1; i <= 6; i++) {
       const elements = document.querySelectorAll(`h${i}`);
-      elements.forEach(el => {
+      elements.forEach((el) => {
         result.headings[`h${i}`].push({
-          text: el.textContent?.trim() || '',
-          id: el.id || undefined
+          text: el.textContent?.trim() || "",
+          id: el.id || undefined,
         });
       });
     }
 
     // Extract links
-    document.querySelectorAll('a[href]').forEach(a => {
+    document.querySelectorAll("a[href]").forEach((a) => {
       result.links.push({
-        text: a.textContent?.trim() || '',
+        text: a.textContent?.trim() || "",
         href: a.href,
-        id: a.id || undefined
+        id: a.id || undefined,
       });
     });
 
     // Extract images
-    document.querySelectorAll('img').forEach(img => {
+    document.querySelectorAll("img").forEach((img) => {
       result.images.push({
         src: img.src,
         alt: img.alt,
-        width: img.naturalWidth || img.width || 'N/A',
-        height: img.naturalHeight || img.height || 'N/A'
+        width: img.naturalWidth || img.width || "N/A",
+        height: img.naturalHeight || img.height || "N/A",
       });
     });
 
     // Extract forms
-    document.querySelectorAll('form').forEach(form => {
+    document.querySelectorAll("form").forEach((form) => {
       result.forms.push({
         id: form.id || undefined,
         action: form.action,
         method: form.method,
-        inputs: Array.from(form.querySelectorAll('input, textarea, select')).map(input => ({
+        inputs: Array.from(form.querySelectorAll("input, textarea, select")).map((input) => ({
           type: input.type || input.tagName.toLowerCase(),
           name: input.name,
-          id: input.id
-        }))
+          id: input.id,
+        })),
       });
     });
 
     // Extract interactive elements
-    document.querySelectorAll('button, [role="button"], [onclick]').forEach(el => {
+    document.querySelectorAll('button, [role="button"], [onclick]').forEach((el) => {
       result.interactiveElements.push({
         tag: el.tagName.toLowerCase(),
-        text: el.textContent?.trim() || '',
-        id: el.id || undefined
+        text: el.textContent?.trim() || "",
+        id: el.id || undefined,
       });
     });
 
@@ -142,36 +142,49 @@ function generateDOMSummaryFromDOM(page) {
  */
 async function generateImageInventoryFromPage(page) {
   const images = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('img')).map(img => ({
+    return Array.from(document.querySelectorAll("img")).map((img) => ({
       src: img.src,
-      alt: img.alt || '',
-      width: img.naturalWidth || img.width || 'N/A',
-      height: img.naturalHeight || img.height || 'N/A',
-      context: getElementContext(img)
+      alt: img.alt || "",
+      width: img.naturalWidth || img.width || "N/A",
+      height: img.naturalHeight || img.height || "N/A",
+      context: getElementContext(img),
     }));
 
     function getElementContext(el) {
       const parent = el.parentElement;
       if (parent) {
-        if (parent.tagName === 'A') return `Link: ${parent.href}`;
-        if (parent.classList) return `Class: ${Array.from(parent.classList).join(' ')}`;
+        if (parent.tagName === "A") return `Link: ${parent.href}`;
+        if (parent.classList) return `Class: ${Array.from(parent.classList).join(" ")}`;
         return parent.tagName.toLowerCase();
       }
-      return 'none';
+      return "none";
     }
   });
 
-  const lines = ['## Image Inventory', '', '| Src | Alt | Width | Height | Context |', '|-----|-----|-------|--------|---------|'];
+  const lines = [
+    "## Image Inventory",
+    "",
+    "| Src | Alt | Width | Height | Context |",
+    "|-----|-----|-------|--------|---------|",
+  ];
   for (const img of images) {
     lines.push(`| ${img.src} | ${img.alt} | ${img.width} | ${img.height} | ${img.context} |`);
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
  * Generate the page capture markdown report
  */
-async function generatePageCaptureMarkdown(outputDir, url, viewports, screenshotFiles, htmlSnapshot, domSummary, imageInventory) {
+async function generatePageCaptureMarkdown(
+  outputDir,
+  url,
+  viewports,
+  screenshotFiles,
+  htmlSnapshot,
+  domSummary,
+  imageInventory,
+) {
   const timestamp = new Date().toISOString();
   const markdown = `# Page Capture Report
 
@@ -186,7 +199,7 @@ async function generatePageCaptureMarkdown(outputDir, url, viewports, screenshot
 - [Image Inventory](./image-inventory.md)
 
 ## Screenshots
-${screenshotFiles.map(file => `- [${file}](./${file})`).join('\n')}
+${screenshotFiles.map((file) => `- [${file}](./${file})`).join("\n")}
 
 ---
 
@@ -196,8 +209,8 @@ ${domSummary}
 
 ${imageInventory}
 `;
-  
-  await writeFile(resolve(outputDir, 'page-capture.md'), markdown);
+
+  await writeFile(resolve(outputDir, "page-capture.md"), markdown);
 }
 
 /**
@@ -205,34 +218,34 @@ ${imageInventory}
  */
 function formatDOMSummary(summary) {
   const lines = [];
-  lines.push('## DOM Structure Summary');
-  lines.push('');
+  lines.push("## DOM Structure Summary");
+  lines.push("");
   lines.push(`### Page Title: ${summary.title}`);
-  lines.push('');
-  
+  lines.push("");
+
   // Headings
-  lines.push('### Headings');
+  lines.push("### Headings");
   for (let i = 1; i <= 6; i++) {
     const level = `h${i}`;
     if (summary.headings[level].length > 0) {
       lines.push(`#### ${level.toUpperCase()}`);
       for (const heading of summary.headings[level]) {
-        lines.push(`- ${heading.text}${heading.id ? ` (#${heading.id})` : ''}`);
+        lines.push(`- ${heading.text}${heading.id ? ` (#${heading.id})` : ""}`);
       }
     }
   }
-  lines.push('');
+  lines.push("");
 
   // Links
   if (summary.links.length > 0) {
     lines.push(`### Links (${summary.links.length})`);
     for (const link of summary.links.slice(0, 20)) {
-      lines.push(`- [${link.text}](${link.href})${link.id ? ` (#${link.id})` : ''}`);
+      lines.push(`- [${link.text}](${link.href})${link.id ? ` (#${link.id})` : ""}`);
     }
     if (summary.links.length > 20) {
       lines.push(`- ... and ${summary.links.length - 20} more`);
     }
-    lines.push('');
+    lines.push("");
   }
 
   // Images
@@ -246,7 +259,7 @@ function formatDOMSummary(summary) {
     if (summary.images.length > 10) {
       lines.push(`- ... and ${summary.images.length - 10} more`);
     }
-    lines.push('');
+    lines.push("");
   }
 
   // Forms
@@ -254,58 +267,60 @@ function formatDOMSummary(summary) {
     lines.push(`### Forms (${summary.forms.length})`);
     for (const form of summary.forms) {
       lines.push(`- **Action**: ${form.action} **Method**: ${form.method}`);
-      lines.push(`  **Inputs**: ${form.inputs.map(i => `${i.type}${i.name ? ` (${i.name})` : ''}`).join(', ')}`);
+      lines.push(
+        `  **Inputs**: ${form.inputs.map((i) => `${i.type}${i.name ? ` (${i.name})` : ""}`).join(", ")}`,
+      );
     }
-    lines.push('');
+    lines.push("");
   }
 
   // Interactive elements
   if (summary.interactiveElements.length > 0) {
     lines.push(`### Interactive Elements (${summary.interactiveElements.length})`);
     for (const el of summary.interactiveElements.slice(0, 10)) {
-      lines.push(`- **Tag**: ${el.tag} **Text**: ${el.text}${el.id ? ` (#${el.id})` : ''}`);
+      lines.push(`- **Tag**: ${el.tag} **Text**: ${el.text}${el.id ? ` (#${el.id})` : ""}`);
     }
     if (summary.interactiveElements.length > 10) {
       lines.push(`- ... and ${summary.interactiveElements.length - 10} more`);
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 async function captureWithPlaywright(url, outputDir, viewportList, config) {
-  const { chromium } = require('playwright');
-  
+  const { chromium } = require("playwright");
+
   // Configure browser launch options
   const browserOptions = {
-    headless: config.headless
+    headless: config.headless,
   };
-  
+
   const browser = await chromium.launch(browserOptions);
-  
+
   // Configure context options based on authentication
   const contextOptions = {};
-  
+
   // Add basic auth if provided
   if (config.basicAuth) {
-    const [username, password] = config.basicAuth.split(':');
+    const [username, password] = config.basicAuth.split(":");
     contextOptions.httpCredentials = {
       username,
-      password
+      password,
     };
   }
-  
+
   const context = await browser.newContext(contextOptions);
-  
+
   // Set cookies if provided
   if (config.cookies && config.cookies.length > 0) {
     await context.addCookies(config.cookies);
   }
-  
+
   const page = await context.newPage();
 
   const screenshotFiles = [];
-  const htmlSnapshot = 'html-snapshot.html';
+  const htmlSnapshot = "html-snapshot.html";
 
   try {
     // Navigate to URL with retry logic
@@ -318,55 +333,58 @@ async function captureWithPlaywright(url, outputDir, viewportList, config) {
     // Extract DOM summary
     const domSummaryData = await generateDOMSummaryFromDOM(page);
     const domSummary = formatDOMSummary(domSummaryData);
-    await writeFile(resolve(outputDir, 'dom-summary.md'), domSummary);
+    await writeFile(resolve(outputDir, "dom-summary.md"), domSummary);
 
     // Also write JSON version for workflow compatibility
-    await writeFile(resolve(outputDir, 'dom-summary.json'), JSON.stringify(domSummaryData, null, 2));
+    await writeFile(
+      resolve(outputDir, "dom-summary.json"),
+      JSON.stringify(domSummaryData, null, 2),
+    );
 
     // Extract image inventory
     const imageInventory = await generateImageInventoryFromPage(page);
-    await writeFile(resolve(outputDir, 'image-inventory.md'), imageInventory);
-    
+    await writeFile(resolve(outputDir, "image-inventory.md"), imageInventory);
+
     // Also write JSON version for workflow compatibility
     const images = await page.evaluate(() => {
       function getElementContext(el) {
         const parent = el.parentElement;
         if (parent) {
-          if (parent.tagName === 'A') return `Link: ${parent.href}`;
-          if (parent.classList) return `Class: ${Array.from(parent.classList).join(' ')}`;
+          if (parent.tagName === "A") return `Link: ${parent.href}`;
+          if (parent.classList) return `Class: ${Array.from(parent.classList).join(" ")}`;
           return parent.tagName.toLowerCase();
         }
-        return 'none';
+        return "none";
       }
-      
-      return Array.from(document.querySelectorAll('img')).map(img => ({
+
+      return Array.from(document.querySelectorAll("img")).map((img) => ({
         src: img.src,
-        alt: img.alt || '',
-        width: img.naturalWidth || img.width || 'N/A',
-        height: img.naturalHeight || img.height || 'N/A',
-        context: getElementContext(img)
+        alt: img.alt || "",
+        width: img.naturalWidth || img.width || "N/A",
+        height: img.naturalHeight || img.height || "N/A",
+        context: getElementContext(img),
       }));
     });
-    await writeFile(resolve(outputDir, 'images.json'), JSON.stringify(images, null, 2));
+    await writeFile(resolve(outputDir, "images.json"), JSON.stringify(images, null, 2));
 
     // Capture screenshots for each viewport
     for (const viewport of viewportList) {
       const preset = parseViewport(viewport);
-      
+
       // Set viewport size
       await page.setViewportSize({
         width: preset.width,
-        height: preset.height
+        height: preset.height,
       });
-      
+
       // Navigate again for each viewport to ensure proper rendering
       await navigateWithRetry(page, url, config);
-      
+
       // Take screenshot
       const screenshotFile = `screenshot-${viewport}.png`;
       await page.screenshot({
         path: resolve(outputDir, screenshotFile),
-        fullPage: true
+        fullPage: true,
       });
       screenshotFiles.push(screenshotFile);
     }
@@ -375,21 +393,20 @@ async function captureWithPlaywright(url, outputDir, viewportList, config) {
     await generatePageCaptureMarkdown(
       outputDir,
       url,
-      viewportList.join(', '),
+      viewportList.join(", "),
       screenshotFiles,
       htmlSnapshot,
       domSummary,
-      imageInventory
+      imageInventory,
     );
 
-    console.log('Page capture complete!');
-    console.log('Outputs generated:');
+    console.log("Page capture complete!");
+    console.log("Outputs generated:");
     console.log(`  - ${htmlSnapshot}`);
     console.log(`  - ${screenshotFiles.length} screenshots`);
-    console.log('  - dom-summary.md');
-    console.log('  - image-inventory.md');
-    console.log('  - page-capture.md');
-
+    console.log("  - dom-summary.md");
+    console.log("  - image-inventory.md");
+    console.log("  - page-capture.md");
   } finally {
     await browser.close();
   }
@@ -400,25 +417,25 @@ async function captureWithPlaywright(url, outputDir, viewportList, config) {
  */
 async function navigateWithRetry(page, url, config) {
   let lastError;
-  
+
   for (let attempt = 1; attempt <= config.retries; attempt++) {
     try {
-      await page.goto(url, { 
-        waitUntil: 'networkidle', 
-        timeout: config.timeout 
+      await page.goto(url, {
+        waitUntil: "networkidle",
+        timeout: config.timeout,
       });
       return; // Success
     } catch (error) {
       lastError = error;
       console.warn(`Attempt ${attempt} failed: ${error.message}`);
-      
+
       if (attempt < config.retries) {
         console.log(`Retrying in ${config.retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, config.retryDelay));
+        await new Promise((resolve) => setTimeout(resolve, config.retryDelay));
       }
     }
   }
-  
+
   // If all retries failed, throw the last error
   throw lastError;
 }
@@ -428,11 +445,11 @@ async function navigateWithRetry(page, url, config) {
  */
 function parseCookies(cookiesStr) {
   if (!cookiesStr) return [];
-  
+
   try {
     return JSON.parse(cookiesStr);
   } catch {
-    console.warn('Invalid cookies JSON, ignoring...');
+    console.warn("Invalid cookies JSON, ignoring...");
     return [];
   }
 }
@@ -440,13 +457,13 @@ function parseCookies(cookiesStr) {
 async function main() {
   // Check for Playwright availability
   try {
-    require('playwright');
+    require("playwright");
   } catch (error) {
-    console.error('ERROR: Playwright is not installed.');
-    console.error('Please install Playwright as a dev dependency:');
-    console.error('  npm install --save-dev playwright');
-    console.error('or');
-    console.error('  pnpm add --save-dev playwright');
+    console.error("ERROR: Playwright is not installed.");
+    console.error("Please install Playwright as a dev dependency:");
+    console.error("  npm install --save-dev playwright");
+    console.error("or");
+    console.error("  pnpm add --save-dev playwright");
     process.exit(1);
   }
 
@@ -454,37 +471,37 @@ async function main() {
   const args = parseArgs({
     args: process.argv.slice(2),
     options: {
-      url: { type: 'string', required: true },
-      outputDir: { type: 'string', required: true },
-      viewports: { type: 'string', default: 'desktop,tablet,mobile' },
-      retries: { type: 'string', default: String(DEFAULT_CONFIG.retries) },
-      retryDelay: { type: 'string', default: String(DEFAULT_CONFIG.retryDelay) },
-      timeout: { type: 'string', default: String(DEFAULT_CONFIG.timeout) },
-      headless: { type: 'string', default: String(DEFAULT_CONFIG.headless) },
-      basicAuth: { type: 'string' },
-      cookies: { type: 'string' }
-    }
+      url: { type: "string", required: true },
+      outputDir: { type: "string", required: true },
+      viewports: { type: "string", default: "desktop,tablet,mobile" },
+      retries: { type: "string", default: String(DEFAULT_CONFIG.retries) },
+      retryDelay: { type: "string", default: String(DEFAULT_CONFIG.retryDelay) },
+      timeout: { type: "string", default: String(DEFAULT_CONFIG.timeout) },
+      headless: { type: "string", default: String(DEFAULT_CONFIG.headless) },
+      basicAuth: { type: "string" },
+      cookies: { type: "string" },
+    },
   });
 
-  const { 
-    url, 
-    outputDir, 
+  const {
+    url,
+    outputDir,
     viewports,
     retries: retriesStr,
     retryDelay: retryDelayStr,
     timeout: timeoutStr,
     headless: headlessStr,
     basicAuth,
-    cookies: cookiesStr
+    cookies: cookiesStr,
   } = args.values;
-  
+
   if (!url) {
-    console.error('ERROR: --url is required');
+    console.error("ERROR: --url is required");
     process.exit(1);
   }
-  
+
   if (!outputDir) {
-    console.error('ERROR: --outputDir is required');
+    console.error("ERROR: --outputDir is required");
     process.exit(1);
   }
 
@@ -493,9 +510,9 @@ async function main() {
     retries: parseInt(retriesStr, 10) || DEFAULT_CONFIG.retries,
     retryDelay: parseInt(retryDelayStr, 10) || DEFAULT_CONFIG.retryDelay,
     timeout: parseInt(timeoutStr, 10) || DEFAULT_CONFIG.timeout,
-    headless: headlessStr.toLowerCase() !== 'false' && headlessStr.toLowerCase() !== '0',
+    headless: headlessStr.toLowerCase() !== "false" && headlessStr.toLowerCase() !== "0",
     basicAuth,
-    cookies: parseCookies(cookiesStr)
+    cookies: parseCookies(cookiesStr),
   };
 
   // Create output directory if it doesn't exist
@@ -504,25 +521,25 @@ async function main() {
     mkdirSync(outputPath, { recursive: true });
   }
 
-  console.log('Starting page capture...');
-  console.log('URL:', url);
-  console.log('Output directory:', outputPath);
-  console.log('Viewports:', viewports);
-  console.log('Retries:', config.retries);
-  console.log('Retry delay:', config.retryDelay, 'ms');
-  console.log('Timeout:', config.timeout, 'ms');
-  console.log('Headless:', config.headless);
-  if (config.basicAuth) console.log('Basic auth: configured');
-  if (config.cookies.length > 0) console.log('Cookies:', config.cookies.length, 'configured');
+  console.log("Starting page capture...");
+  console.log("URL:", url);
+  console.log("Output directory:", outputPath);
+  console.log("Viewports:", viewports);
+  console.log("Retries:", config.retries);
+  console.log("Retry delay:", config.retryDelay, "ms");
+  console.log("Timeout:", config.timeout, "ms");
+  console.log("Headless:", config.headless);
+  if (config.basicAuth) console.log("Basic auth: configured");
+  if (config.cookies.length > 0) console.log("Cookies:", config.cookies.length, "configured");
 
   // Parse viewports
-  const viewportList = viewports.split(',').map(v => v.trim());
+  const viewportList = viewports.split(",").map((v) => v.trim());
 
   // Capture with Playwright
   await captureWithPlaywright(url, outputPath, viewportList, config);
 }
 
 main().catch((error) => {
-  console.error('ERROR:', error.message);
+  console.error("ERROR:", error.message);
   process.exit(1);
 });

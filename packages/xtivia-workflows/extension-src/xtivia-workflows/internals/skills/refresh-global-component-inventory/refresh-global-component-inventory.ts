@@ -95,7 +95,7 @@ export async function refreshGlobalComponentInventory(
 function parseInventoryMarkdown(markdown: string): ComponentInventoryItem[] {
   const items: ComponentInventoryItem[] = [];
   const lines = markdown.split("\n");
-  
+
   let currentItem: Partial<ComponentInventoryItem> | null = null;
 
   for (const line of lines) {
@@ -175,7 +175,10 @@ function normalizeItem(item: Partial<ComponentInventoryItem>): ComponentInventor
 /**
  * Scans a project directory for component files
  */
-async function scanForComponents(projectPath: string, warnings: string[]): Promise<ComponentInventoryItem[]> {
+async function scanForComponents(
+  projectPath: string,
+  warnings: string[],
+): Promise<ComponentInventoryItem[]> {
   const components: ComponentInventoryItem[] = [];
   const componentDirs = ["components", "src/components", "@/components"];
   let foundAnyComponentDir = false;
@@ -188,7 +191,7 @@ async function scanForComponents(projectPath: string, warnings: string[]): Promi
       for (const file of files) {
         const filePath = join(fullPath, file);
         const fileStat = await stat(filePath);
-        
+
         if (fileStat.isFile() && isComponentFile(file)) {
           const component = await extractComponentMetadata(filePath, projectPath);
           if (component) {
@@ -203,7 +206,9 @@ async function scanForComponents(projectPath: string, warnings: string[]): Promi
 
   // Add warning if no component directories were found
   if (!foundAnyComponentDir) {
-    warnings.push("No standard component directories found (components/, src/components/, @/components/)");
+    warnings.push(
+      "No standard component directories found (components/, src/components/, @/components/)",
+    );
   }
 
   return components;
@@ -226,7 +231,10 @@ async function extractComponentMetadata(
   try {
     const content = await readFile(filePath, "utf-8");
     const relativePath = relative(projectPath, filePath);
-    const fileName = filePath.split("/").pop()!.replace(/\.(tsx|jsx|ts|js)$/, "");
+    const fileName = filePath
+      .split("/")
+      .pop()!
+      .replace(/\.(tsx|jsx|ts|js)$/, "");
 
     // Extract JSDoc comments
     const jsdocMatch = content.match(/\/\*\*[\s\S]*?\*\//);
@@ -237,7 +245,7 @@ async function extractComponentMetadata(
 
     if (jsdocMatch) {
       const jsdoc = jsdocMatch[0];
-      
+
       // Extract purpose from description
       const descriptionMatch = jsdoc.match(/\*\s+(.+?)(?:\n\s+\*\s+@|\n\s+\*\/)/);
       if (descriptionMatch) {
@@ -247,17 +255,13 @@ async function extractComponentMetadata(
       // Extract variants
       const variantsMatch = jsdoc.match(/@variants\s+(.+?)(?:\n\s+\*\s+@|\n\s+\*\/)/);
       if (variantsMatch) {
-        variants = variantsMatch[1]
-          .split(",")
-          .map((v) => v.trim());
+        variants = variantsMatch[1].split(",").map((v) => v.trim());
       }
 
       // Extract atomic elements
       const atomicMatch = jsdoc.match(/@atomic\s+(.+?)(?:\n\s+\*\s+@|\n\s+\*\/)/);
       if (atomicMatch) {
-        atomicElements = atomicMatch[1]
-          .split(",")
-          .map((e) => e.trim());
+        atomicElements = atomicMatch[1].split(",").map((e) => e.trim());
       }
     }
 
@@ -331,22 +335,22 @@ export function generateInventoryMarkdown(inventory: ComponentInventoryItem[]): 
     lines.push("");
     lines.push(`- **Purpose:** ${item.purpose}`);
     lines.push(`- **Source File Path:** ${item.sourceFilePath}`);
-    
+
     if (item.variants && item.variants.length > 0) {
       lines.push(`- **Variants:** ${item.variants.join(", ")}`);
     }
-    
+
     if (item.atomicElements && item.atomicElements.length > 0) {
       lines.push(`- **Atomic Elements Used:** ${item.atomicElements.join(", ")}`);
     }
-    
+
     if (item.usageExamples && item.usageExamples.length > 0) {
       lines.push(`- **Usage Examples:**`);
       for (const example of item.usageExamples) {
         lines.push(`  - "` + example + `"`);
       }
     }
-    
+
     lines.push("");
   }
 

@@ -32,13 +32,16 @@ When triggered as part of a workflow, this skill:
 ## Structure Convention
 
 ### Required Files
+
 - `Component.tsx` or `Component.jsx` - Main component implementation
 - `index.ts` - Barrel export file
 
 ### Recommended Files
+
 - `component.types.ts` - Type definitions (optional but recommended)
 
 ### Parts Directory (Optional)
+
 - `parts/` - Directory for sub-components
 - Each part should have its own file (e.g., `parts/Header.tsx`)
 - `parts/index.ts` - Optional barrel export for parts
@@ -57,13 +60,13 @@ When triggered as part of a workflow, this skill:
 const result = await validateComponentStructure({
   path: componentPath,
   requireTypes: true,
-  requireParts: false
+  requireParts: false,
 });
 
 if (!result.isValid) {
   // Handle validation failure
-  console.error('Component structure validation failed:', result.errors);
-  throw new Error('Invalid component structure');
+  console.error("Component structure validation failed:", result.errors);
+  throw new Error("Invalid component structure");
 }
 ```
 

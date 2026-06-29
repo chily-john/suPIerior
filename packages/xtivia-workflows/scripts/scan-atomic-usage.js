@@ -2,12 +2,12 @@
 
 /**
  * Atomic Usage Scanner Script
- * 
+ *
  * Scans source files and flags raw <a> and <img> tags where project atomic elements
  * (Next.js Link, Image) should be used.
- * 
+ *
  * Usage: node scan-atomic-usage.js --path <path> [options]
- * 
+ *
  * Options:
  *   --path <path>           Required: Path to scan
  *   --catalog <path>        Path to atomic elements catalog file
@@ -16,27 +16,27 @@
  *   -h, --help             Show this help message
  */
 
-import { parseArgs } from 'node:util';
-import { existsSync, readdirSync, statSync, readFileSync } from 'node:fs';
-import { resolve, relative, extname, join } from 'node:path';
-import { cwd } from 'node:process';
+import { parseArgs } from "node:util";
+import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
+import { resolve, relative, extname, join } from "node:path";
+import { cwd } from "node:process";
 
 // Default atomic elements catalog (Next.js defaults)
 const DEFAULT_ATOMIC_ELEMENTS = {
   a: {
-    atomic: 'Link',
-    import: 'next/link',
-    suggestion: 'Use Link from next/link instead of <a>',
+    atomic: "Link",
+    import: "next/link",
+    suggestion: "Use Link from next/link instead of <a>",
   },
   img: {
-    atomic: 'Image',
-    import: 'next/image',
-    suggestion: 'Use Image from next/image instead of <img>',
+    atomic: "Image",
+    import: "next/image",
+    suggestion: "Use Image from next/image instead of <img>",
   },
 };
 
 // Supported file extensions
-const SUPPORTED_EXTENSIONS = new Set(['.tsx', '.jsx', '.ts', '.js']);
+const SUPPORTED_EXTENSIONS = new Set([".tsx", ".jsx", ".ts", ".js"]);
 
 function printError(message) {
   console.error(`[ERROR] ${message}`);
@@ -63,14 +63,14 @@ function loadAtomicCatalog(catalogPath) {
   }
 
   const resolvedPath = resolve(cwd(), catalogPath);
-  
+
   if (!existsSync(resolvedPath)) {
     printWarning(`Atomic catalog not found: ${catalogPath}. Using default catalog.`);
     return DEFAULT_ATOMIC_ELEMENTS;
   }
 
   try {
-    const content = readFileSync(resolvedPath, 'utf-8');
+    const content = readFileSync(resolvedPath, "utf-8");
     // Parse the catalog file (simple markdown or JSON format)
     // For now, return default and log that custom catalog is loaded
     printInfo(`Loaded atomic catalog from: ${catalogPath}`);
@@ -104,13 +104,13 @@ function findFilesInDirectory(dirPath, extensions) {
   function scanDirectory(currentPath) {
     try {
       const entries = readdirSync(currentPath, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         const fullPath = join(currentPath, entry.name);
-        
+
         if (entry.isDirectory()) {
           // Skip common non-source directories
-          if (!['node_modules', '.git', 'dist', 'build', 'coverage'].includes(entry.name)) {
+          if (!["node_modules", ".git", "dist", "build", "coverage"].includes(entry.name)) {
             scanDirectory(fullPath);
           }
         } else if (entry.isFile()) {
@@ -135,11 +135,11 @@ function findFilesInDirectory(dirPath, extensions) {
  */
 function findHtmlTags(fileContent, tagNames) {
   const violations = [];
-  const lines = fileContent.split('\n');
+  const lines = fileContent.split("\n");
 
   // Build regex pattern to match opening tags like <a>, <a ...>, <a ... />
   // This pattern captures the tag name and handles self-closing tags
-  const tagPattern = new RegExp(`<(${tagNames.join('|')})\\b[^>]*(?:>|\\/>)`, 'gi');
+  const tagPattern = new RegExp(`<(${tagNames.join("|")})\\b[^>]*(?:>|\\/>)`, "gi");
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
@@ -156,7 +156,7 @@ function findHtmlTags(fileContent, tagNames) {
       if (tagName && tagNames.includes(tagName)) {
         const column = match.index + 1; // 1-indexed
         const fullMatch = match[0];
-        
+
         violations.push({
           tag: tagName,
           line: lineIndex + 1, // 1-indexed
@@ -179,12 +179,12 @@ function scanFile(filePath, atomicElements) {
   const tagNames = Object.keys(atomicElements);
 
   try {
-    const content = readFileSync(filePath, 'utf-8');
+    const content = readFileSync(filePath, "utf-8");
     const fileViolations = findHtmlTags(content, tagNames);
 
     for (const violation of fileViolations) {
       const elementInfo = atomicElements[violation.tag];
-      
+
       violations.push({
         file: filePath,
         line: violation.line,
@@ -239,29 +239,29 @@ function formatViolation(violation, index) {
  */
 function formatResults(violations, scanPath) {
   const relativeScanPath = relative(cwd(), scanPath);
-  console.log('');
-  console.log('='.repeat(70));
+  console.log("");
+  console.log("=".repeat(70));
   console.log(`Atomic Usage Scan Results: ${relativeScanPath}`);
-  console.log('='.repeat(70));
-  console.log('');
+  console.log("=".repeat(70));
+  console.log("");
 
   if (violations.length === 0) {
-    printSuccess('No violations found. All files use atomic elements correctly.');
-    console.log('');
-    console.log('Status: PASS');
+    printSuccess("No violations found. All files use atomic elements correctly.");
+    console.log("");
+    console.log("Status: PASS");
   } else {
     printError(`Found ${violations.length} violation(s):`);
-    console.log('');
+    console.log("");
 
     for (let i = 0; i < violations.length; i++) {
       console.log(formatViolation(violations[i], i));
-      console.log('');
+      console.log("");
     }
 
-    console.log('Status: FAIL');
+    console.log("Status: FAIL");
   }
 
-  console.log('='.repeat(70));
+  console.log("=".repeat(70));
   return violations.length === 0;
 }
 
@@ -273,7 +273,7 @@ function outputJson(violations, scanPath) {
     scanPath: relative(cwd(), scanPath),
     violations,
     count: violations.length,
-    status: violations.length === 0 ? 'PASS' : 'FAIL',
+    status: violations.length === 0 ? "PASS" : "FAIL",
     timestamp: new Date().toISOString(),
   };
   console.log(JSON.stringify(output, null, 2));
@@ -285,11 +285,11 @@ async function main() {
   const args = parseArgs({
     args: process.argv.slice(2),
     options: {
-      path: { type: 'string' },
-      catalog: { type: 'string' },
-      json: { type: 'boolean' },
-      fix: { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
+      path: { type: "string" },
+      catalog: { type: "string" },
+      json: { type: "boolean" },
+      fix: { type: "boolean" },
+      help: { type: "boolean", short: "h" },
     },
     allowPositionals: true,
   });
@@ -342,7 +342,7 @@ Examples:
 
   // Check for fix flag (not yet implemented)
   if (fix) {
-    printWarning('--fix flag is not yet implemented. Use --json for programmatic output.');
+    printWarning("--fix flag is not yet implemented. Use --json for programmatic output.");
   }
 
   // Scan for violations

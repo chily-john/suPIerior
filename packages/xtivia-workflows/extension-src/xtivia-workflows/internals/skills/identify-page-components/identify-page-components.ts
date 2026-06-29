@@ -4,7 +4,7 @@ import { join } from "node:path";
 /**
  * Classification decision types
  */
-export type ClassificationDecision = 
+export type ClassificationDecision =
   | "reuse-existing"
   | "reuse-with-variant"
   | "create-new"
@@ -241,9 +241,7 @@ export function parseGlobalComponentInventory(markdown: string): GlobalComponent
 /**
  * Normalizes global component with default values
  */
-function normalizeGlobalComponent(
-  component: Partial<GlobalComponent>,
-): GlobalComponent {
+function normalizeGlobalComponent(component: Partial<GlobalComponent>): GlobalComponent {
   return {
     name: component.name || "",
     purpose: component.purpose || "",
@@ -268,17 +266,15 @@ export function classifyElement(
   // Rule: "Do not create duplicate page-local cards/sections when a shared component with variants would work"
   // Check for Card-like elements first
   if (elementName.toLowerCase().includes("card") || elementClassesStr.includes("card")) {
-    const cardComponent = globalComponents.find(
-      (c) => c.name.toLowerCase() === "card",
-    );
+    const cardComponent = globalComponents.find((c) => c.name.toLowerCase() === "card");
     if (cardComponent) {
       // Only return reuse-with-variant if there's an explicit variant match in classes
       // (not just "card" which is the base class)
       const matchingVariant = findBestVariant(element, cardComponent);
-      const hasExplicitVariant = element.classes.some(
-        (c) => cardComponent.variants.some(
-          (v) => c.toLowerCase() === v.toLowerCase() && !c.toLowerCase().includes("card")
-        )
+      const hasExplicitVariant = element.classes.some((c) =>
+        cardComponent.variants.some(
+          (v) => c.toLowerCase() === v.toLowerCase() && !c.toLowerCase().includes("card"),
+        ),
       );
       if (matchingVariant && hasExplicitVariant) {
         return {
@@ -306,20 +302,18 @@ export function classifyElement(
   }
 
   // Check for Button-like elements
-  if (elementName.toLowerCase().includes("button") || 
-      element.type === "button" || 
-      elementClassesStr.includes("btn")) {
-    const buttonComponent = globalComponents.find(
-      (c) => c.name.toLowerCase() === "button",
-    );
+  if (
+    elementName.toLowerCase().includes("button") ||
+    element.type === "button" ||
+    elementClassesStr.includes("btn")
+  ) {
+    const buttonComponent = globalComponents.find((c) => c.name.toLowerCase() === "button");
     if (buttonComponent) {
       // Only return reuse-with-variant if there's an explicit variant match (not just "btn")
       const matchingVariant = findBestVariant(element, buttonComponent);
       // Check if variant appears in classes (but not just "btn" which is the base class)
-      const hasExplicitVariant = element.classes.some(
-        (c) => buttonComponent.variants.some(
-          (v) => c.toLowerCase() === v.toLowerCase() && c !== "btn"
-        )
+      const hasExplicitVariant = element.classes.some((c) =>
+        buttonComponent.variants.some((v) => c.toLowerCase() === v.toLowerCase() && c !== "btn"),
       );
       if (matchingVariant && hasExplicitVariant) {
         return {
@@ -346,12 +340,12 @@ export function classifyElement(
   }
 
   // Check for Typography-like elements
-  if (elementName.toLowerCase().includes("typography") ||
-      elementName.toLowerCase().includes("text") ||
-      ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span"].includes(element.type)) {
-    const typographyComponent = globalComponents.find(
-      (c) => c.name.toLowerCase() === "typography",
-    );
+  if (
+    elementName.toLowerCase().includes("typography") ||
+    elementName.toLowerCase().includes("text") ||
+    ["h1", "h2", "h3", "h4", "h5", "h6", "p", "span"].includes(element.type)
+  ) {
+    const typographyComponent = globalComponents.find((c) => c.name.toLowerCase() === "typography");
     if (typographyComponent) {
       const matchingVariant = findBestVariant(element, typographyComponent);
       if (matchingVariant) {
@@ -472,8 +466,7 @@ function deriveElementName(element: PageElement): string {
   }
 
   // Use element type with capitalization
-  return element.type
-    .replace(/\b\w/g, (l) => l.toUpperCase());
+  return element.type.replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 /**
@@ -565,7 +558,7 @@ function canBuildFromAtomicElements(
  */
 async function readDomSummary(projectPath: string): Promise<DomSummary | null> {
   const domSummaryPath = join(projectPath, ".workflower", "capture", "dom-summary.json");
-  
+
   try {
     const content = await readFile(domSummaryPath, "utf-8");
     return JSON.parse(content) as DomSummary;
@@ -579,7 +572,7 @@ async function readDomSummary(projectPath: string): Promise<DomSummary | null> {
  */
 async function readAtomicElements(projectPath: string): Promise<AtomicElement[]> {
   const atomicElementsPath = join(projectPath, ".workflower", "components", "atomic-elements.md");
-  
+
   try {
     const content = await readFile(atomicElementsPath, "utf-8");
     return parseAtomicElementsCatalog(content);
@@ -593,7 +586,7 @@ async function readAtomicElements(projectPath: string): Promise<AtomicElement[]>
  */
 async function readGlobalComponents(workdir: string): Promise<GlobalComponent[]> {
   const globalComponentsPath = join(workdir, ".workflower", "components", "global-components.md");
-  
+
   try {
     const content = await readFile(globalComponentsPath, "utf-8");
     return parseGlobalComponentInventory(content);
@@ -709,26 +702,26 @@ export function generateClassificationsMarkdown(
       lines.push(`- **Element Classes:** ${classification.elementClasses.join(", ")}`);
       lines.push(`- **Decision:** ${classification.decision}`);
       lines.push(`- **Target Component:** ${classification.targetComponent}`);
-      
+
       if (classification.variant) {
         lines.push(`- **Variant:** ${classification.variant}`);
       }
-      
+
       lines.push(`- **Rationale:** ${classification.rationale}`);
       lines.push(`- **Confidence:** ${classification.confidence}%`);
-      
+
       if (classification.suggestion) {
         lines.push(`- **Suggestion:** ${classification.suggestion}`);
       }
-      
+
       if (classification.reviewed) {
         lines.push(`- **Reviewed:** ✅`);
       }
-      
+
       if (classification.blocked) {
         lines.push(`- **Blocked:** ⚠️ ${classification.blockingReason}`);
       }
-      
+
       lines.push("");
     }
   }
