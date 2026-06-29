@@ -1,4 +1,5 @@
 import { access, mkdir } from "node:fs/promises";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type {
   WorkflowDefinition,
   WorkflowRuntimeDefaults,
@@ -22,10 +23,16 @@ export async function initializeWorkflowInSession(
   initialContextBoundaryEntryId?: string,
   runtimeDefaults?: WorkflowRuntimeDefaults,
   queuedWorkflowIds: string[] = [],
+  pi?: ExtensionAPI,
 ): Promise<ActiveWorkflowState | undefined> {
   const sessionId = ctx.sessionManager.getSessionId();
   const activeStatePath = resolveActiveStatePath(ctx.cwd, sessionId);
   const paths = resolveWorkflowPaths(ctx.cwd, workflow.id, gardenName);
+
+  // Set session name to garden name at workflow kickoff
+  if (gardenName && pi?.setSessionName) {
+    pi.setSessionName(gardenName);
+  }
 
   if (await exists(activeStatePath)) {
     ctx.ui.notify(

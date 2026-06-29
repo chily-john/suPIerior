@@ -13,6 +13,7 @@ import {
   removeWorkflowWorkdir,
 } from "@orchestration/runtime/artifacts/remove-artifacts";
 import { persistResumeMetadataForActiveState } from "@orchestration/runtime/resume/resume-state-store";
+import { clearWorkflowStatus } from "@orchestration/runtime/use-cases/workflow-status";
 import type { AdvanceWorkflowOptions, WorkflowAdvanceContext } from "./advance.types";
 
 export async function completeWorkflow(
@@ -30,6 +31,9 @@ export async function completeWorkflow(
     ctx.ui.notify(`Failed to clean up completed workflow files: ${formatError(error)}`, "error");
     return;
   }
+
+  // Clear footer status when workflow completes
+  clearWorkflowStatus(ctx.ui);
 
   await options.currentSession?.restoreRuntimeDefaults?.(state.runtimeDefaults);
 

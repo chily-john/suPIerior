@@ -22,6 +22,8 @@ triggers:
   - autoNext test
   - workflow pipeline test
   - workflow lifecycle test
+  - advance-workflow test
+  - footer status test
 ---
 
 # Tests
@@ -45,3 +47,4 @@ Enter here when changing tests for Workflower's public package API, command beha
 - Cover workflow/step runtime settings with selected fallback, current/default-model warning, and captured default restore assertions.
 - Cover workflow prompt custom-message display metadata, model prompt content, and plain-message fallback when changing kickoff prompt delivery.
 - When changing registry behavior, verify the package root remains the shared public module for external workflow registration and generated start commands.
+- Cover session name setting to garden name at workflow kickoff when changing session management behavior.

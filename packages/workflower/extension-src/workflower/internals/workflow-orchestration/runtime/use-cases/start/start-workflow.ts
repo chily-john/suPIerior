@@ -1,3 +1,4 @@
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { findWorkflow } from "@orchestration/definitions/registry/global-registry";
 import { validateWorkflowId } from "@orchestration/definitions/validation/workflow-id-validation";
 import { resolveActiveStatePath } from "@orchestration/runtime/active-state/active-state-paths";
@@ -21,6 +22,7 @@ export async function startWorkflow(
   args: string,
   ctx: WorkflowCommandContext,
   currentSession: CurrentSessionPromptSender,
+  pi?: ExtensionAPI,
 ): Promise<void> {
   const activeState = await readActiveStateIfPresent(ctx);
   const mode = activeState ? "handoff" : "initial";
@@ -58,6 +60,7 @@ export async function startWorkflow(
       cwd: ctx.cwd,
       incomingPollen: result.incomingPollen,
       promptDisplayKind: "workflow",
+      ui: ctx.ui,
     }).catch(() => false);
     if (sent) {
       ctx.ui.notify(
@@ -91,12 +94,14 @@ export async function startWorkflow(
     startBoundaryEntryId,
     runtimeDefaults,
     queuedWorkflowIds,
+    pi,
   );
   if (!state) return;
 
   const sent = await startWorkflowStep(workflow, state, 0, currentSession, {
     cwd: ctx.cwd,
     promptDisplayKind: "workflow",
+    ui: ctx.ui,
   }).catch(() => false);
   if (sent) ctx.ui.notify(`Started workflow ${workflow.id} as ${parsed.workflowName}.`, "info");
 }

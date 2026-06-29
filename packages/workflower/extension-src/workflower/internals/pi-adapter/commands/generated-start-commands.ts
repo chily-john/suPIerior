@@ -24,7 +24,7 @@ export function registerGeneratedStartCommands(pi: ExtensionAPI): () => void {
             restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
           sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
           sendWorkflowPrompt: (input) => sendWorkflowerPrompt(pi, input),
-        });
+        }, pi);
       },
     });
   };

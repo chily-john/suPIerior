@@ -125,6 +125,7 @@ async function retryAutoNextStep(
       cwd: ctx.cwd,
       promptDisplayKind: "step",
       retryNotice: renderAutoNextRetryNotice(outcome),
+      ui: ctx.ui,
     });
   } catch (error) {
     ctx.ui.notify(`Failed to send auto-next retry prompt: ${formatError(error)}`, "error");

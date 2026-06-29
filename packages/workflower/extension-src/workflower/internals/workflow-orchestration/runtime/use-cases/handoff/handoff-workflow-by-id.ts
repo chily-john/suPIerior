@@ -69,6 +69,7 @@ export async function handoffWorkflowById(
     sent = await startWorkflowStep(workflow, handoff.state, 0, currentSession, {
       incomingPollen: handoff.incomingPollen,
       promptDisplayKind: "workflow",
+      ui: ctx.ui,
     });
   } catch (error) {
     return failure(`Failed to send workflow kickoff prompt: ${formatError(error)}`);

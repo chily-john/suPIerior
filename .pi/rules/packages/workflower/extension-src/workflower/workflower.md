@@ -13,6 +13,7 @@ triggers:
   - private command
   - workflow-orchestration
   - pi-adapter
+  - step-metrics-store
   - workflow lifecycle
   - /wf:<id>
   - /wf clean
@@ -36,6 +37,8 @@ triggers:
   - WorkflowModelSetting
   - WorkflowThinkingLevel
   - advanceOnAutoNext
+  - updateWorkflowStatus
+  - clearWorkflowStatus
 ---
 
 # Workflower Source
@@ -48,6 +51,7 @@ The public module is both the Pi extension entrypoint and the shared API externa
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | `package-api/`  | Changing exported workflow contracts, runtime settings, garden state/runtime types, private command types, or public integration surfaces. |
 | `internals/`    | Changing registry internals, runtime use cases, active/garden state, artifacts, prompts, private skills/commands, or Pi hooks. |
+| `runtime/`     | Changing runtime artifacts, metrics types, or workflow execution data structures. |
 
 ## Patterns & Conventions
 
@@ -56,6 +60,9 @@ The public module is both the Pi extension entrypoint and the shared API externa
 - Externally registered user-invokable workflows should be startable through generated `/wf:<id>` commands, including workflows registered after extension load.
 - Keep `/wf:<id> <garden-name> | <workflow-id>` pipeline syntax for initial starts and `/wf:<id> | <workflow-id>` for active handoffs; validate queued ids as user-invokable workflows, persist them on active state, and hand off queued workflows from final `/next` before garden completion.
 - Keep workflow session-clearing behavior declarative through workflow and step flags such as `clearOnStart`, `clearOnNext`, and `clearOnCompletion`.
+- Set Pi session name to garden name at workflow kickoff when `pi.setSessionName` is available.
+- Set footer status to workflow and step id during step execution to provide clear workflow context.
+- Clear footer status when workflow stops.
 - Preserve the active `contextBoundaryEntryId` when handing off to another workflow.
 - Apply workflow/step `model` and `thinkingLevel` runtime settings through the Pi adapter before sending a start, next, or auto-next step prompt; resolve step settings before workflow defaults and captured garden-start defaults, unavailable model candidates warn without blocking the step, and completion restores captured runtime defaults.
 - Keep active garden state small, finite JSON-compatible, keyed by safe state keys, and scoped to `.workflower/workflows/<garden-name>/state.json`; keep durable resume metadata at `.workflower/workflows/<garden-name>/resume.json` refreshed on start, stop, resume, advance, and handoff; `/wf resume` should restore only valid non-completed metadata for inactive gardens, and `--step` overrides are pointer-only; tools, `/wf state`, and runtime state methods should require an active workflow, and final completion deletes garden state and resume metadata unless the active workflow sets `cleanupOnCompletion: false`.

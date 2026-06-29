@@ -9,6 +9,7 @@ export type WorkflowNotificationLevel = "info" | "warning" | "error";
 
 export type WorkflowNotificationUi = {
   notify(message: string, level?: WorkflowNotificationLevel): void;
+  setStatus?(key: string, text: string | undefined): void;
 };
 
 export type WorkflowStepRuntimeSettings = {

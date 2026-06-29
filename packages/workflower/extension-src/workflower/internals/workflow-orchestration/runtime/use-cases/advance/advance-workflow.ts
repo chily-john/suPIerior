@@ -12,6 +12,7 @@ import { handoffWorkflowInSession } from "../start/handoff-workflow-session";
 import type { CurrentSessionPromptSender } from "../workflow-runtime.types";
 import type { AdvanceWorkflowOptions, WorkflowAdvanceContext } from "./advance.types";
 import { completeWorkflow } from "./complete-workflow";
+import { updateWorkflowStatus } from "../workflow-status";
 
 export async function advanceWorkflow(
   ctx: WorkflowAdvanceContext & { newSession: NonNullable<WorkflowAdvanceContext["newSession"]> },
@@ -77,6 +78,9 @@ async function advanceWorkflowInternal(
     return;
   }
 
+  // Update footer status for the next step
+  updateWorkflowStatus(ctx.ui, workflow.id, nextStep.id);
+
   const nextState: ActiveWorkflowState = {
     ...withoutTransientAutoNextState(state),
     currentStepIndex: nextStepIndex,
@@ -109,7 +113,7 @@ async function advanceWorkflowInternal(
       nextState,
       nextStepIndex,
       options.currentSession,
-      { cwd: ctx.cwd },
+      { cwd: ctx.cwd, ui: ctx.ui },
     );
     if (sent) ctx.ui.notify(`Advanced workflow ${workflow.id} to step ${nextStepIndex}.`, "info");
   } catch {
@@ -141,11 +145,15 @@ async function handoffQueuedWorkflowInSession(
   );
   if (!handoff || !options.currentSession) return;
 
+  // Update footer status for the handed-off workflow's first step
+  updateWorkflowStatus(ctx.ui, workflow.id, workflow.steps[0].id);
+
   try {
     const sent = await startWorkflowStep(workflow, handoff.state, 0, options.currentSession, {
       cwd: ctx.cwd,
       incomingPollen: handoff.incomingPollen,
       promptDisplayKind: "workflow",
+      ui: ctx.ui,
     });
     if (sent) {
       ctx.ui.notify(

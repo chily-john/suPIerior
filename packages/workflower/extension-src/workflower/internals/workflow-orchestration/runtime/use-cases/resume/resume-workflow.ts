@@ -163,6 +163,7 @@ export async function resumeWorkflow(
   const sent = await startWorkflowStep(workflow, state, state.currentStepIndex, currentSession, {
     cwd: ctx.cwd,
     promptDisplayKind: "workflow",
+    ui: ctx.ui,
   }).catch(() => false);
   if (sent) {
     const step = workflow.steps[state.currentStepIndex];
