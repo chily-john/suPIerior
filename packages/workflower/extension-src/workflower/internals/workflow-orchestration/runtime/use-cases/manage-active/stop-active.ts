@@ -29,10 +29,10 @@ export async function stopWorkflow(ctx: WorkflowLifecycleCommandContext): Promis
   }
 
   await deleteActiveWorkflowState(activeStatePath);
-  
+
   // Clear footer status when workflow is stopped
   clearWorkflowStatus(ctx.ui);
-  
+
   ctx.ui.notify(
     `Stopped workflow ${state.id} in garden ${gardenName}. Garden and flower artifacts were not deleted.`,
     "info",

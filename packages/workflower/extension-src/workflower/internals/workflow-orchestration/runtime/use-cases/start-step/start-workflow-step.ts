@@ -30,15 +30,7 @@ export async function startWorkflowStep(
   // Hook: Start metrics collection for this step if enabled
   const workflowerRoot = options.cwd ?? process.cwd();
   const flowerPath = state.activeFlowerPath ?? state.workdir;
-  await startStepMetrics(
-    flowerPath,
-    stepIndex,
-    step.id,
-    workflow,
-    step,
-    state,
-    workflowerRoot
-  );
+  await startStepMetrics(flowerPath, stepIndex, step.id, workflow, step, state, workflowerRoot);
 
   if (promptSender.applyStepRuntimeSettings) {
     const applied = await promptSender.applyStepRuntimeSettings({

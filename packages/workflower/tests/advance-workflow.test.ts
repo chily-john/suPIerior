@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { WorkflowNotificationUi } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/workflow-runtime.types";
-import type { WorkflowDefinition, WorkflowStep } from "../extension-src/workflower/package-api/workflow-definition.types";
+import type {
+  WorkflowDefinition,
+  WorkflowStep,
+} from "../extension-src/workflower/package-api/workflow-definition.types";
 
 // Mock the active state store to avoid file system dependencies
 vi.mock(
@@ -8,7 +11,7 @@ vi.mock(
   () => ({
     readActiveWorkflowState: vi.fn(),
     writeActiveWorkflowState: vi.fn(),
-  })
+  }),
 );
 
 // Mock the global registry
@@ -16,7 +19,7 @@ vi.mock(
   "../extension-src/workflower/internals/workflow-orchestration/definitions/registry/global-registry",
   () => ({
     findWorkflow: vi.fn(),
-  })
+  }),
 );
 
 // Mock other dependencies
@@ -24,35 +27,35 @@ vi.mock(
   "../extension-src/workflower/internals/workflow-orchestration/runtime/artifacts/flower-index-store",
   () => ({
     updateFlowerPollen: vi.fn().mockResolvedValue(undefined),
-  })
+  }),
 );
 
 vi.mock(
   "../extension-src/workflower/internals/workflow-orchestration/runtime/resume/resume-state-store",
   () => ({
     persistResumeMetadataForActiveState: vi.fn().mockResolvedValue(undefined),
-  })
+  }),
 );
 
 vi.mock(
   "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-paths",
   () => ({
     resolveActiveStatePath: vi.fn(() => "mock-path"),
-  })
+  }),
 );
 
 vi.mock(
   "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/start-step/start-workflow-step",
   () => ({
     startWorkflowStep: vi.fn().mockResolvedValue(true),
-  })
+  }),
 );
 
 vi.mock(
   "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/start/handoff-workflow-session",
   () => ({
     handoffWorkflowInSession: vi.fn(),
-  })
+  }),
 );
 
 // Mock flower index store
@@ -62,7 +65,7 @@ vi.mock(
     updateFlowerPollen: vi.fn().mockResolvedValue(undefined),
     markFlowerCompleted: vi.fn().mockResolvedValue(undefined),
     readFlowerIndex: vi.fn().mockResolvedValue(null),
-  })
+  }),
 );
 
 // Mock remove artifacts
@@ -73,23 +76,19 @@ vi.mock(
     removeGardenResumeFile: vi.fn().mockResolvedValue(undefined),
     removeGardenStateFile: vi.fn().mockResolvedValue(undefined),
     removeWorkflowWorkdir: vi.fn().mockResolvedValue(undefined),
-  })
+  }),
 );
-
-
 
 describe("advance-workflow module", () => {
   it("should export advanceWorkflow function", async () => {
-    const { advanceWorkflow } = await import(
-      "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow"
-    );
+    const { advanceWorkflow } =
+      await import("../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow");
     expect(typeof advanceWorkflow).toBe("function");
   });
 
   it("should export advanceWorkflowFromAutoNext function", async () => {
-    const { advanceWorkflowFromAutoNext } = await import(
-      "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow"
-    );
+    const { advanceWorkflowFromAutoNext } =
+      await import("../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow");
     expect(typeof advanceWorkflowFromAutoNext).toBe("function");
   });
 
@@ -116,16 +115,13 @@ describe("advance-workflow module", () => {
     });
 
     it("should clear footer status when workflow completes all steps", async () => {
-      const { advanceWorkflow } = await import(
-        "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow"
-      );
+      const { advanceWorkflow } =
+        await import("../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow");
 
-      const { findWorkflow } = await import(
-        "../extension-src/workflower/internals/workflow-orchestration/definitions/registry/global-registry"
-      );
-      const { readActiveWorkflowState } = await import(
-        "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store"
-      );
+      const { findWorkflow } =
+        await import("../extension-src/workflower/internals/workflow-orchestration/definitions/registry/global-registry");
+      const { readActiveWorkflowState } =
+        await import("../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store");
 
       // Mock the workflow registry to return our test workflow
       vi.mocked(findWorkflow).mockReturnValue(mockWorkflow);
@@ -159,20 +155,17 @@ describe("advance-workflow module", () => {
       await advanceWorkflow(ctx, currentSession);
 
       // Verify setStatus was called to clear the workflow status
-      expect(mockUi.setStatus).toHaveBeenCalledWith('workflower', undefined);
+      expect(mockUi.setStatus).toHaveBeenCalledWith("workflower", undefined);
     });
 
     it("should update footer status when advancing to next step", async () => {
-      const { advanceWorkflow } = await import(
-        "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow"
-      );
+      const { advanceWorkflow } =
+        await import("../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/advance/advance-workflow");
 
-      const { findWorkflow } = await import(
-        "../extension-src/workflower/internals/workflow-orchestration/definitions/registry/global-registry"
-      );
-      const { readActiveWorkflowState } = await import(
-        "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store"
-      );
+      const { findWorkflow } =
+        await import("../extension-src/workflower/internals/workflow-orchestration/definitions/registry/global-registry");
+      const { readActiveWorkflowState } =
+        await import("../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state-store");
 
       // Mock the workflow registry to return our test workflow
       vi.mocked(findWorkflow).mockReturnValue(mockWorkflow);

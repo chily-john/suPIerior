@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { startWorkflowStep } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/start-step/start-workflow-step";
 import type { WorkflowDefinition } from "../extension-src/workflower/package-api/workflow-definition.types";
 import type { ActiveWorkflowState } from "../extension-src/workflower/internals/workflow-orchestration/runtime/active-state/active-state.types";
-import type { CurrentSessionPromptSender, WorkflowNotificationUi } from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/workflow-runtime.types";
+import type {
+  CurrentSessionPromptSender,
+  WorkflowNotificationUi,
+} from "../extension-src/workflower/internals/workflow-orchestration/runtime/use-cases/workflow-runtime.types";
 
 // Mock workflow definition
 const mockWorkflow: WorkflowDefinition = {

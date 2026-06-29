@@ -39,9 +39,8 @@ describe("metrics hook on step start", () => {
     clearAllPendingMetrics();
 
     // Import startWorkflowStep
-    const { startWorkflowStep } = await import(
-      "@orchestration/runtime/use-cases/start-step/start-workflow-step"
-    );
+    const { startWorkflowStep } =
+      await import("@orchestration/runtime/use-cases/start-step/start-workflow-step");
 
     const flowerPath = "C:/test/workflows/test-garden/test-flower/index.json";
     const workflowerRoot = "C:/test";
@@ -78,7 +77,7 @@ describe("metrics hook on step start", () => {
 
     // Import the hook to check if metrics were recorded
     const { getPendingMetrics } = await import("@/runtime/artifacts/step-metrics-hook");
-    
+
     // This should now pass: startedAt should be defined
     const metrics = getPendingMetrics(flowerPath, stepIndex);
     expect(metrics?.startedAt).toBeDefined();
@@ -96,9 +95,8 @@ describe("metrics hook on step start", () => {
     vi.mocked(readConfig).mockResolvedValueOnce({ metricsEnabled: false });
 
     // Import startWorkflowStep
-    const { startWorkflowStep } = await import(
-      "@orchestration/runtime/use-cases/start-step/start-workflow-step"
-    );
+    const { startWorkflowStep } =
+      await import("@orchestration/runtime/use-cases/start-step/start-workflow-step");
 
     const flowerPath = "C:/test/workflows/test-garden/test-flower/index.json";
     const workflowerRoot = "C:/test";
@@ -135,7 +133,7 @@ describe("metrics hook on step start", () => {
 
     // Import the hook to check if metrics were NOT recorded
     const { getPendingMetrics } = await import("@/runtime/artifacts/step-metrics-hook");
-    
+
     // Metrics should be undefined when disabled
     const metrics = getPendingMetrics(flowerPath, stepIndex);
     expect(metrics).toBeUndefined();

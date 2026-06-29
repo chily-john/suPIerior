@@ -16,15 +16,21 @@ export function registerGeneratedStartCommands(pi: ExtensionAPI): () => void {
     pi.registerCommand(`wf:${workflow.id}`, {
       description: `Start Workflower workflow ${workflow.id}`,
       handler: async (args, ctx) => {
-        await startWorkflow(workflow.id, args, ctx, {
-          captureRuntimeDefaults: () => captureWorkflowRuntimeDefaults(pi, ctx),
-          applyStepRuntimeSettings: (settings) =>
-            applyWorkflowStepRuntimeSettings(pi, ctx, settings),
-          restoreRuntimeDefaults: (runtimeDefaults) =>
-            restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
-          sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
-          sendWorkflowPrompt: (input) => sendWorkflowerPrompt(pi, input),
-        }, pi);
+        await startWorkflow(
+          workflow.id,
+          args,
+          ctx,
+          {
+            captureRuntimeDefaults: () => captureWorkflowRuntimeDefaults(pi, ctx),
+            applyStepRuntimeSettings: (settings) =>
+              applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+            restoreRuntimeDefaults: (runtimeDefaults) =>
+              restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
+            sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
+            sendWorkflowPrompt: (input) => sendWorkflowerPrompt(pi, input),
+          },
+          pi,
+        );
       },
     });
   };

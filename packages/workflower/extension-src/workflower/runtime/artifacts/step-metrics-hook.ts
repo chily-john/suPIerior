@@ -1,7 +1,7 @@
-import { readConfig } from './step-metrics-store';
-import type { StepMetrics, ModelInfo } from './step-metrics.types';
-import type { ActiveWorkflowState } from '@orchestration/runtime/active-state/active-state.types';
-import type { WorkflowStep, WorkflowDefinition } from '@package-api/workflow-definition.types';
+import { readConfig } from "./step-metrics-store";
+import type { StepMetrics, ModelInfo } from "./step-metrics.types";
+import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
+import type { WorkflowStep, WorkflowDefinition } from "@package-api/workflow-definition.types";
 
 // Map of flowerPath -> stepIndex -> partial StepMetrics
 const pendingMetrics = new Map<string, Map<number, Partial<StepMetrics>>>();
@@ -24,17 +24,17 @@ function ensurePendingMetricsForFlower(flowerPath: string): Map<number, Partial<
 function extractModelInfo(
   workflow: WorkflowDefinition,
   step: WorkflowStep,
-  state: ActiveWorkflowState
+  state: ActiveWorkflowState,
 ): ModelInfo {
   // Try step model first
   if (step.model) {
-    const modelRef = typeof step.model === 'string' ? step.model : step.model[0];
+    const modelRef = typeof step.model === "string" ? step.model : step.model[0];
     return parseModelReference(modelRef);
   }
 
   // Try workflow model
   if (workflow.model) {
-    const modelRef = typeof workflow.model === 'string' ? workflow.model : workflow.model[0];
+    const modelRef = typeof workflow.model === "string" ? workflow.model : workflow.model[0];
     return parseModelReference(modelRef);
   }
 
@@ -55,11 +55,11 @@ function extractModelInfo(
  * Format: provider/model-id or provider/api/model-id
  */
 function parseModelReference(modelRef: string): ModelInfo {
-  const parts = modelRef.split('/');
+  const parts = modelRef.split("/");
   if (parts.length >= 2) {
     return {
       provider: parts[0] as string | null,
-      id: parts.slice(1).join('/') as string | null,
+      id: parts.slice(1).join("/") as string | null,
       api: null,
     };
   }
@@ -77,12 +77,11 @@ function parseModelReference(modelRef: string): ModelInfo {
 function extractThinkingLevel(
   workflow: WorkflowDefinition,
   step: WorkflowStep,
-  state: ActiveWorkflowState
+  state: ActiveWorkflowState,
 ): string | null {
-  return step.thinkingLevel
-    ?? workflow.thinkingLevel
-    ?? state.runtimeDefaults?.thinkingLevel
-    ?? null;
+  return (
+    step.thinkingLevel ?? workflow.thinkingLevel ?? state.runtimeDefaults?.thinkingLevel ?? null
+  );
 }
 
 /**
@@ -105,7 +104,7 @@ export async function startStepMetrics(
   workflow: WorkflowDefinition,
   step: WorkflowStep,
   state: ActiveWorkflowState,
-  workflowerRoot: string
+  workflowerRoot: string,
 ): Promise<void> {
   const config = await readConfig(workflowerRoot);
   if (!config.metricsEnabled) {
@@ -136,7 +135,7 @@ export async function startStepMetrics(
  */
 export function getPendingMetrics(
   flowerPath: string,
-  stepIndex: number
+  stepIndex: number,
 ): Partial<StepMetrics> | undefined {
   const flowerMetrics = pendingMetrics.get(flowerPath);
   if (!flowerMetrics) {
