@@ -2,6 +2,7 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 export const wpMigrationFinalizeWorkflow: WorkflowDefinition = {
   id: "wp-migration-finalize",
+  autoNext: true,
   userInvocable: false,
   modelInvocable: true,
   clearOnStart: true,

@@ -2,11 +2,17 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 export const wpMigrationPlanLoopWorkflow: WorkflowDefinition = {
   id: "wp-migration-plan-loop",
+  autoNext: true,
   userInvocable: false,
   modelInvocable: true,
   clearOnStart: true,
   cleanupOnCompletion: false,
-  pollen: "implementation-doc.md",
+  pollen: [
+    "implementation-doc.md",
+    "components/atomic-elements.md",
+    "components/global-components.md",
+    "components/current-page-components.md",
+  ],
   steps: [
     {
       id: "create-or-improve-migration-plan",

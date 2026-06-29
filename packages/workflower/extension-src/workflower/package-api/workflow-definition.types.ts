@@ -73,6 +73,8 @@ export type WorkflowDefinition = {
   model?: WorkflowModelSetting;
   /** Default thinking level for steps that do not specify their own thinking level. */
   thinkingLevel?: WorkflowThinkingLevel;
+  /** Default autoNext for steps that do not specify their own autoNext. Defaults to false. */
+  autoNext?: boolean;
   clearOnStart?: boolean;
   clearOnCompletion?: boolean;
   cleanupOnCompletion?: boolean;

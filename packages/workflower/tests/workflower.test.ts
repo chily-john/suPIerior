@@ -127,6 +127,8 @@ describe("package smoke", () => {
     expect(readme).toContain("does not prune");
     expect(readme).toContain("resume.json");
     expect(readme).toContain("--step=<value>");
+    expect(readme).toContain("auto-next advances only after clean agent completion");
+    expect(readme).toContain("3 total attempts");
     expect(authoringSkill).toContain("garden state");
     expect(authoringSkill).toContain("deterministic routing");
     expect(authoringSkill).toContain("Use output files for large artifacts");
@@ -2059,7 +2061,10 @@ describe("/next", () => {
       });
 
       registerWorkflower(pi);
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, createCommandContext(dir));
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        createCommandContext(dir),
+      );
 
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
@@ -2078,6 +2083,446 @@ describe("/next", () => {
       expect(prompts[0].prompt).not.toContain(join(staleWorkdir, "second.md"));
       expect(prompts[0].prompt).not.toBe("/next");
       expect(prompts[0].options).toEqual({ triggerTurn: true, deliverAs: "followUp" });
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("clears autoNext retry state after a clean retry advances", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".workflower", "workflows", "clean-retry-demo");
+    const activeFlowerPath = join(gardenPath, "0001-auto-next-clean-retry-demo");
+    const pi = createPiHarness();
+
+    try {
+      registerWorkflow({
+        id: "auto-next-clean-retry-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true, outputs: ["first.md"] },
+          { id: "second", command: "/second" },
+        ],
+      });
+      await mkdir(activeFlowerPath, { recursive: true });
+      await writeFile(
+        join(activeFlowerPath, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "auto-next-clean-retry-demo", flowerPath: activeFlowerPath, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "auto-next-clean-retry-demo",
+        name: "clean-retry-demo",
+        gardenName: "clean-retry-demo",
+        gardenPath,
+        activeFlowerName: "0001-auto-next-clean-retry-demo",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
+        currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 1,
+          lastErrorMessage: "previous timeout",
+          exhausted: false,
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        },
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        createCommandContext(dir),
+      );
+
+      const nextState = await readActiveWorkflowState(statePath);
+      expect(nextState.currentStepIndex).toBe(1);
+      expect(nextState).not.toHaveProperty("autoNextFailure");
+      expect(sentWorkflowerPrompts(pi)[0].prompt).toContain("Current step 1: second");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not carry autoNext retry state across manual next advancement", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const workdir = join(
+      dir,
+      ".workflower",
+      "workflows",
+      "manual-retry-demo",
+      "0001-manual-retry-demo",
+    );
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      registerWorkflow({
+        id: "manual-retry-demo",
+        steps: [
+          { id: "first", command: "/first", outputs: ["first.md"] },
+          { id: "second", command: "/second" },
+        ],
+      });
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "manual-retry-demo",
+        name: "manual-retry-demo",
+        workdir,
+        currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 1,
+          lastErrorMessage: "previous timeout",
+          exhausted: false,
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        },
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.commands.next.handler("", ctx);
+
+      const nextState = await readActiveWorkflowState(statePath);
+      expect(nextState.currentStepIndex).toBe(1);
+      expect(nextState).not.toHaveProperty("autoNextFailure");
+      expect(ctx.notifications).toContainEqual([
+        "Advanced workflow manual-retry-demo to step 1.",
+        "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("retries the same autoNext step after an execution error while attempts remain", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".workflower", "workflows", "error-demo");
+    const activeFlowerPath = join(gardenPath, "0001-auto-next-error-demo");
+    const staleWorkdir = join(dir, ".workflower", "workflows", "error-demo", "stale-workdir");
+    const pi = createPiHarness();
+
+    try {
+      registerWorkflow({
+        id: "auto-next-error-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true, outputs: ["first.md"] },
+          { id: "second", command: "/second", outputs: ["second.md"] },
+        ],
+      });
+      await mkdir(activeFlowerPath, { recursive: true });
+      await writeFile(
+        join(activeFlowerPath, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "auto-next-error-demo", flowerPath: activeFlowerPath, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "auto-next-error-demo",
+        name: "error-demo",
+        gardenName: "error-demo",
+        gardenPath,
+        activeFlowerName: "0001-auto-next-error-demo",
+        activeFlowerPath,
+        workdir: staleWorkdir,
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.handlers.agent_end[0](
+        {
+          type: "agent_end",
+          messages: [assistantMessageWithStopReason("error", { errorMessage: "timeout" })],
+        },
+        createCommandContext(dir),
+      );
+
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 1,
+          lastErrorMessage: "timeout",
+          exhausted: false,
+        },
+      });
+      await expect(
+        readFile(join(activeFlowerPath, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [],
+      });
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 0: first");
+      expect(prompts[0].prompt).toContain(activeFlowerPath);
+      expect(prompts[0].prompt).not.toContain(staleWorkdir);
+      expect(prompts[0].prompt).toContain(
+        "Retrying this same step because the previous auto-next attempt ended with an execution error: timeout",
+      );
+      expect(prompts[0].prompt).not.toContain("Current step 1: second");
+      expect(prompts[0].options).toEqual({ triggerTurn: true, deliverAs: "followUp" });
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("starts retry attempts at 1 when a later autoNext step fails after earlier retry state", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".workflower", "workflows", "next-step-error-demo");
+    const activeFlowerPath = join(gardenPath, "0001-auto-next-step-error-demo");
+    const pi = createPiHarness();
+
+    try {
+      registerWorkflow({
+        id: "auto-next-step-error-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true },
+          { id: "second", command: "/second", autoNext: true },
+        ],
+      });
+      await mkdir(activeFlowerPath, { recursive: true });
+      await writeFile(
+        join(activeFlowerPath, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "auto-next-step-error-demo", flowerPath: activeFlowerPath, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "auto-next-step-error-demo",
+        name: "next-step-error-demo",
+        gardenName: "next-step-error-demo",
+        gardenPath,
+        activeFlowerName: "0001-auto-next-step-error-demo",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
+        currentStepIndex: 1,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 2,
+          lastErrorMessage: "previous step timeout",
+          exhausted: false,
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        },
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.handlers.agent_end[0](
+        {
+          type: "agent_end",
+          messages: [assistantMessageWithStopReason("error", { errorMessage: "second failed" })],
+        },
+        createCommandContext(dir),
+      );
+
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        currentStepIndex: 1,
+        autoNextFailure: {
+          stepIndex: 1,
+          attempts: 1,
+          lastErrorMessage: "second failed",
+          exhausted: false,
+        },
+      });
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 1: second");
+      expect(prompts[0].prompt).toContain(
+        "Retrying this same step because the previous auto-next attempt ended with an execution error: second failed",
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("stops retrying autoNext execution errors after three total attempts", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const gardenPath = join(dir, ".workflower", "workflows", "exhaustion-demo");
+    const activeFlowerPath = join(gardenPath, "0001-auto-next-exhaustion-demo");
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflow({
+        id: "auto-next-exhaustion-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true, outputs: ["first.md"] },
+          { id: "second", command: "/second", outputs: ["second.md"] },
+        ],
+      });
+      await mkdir(activeFlowerPath, { recursive: true });
+      await writeFile(
+        join(activeFlowerPath, "index.json"),
+        `${JSON.stringify({ status: "active", workflowId: "auto-next-exhaustion-demo", flowerPath: activeFlowerPath, pollen: [], pollenPinned: false }, null, 2)}\n`,
+        "utf8",
+      );
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "auto-next-exhaustion-demo",
+        name: "exhaustion-demo",
+        gardenName: "exhaustion-demo",
+        gardenPath,
+        activeFlowerName: "0001-auto-next-exhaustion-demo",
+        activeFlowerPath,
+        workdir: activeFlowerPath,
+        currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 2,
+          lastErrorMessage: "previous timeout",
+          exhausted: false,
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        },
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.handlers.agent_end[0](
+        {
+          type: "agent_end",
+          messages: [assistantMessageWithStopReason("error", { errorMessage: "timeout" })],
+        },
+        ctx,
+      );
+
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 3,
+          lastErrorMessage: "timeout",
+          exhausted: true,
+        },
+      });
+      await expect(
+        readFile(join(activeFlowerPath, "index.json"), "utf8").then(JSON.parse),
+      ).resolves.toMatchObject({
+        pollen: [],
+      });
+      expect(sentWorkflowerPrompts(pi)).toEqual([]);
+      expect(pi.sentUserMessages).toEqual([]);
+      expect(ctx.notifications.at(-1)?.[0]).toContain(
+        "failed after 3 execution-error attempts",
+      );
+      expect(ctx.notifications.at(-1)?.[0]).toContain("remains on step 0");
+      expect(ctx.notifications.at(-1)?.[1]).toBe("error");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not advance autoNext when the agent run ends with an abort", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const pi = createPiHarness();
+
+    try {
+      registerWorkflow({
+        id: "auto-next-aborted-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true },
+          { id: "second", command: "/second" },
+        ],
+      });
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "auto-next-aborted-demo",
+        name: "aborted-demo",
+        workdir: join(dir, ".workflower", "workflows", "aborted-demo", "0001-auto-next-aborted-demo"),
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.handlers.agent_end[0](
+        {
+          type: "agent_end",
+          messages: [assistantMessageWithStopReason("aborted")],
+        },
+        createCommandContext(dir),
+      );
+
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        currentStepIndex: 0,
+      });
+      expect(sentWorkflowerPrompts(pi)).toEqual([]);
+      expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("retries the same autoNext step when the agent run outcome cannot be determined", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const statePath = activeStatePath(dir);
+    const pi = createPiHarness();
+
+    try {
+      registerWorkflow({
+        id: "auto-next-unknown-outcome-demo",
+        steps: [
+          { id: "first", command: "/first", autoNext: true },
+          { id: "second", command: "/second" },
+        ],
+      });
+      await writeActiveWorkflowState(statePath, {
+        sessionId: "session-id",
+        id: "auto-next-unknown-outcome-demo",
+        name: "unknown-outcome-demo",
+        workdir: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "unknown-outcome-demo",
+          "0001-auto-next-unknown-outcome-demo",
+        ),
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      registerWorkflower(pi);
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [] },
+        createCommandContext(dir),
+      );
+
+      await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
+        currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 1,
+          lastErrorMessage: "No assistant message was included in the agent_end event.",
+          exhausted: false,
+        },
+      });
+      const prompts = sentWorkflowerPrompts(pi);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].prompt).toContain("Current step 0: first");
+      expect(prompts[0].prompt).toContain(
+        "Retrying this same step because the previous auto-next attempt ended without a confirmed clean result",
+      );
+      expect(prompts[0].prompt).not.toContain("Current step 1: second");
       expect(pi.sentUserMessages).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -2110,7 +2555,10 @@ describe("/next", () => {
       });
 
       registerWorkflower(pi);
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, createCommandContext(dir));
+      await pi.handlers.agent_end[0](
+        { type: "agent_end", messages: [cleanAssistantMessage()] },
+        createCommandContext(dir),
+      );
 
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 1,
@@ -2287,7 +2735,7 @@ describe("/next", () => {
       });
 
       resetPiMessages(pi);
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
 
       await expect(readResumeState(resumePath)).resolves.toMatchObject({
         workflowId: "resume-movement-demo",
@@ -3071,10 +3519,21 @@ describe("/next", () => {
       registerWorkflower(pi);
 
       await pi.commands["wf:auto-pipe-source"].handler("auto-pipe-demo | auto-pipe-target", ctx);
+      const sourceStateWithQueuedHandoff = await readActiveWorkflowState(statePath);
+      await writeActiveWorkflowState(statePath, {
+        ...sourceStateWithQueuedHandoff,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 2,
+          lastErrorMessage: "previous source retry",
+          exhausted: false,
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        },
+      });
       await writeFile(sourceOutput, "source pollen", "utf8");
       resetPiMessages(pi);
 
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
 
       expect(ctx.newSession).not.toHaveBeenCalled();
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
@@ -3087,6 +3546,7 @@ describe("/next", () => {
       });
       const activeState = await readActiveWorkflowState(statePath);
       expect(activeState).not.toHaveProperty("queuedWorkflowIds");
+      expect(activeState).not.toHaveProperty("autoNextFailure");
       await expect(
         readFile(join(sourceFlower, "index.json"), "utf8").then(JSON.parse),
       ).resolves.toMatchObject({
@@ -3119,7 +3579,7 @@ describe("/next", () => {
       await writeFile(targetOutput, "target pollen", "utf8");
       resetPiMessages(pi);
 
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
 
       expect(ctx.newSession).not.toHaveBeenCalled();
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
@@ -3159,6 +3619,13 @@ describe("/next", () => {
         activeFlowerPath,
         workdir: staleWorkdir,
         currentStepIndex: 0,
+        autoNextFailure: {
+          stepIndex: 0,
+          attempts: 2,
+          lastErrorMessage: "previous final retry",
+          exhausted: false,
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        },
         startedAt: "2026-01-02T03:04:05.000Z",
         updatedAt: "2026-01-02T03:04:05.000Z",
       });
@@ -3170,7 +3637,7 @@ describe("/next", () => {
       );
       await writeFile(join(activeFlowerPath, "artifact.md"), "artifact", "utf8");
       registerWorkflower(pi);
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
 
       await expect(readActiveWorkflowState(statePath)).rejects.toThrow();
       await expect(access(activeFlowerPath)).rejects.toThrow();
@@ -3599,7 +4066,7 @@ describe("workflower_handoff tool", () => {
       resetPiMessages(pi);
 
       await executeHandoffTool(pi, "auto-handoff-tool-target", ctx);
-      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+      await pi.handlers.agent_end[0]({ type: "agent_end", messages: [cleanAssistantMessage()] }, ctx);
 
       await expect(readActiveWorkflowState(activeStatePath(dir))).resolves.toMatchObject({
         id: "auto-handoff-tool-target",
@@ -5596,6 +6063,24 @@ async function createPrivateSkillPackage(
 
 function activeStatePath(cwd: string, sessionId = "session-id"): string {
   return join(cwd, ".workflower", "tmp", "workflows", "active", `${sessionId}.json`);
+}
+
+function cleanAssistantMessage(): any {
+  return assistantMessageWithStopReason("stop");
+}
+
+function assistantMessageWithStopReason(
+  stopReason: string,
+  overrides: Record<string, unknown> = {},
+): any {
+  return {
+    role: "assistant",
+    content: [{ type: "text", text: "Done." }],
+    provider: "test-provider",
+    model: "test-model",
+    stopReason,
+    ...overrides,
+  };
 }
 
 function createSessionManager(

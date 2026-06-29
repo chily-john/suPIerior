@@ -12,7 +12,7 @@ export const storyImplementationLoopWorkflow: WorkflowDefinition = {
     {
       id: "implement-story",
       command: "/skill:story-implement",
-      thinkingLevel: "low",
+      thinkingLevel: "medium",
       autoNext: true,
       clearOnNext: true,
     },

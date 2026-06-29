@@ -2,6 +2,7 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 export const wpMigrationStoryImplementationLoopWorkflow: WorkflowDefinition = {
   id: "wp-migration-story-implementation-loop",
+  autoNext: true,
   userInvocable: false,
   modelInvocable: true,
   clearOnStart: true,

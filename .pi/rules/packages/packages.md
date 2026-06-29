@@ -10,6 +10,7 @@ triggers:
   - packages/experimental-workflows
   - counter workflow
   - counter-loop workflow
+  - discover-atomic-elements
   - stateful-grilling workflow
   - packages/pi-rules
   - packages/tui-tools
@@ -18,6 +19,11 @@ triggers:
   - packages/workflower
   - packages/workflower-authoring
   - packages/xtivia-workflows
+  - wp-page-migration
+  - wp-migration-plan-loop
+  - wp-migration-stories-split
+  - wp-migration-story-implementation-loop
+  - wp-migration-finalize
 ---
 
 # Packages
@@ -36,4 +42,4 @@ Enter here when deciding which workspace package owns a change. Keep `.pi/rules`
 | `tui-tools/`         | Changing reusable Pi TUI question primitives for guided workflow packages.                                                    |
 | `workflower/`        | Changing named Pi workflow orchestration, workflow registry APIs, `/wf`, `/wf:<id>`, and `/next` commands, or workflow state/artifacts. |
 | `workflower-authoring/` | Changing the standalone skill package that helps agents scaffold Workflower workflow packages. |
-| `xtivia-workflows/` | Changing XTIVIA Workflower workflows for WordPress-to-Next.js page migrations, source capture, migration planning, story implementation, or final verification. |
+| `xtivia-workflows/` | Changing XTIVIA Workflower workflows and reusable capture scripts for WordPress-to-Next.js page migrations, source capture, migration planning, story implementation, implementation doc generation, final verification, atomic elements discovery, atomic usage violation scanning, page component identification/classification, or component directory structure validation. |

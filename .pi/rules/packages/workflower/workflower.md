@@ -50,7 +50,7 @@ Workflower may use gardening/flower language as product personality, but plain e
 
 ## Package Rules
 
-- Workflower advances by explicit user intent or step-level `autoNext` and does not validate declared output files before `/next`.
+- Workflower advances by explicit user intent or step-level `autoNext`; auto-next advances only after clean agent completion, retries execution-error or unknown outcomes up to 3 total attempts, treats aborts as no-ops, and does not validate declared output files before `/next`.
 - Workflow and step `model` values use Pi `provider/model-id` references or ordered fallbacks; step candidates take precedence over workflow defaults and captured garden-start defaults, and unavailable candidates warn and keep the current/default model.
 - Initial starts stay in the current visible session and clear model context through `contextBoundaryEntryId` unless `clearOnStart: false`; non-final advancement also keeps the visible session and clears model context through `contextBoundaryEntryId` unless `clearOnNext: false`.
 - Handoffs via `/wf:<id>` while active or `workflower_handoff` reuse the current garden, mark the previous flower `handedOff`, pass indexed pollen, and do not apply the target workflow's `clearOnStart`.

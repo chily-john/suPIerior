@@ -17,6 +17,7 @@ export function renderStepKickoffPrompt(input: StepKickoffPromptInput): string {
   const incomingPollenLines = input.incomingPollen?.length
     ? ["Incoming pollen paths:", ...input.incomingPollen, ""]
     : [];
+  const retryNoticeLines = input.retryNotice ? [input.retryNotice] : [];
 
   return [
     "Start this Workflower workflow step.",
@@ -25,6 +26,7 @@ export function renderStepKickoffPrompt(input: StepKickoffPromptInput): string {
     `Name: ${input.name}`,
     `Workdir: ${input.workdir}`,
     `Current step ${input.currentStepIndex}: ${input.step.id}`,
+    ...retryNoticeLines,
     ...previousOutputLines,
     ...incomingPollenLines,
     "Expected outputs:",

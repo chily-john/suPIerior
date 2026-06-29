@@ -7,6 +7,7 @@ export type StepKickoffPromptInput = {
   workdir: string;
   currentStepIndex: number;
   step: WorkflowStep;
+  retryNotice?: string;
   previousStep?: WorkflowStep;
   incomingPollen?: string[];
   commandResolution?: WorkflowerStepCommandResolution;

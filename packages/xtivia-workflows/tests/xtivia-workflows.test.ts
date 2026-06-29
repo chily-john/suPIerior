@@ -55,11 +55,20 @@ describe("xtivia-workflows package", () => {
       id: "wp-page-migration",
       clearOnStart: true,
       cleanupOnCompletion: false,
-      pollen: ["site-info.md", "page-capture.md"],
+      pollen: [
+        "site-info.md",
+        "page-capture.md",
+        "components/atomic-elements.md",
+        "components/global-components.md",
+        "components/current-page-components.md",
+      ],
     });
     expect(wpPageMigrationWorkflow.steps.map((step: any) => step.id)).toEqual([
       "collect-site-info",
       "capture-source-page",
+      "discover-atomic-elements",
+      "refresh-global-component-inventory",
+      "identify-page-components",
       "start-migration-plan-loop",
     ]);
 
@@ -119,6 +128,9 @@ describe("xtivia-workflows package", () => {
     registerXtiviaWorkflows(pi);
 
     expect(collectSkillCommandNames(Object.values(workflows))).toEqual([
+      "discover-atomic-elements",
+      "identify-page-components",
+      "refresh-global-component-inventory",
       "wp-migration-finalize",
       "wp-migration-plan-create",
       "wp-migration-plan-review",
@@ -241,7 +253,12 @@ describe("xtivia-workflows package", () => {
       id: "wp-migration-plan-loop",
       userInvocable: false,
       modelInvocable: true,
-      pollen: "implementation-doc.md",
+      pollen: [
+        "implementation-doc.md",
+        "components/atomic-elements.md",
+        "components/global-components.md",
+        "components/current-page-components.md",
+      ],
     });
     expect(wpMigrationPlanLoopWorkflow.steps).toEqual([
       {

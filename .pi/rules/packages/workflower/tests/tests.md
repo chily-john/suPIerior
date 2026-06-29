@@ -35,6 +35,7 @@ Enter here when changing tests for Workflower's public package API, command beha
 - Use session-scoped active state paths when asserting workflow state.
 - Keep tests explicit about whether session replacement should happen; many lifecycle rules depend on `clearOn*` flags.
 - Cover tool-driven handoffs with active-state, context-boundary, pollen, turn-guard, auto-next, and follow-up prompt assertions.
+- Cover auto-next agent-end outcomes with clean advancement, execution-error and unknown-outcome retries, abort no-ops, retry exhaustion, and retry-state clearing across manual advancement, handoff, and completion.
 - Cover garden state foundations, `/wf state`, `workflower_state_*`, runtime facade methods, producer metadata, and completion cleanup when changing state behavior.
 - Cover `/wf resume` with preserved, paused, completed, and invalid resume metadata; metadata refresh across stop, next, auto-next, and handoff; valid/invalid step overrides; write/update failures; restored active state, resumed session ids, re-sent step prompts, and active-garden conflict refusal when changing resume behavior.
 - Cover private skill loading, registration, command expansion, and kickoff prompt injection when changing private skill behavior.

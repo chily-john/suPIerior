@@ -78,7 +78,7 @@ async function advanceWorkflowInternal(
   }
 
   const nextState: ActiveWorkflowState = {
-    ...state,
+    ...withoutTransientAutoNextState(state),
     currentStepIndex: nextStepIndex,
     updatedAt: new Date().toISOString(),
   };
@@ -156,6 +156,11 @@ async function handoffQueuedWorkflowInSession(
   } catch {
     return;
   }
+}
+
+function withoutTransientAutoNextState(state: ActiveWorkflowState): ActiveWorkflowState {
+  const { autoNextFailure: _autoNextFailure, ...stableState } = state;
+  return stableState;
 }
 
 function formatError(error: unknown): string {

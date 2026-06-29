@@ -11,6 +11,13 @@ export type ActiveWorkflowState = {
   activeFlowerPath?: string;
   workdir: string;
   currentStepIndex: number;
+  autoNextFailure?: {
+    stepIndex: number;
+    attempts: number;
+    lastErrorMessage?: string;
+    exhausted?: boolean;
+    updatedAt: string;
+  };
   queuedWorkflowIds?: string[];
   contextBoundaryEntryId?: string | null;
   runtimeDefaults?: WorkflowRuntimeDefaults;

@@ -18,6 +18,7 @@ export async function startWorkflowStep(
     incomingPollen?: string[];
     signal?: AbortSignal;
     promptDisplayKind?: "workflow" | "step";
+    retryNotice?: string;
   } = {},
 ): Promise<boolean> {
   const step = workflow.steps[stepIndex];
@@ -49,6 +50,7 @@ export async function startWorkflowStep(
     previousStep: workflow.steps[stepIndex - 1],
     incomingPollen: workflow.acceptPollen === false ? undefined : options.incomingPollen,
     commandResolution,
+    retryNotice: options.retryNotice,
   });
 
   const display =

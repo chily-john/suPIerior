@@ -30,6 +30,12 @@ triggers:
   - autoNext
   - workflow pipeline
   - kickoff prompt
+  - WorkflowDefinition
+  - WorkflowStep
+  - WorkflowModelReference
+  - WorkflowModelSetting
+  - WorkflowThinkingLevel
+  - advanceOnAutoNext
 ---
 
 # Workflower Source

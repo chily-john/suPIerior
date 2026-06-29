@@ -39,5 +39,5 @@ The package root exports `newFeatureWorkflow`, `takeItAwayWorkflow`, `featureDoc
 - Preserve `new-feature` grill conversation context with `clearOnNext: false`; feature-doc creation auto-advances into `feature-workflow-route start-implementation-doc-loop`.
 - Preserve `take-it-away` startup context with `clearOnStart: false`; it starts at feature-doc creation and then routes into the implementation-doc loop.
 - Keep `implementation-doc-loop`, `implementation-stories-split`, and `story-implementation-loop` model-invocable but not user-invocable; route between them with `feature-workflow-route` and `workflower_handoff` instructions.
-- Keep runtime profiles tiered: fast low defaults, medium doc/review/splitting steps, minimal routers, and high thinking for implementation-doc planning.
+- Keep runtime profiles tiered: fast low defaults, medium doc/review/splitting/story-implementation steps, minimal routers, and high thinking for implementation-doc planning.
 - If changing cleanup behavior, session-clearing flags, model/thinking profiles, loop routing, garden-state keys, or `autoNext`, update the README smoke-test expectations and package tests together.

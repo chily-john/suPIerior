@@ -2,6 +2,7 @@ import type { WorkflowDefinition } from "@supierior/workflower";
 
 export const wpMigrationStoriesSplitWorkflow: WorkflowDefinition = {
   id: "wp-migration-stories-split",
+  autoNext: true,
   userInvocable: false,
   modelInvocable: true,
   clearOnStart: true,

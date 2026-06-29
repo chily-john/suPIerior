@@ -246,7 +246,9 @@ Older gardens without `resume.json` cannot be resumed by this first implementati
 
 Workflower advances by explicit user intent in the current Pi session. After you complete and manually verify a step's declared outputs, type `/next`; no workflow id or name is required. If `/next` receives any arguments, Workflower reports `Usage: /next` and does not advance state.
 
-A step can set `autoNext: true` to advance directly after an agent run completes while that step is active. Auto-next uses the same internal advancement behavior as manual `/next`, including `clearOnNext`, final-step completion, completion cleanup, and chained auto-next steps. It does not queue a literal `/next` message.
+A step can set `autoNext: true` to advance directly after an agent run completes while that step is active. For safety, auto-next advances only after clean agent completion. If the agent run ends with an execution error, Workflower does not advance; it retries the same active step with a follow-up kickoff prompt. The default retry limit is 3 total attempts. When retries are exhausted, the active workflow remains on the same failed step.
+
+Auto-next uses the same internal advancement behavior as manual `/next` after clean completion, including `clearOnNext`, final-step completion, completion cleanup, and chained auto-next steps. It does not queue a literal `/next` message.
 
 Workflower intentionally advances blindly by user intent. It does not check whether output files exist, validate artifacts, or parse prompt text for state. Non-final advancement keeps the visible session and clears model context through `contextBoundaryEntryId` unless `clearOnNext: false`.
 

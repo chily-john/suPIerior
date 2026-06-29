@@ -8,7 +8,7 @@ import { sendWorkflowerPrompt } from "../send-workflower-prompt";
 import { consumeHandoffAutoNextSuppressionForState } from "../workflow-handoff-turn-guard";
 
 export function registerAutoNextOnAgentEnd(pi: ExtensionAPI): void {
-  pi.on("agent_end", async (_event, ctx) => {
+  pi.on("agent_end", async (event, ctx) => {
     await advanceOnAutoNext(
       ctx,
       {
@@ -20,6 +20,7 @@ export function registerAutoNextOnAgentEnd(pi: ExtensionAPI): void {
           sendWorkflowerPrompt(pi, { ...input, deliverAs: "followUp" }),
       },
       {
+        agentEndEvent: event,
         shouldSuppressAutoNext: (state) =>
           consumeHandoffAutoNextSuppressionForState(
             ctx.cwd,
