@@ -18,7 +18,9 @@ describe("XTIVIA workflow routing", () => {
 
         expect(prompt).toContain("wp-migration-plan-loop");
         expect(prompt).toContain("workflower_handoff");
-        await expect(readFile(statePath, "utf8")).resolves.toContain('"wpMigrationPlanReviewAttempts"');
+        await expect(readFile(statePath, "utf8")).resolves.toContain(
+          '"wpMigrationPlanReviewAttempts"',
+        );
         const state = JSON.parse(await readFile(statePath, "utf8"));
         expect(state.values.wpMigrationPlanReviewAttempts.value).toBe(0);
       },
@@ -234,11 +236,7 @@ async function withGardenState(
 
   try {
     await mkdir(gardenPath, { recursive: true });
-    await writeFile(
-      statePath,
-      `${JSON.stringify({ version: 1, values }, null, 2)}\n`,
-      "utf8",
-    );
+    await writeFile(statePath, `${JSON.stringify({ version: 1, values }, null, 2)}\n`, "utf8");
 
     await assertion({
       ctx: {

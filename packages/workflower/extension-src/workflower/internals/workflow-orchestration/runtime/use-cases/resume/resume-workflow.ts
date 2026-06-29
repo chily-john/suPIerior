@@ -110,7 +110,10 @@ export async function resumeWorkflow(
   const currentStepIndex = stepIndexResult.stepIndex;
 
   const flowerIndex = await readFlowerIndex(resume.activeFlowerPath).catch((error) => {
-    ctx.ui.notify(`Failed to read active flower index for ${gardenName}: ${formatError(error)}`, "error");
+    ctx.ui.notify(
+      `Failed to read active flower index for ${gardenName}: ${formatError(error)}`,
+      "error",
+    );
     return undefined;
   });
   if (!flowerIndex) {

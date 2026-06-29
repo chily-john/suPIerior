@@ -164,11 +164,14 @@ describe("xtivia-workflows package", () => {
   });
 
   it("loads site info as a private Workflower skill and matches workflow output", async () => {
-    const { default: registerXtiviaWorkflows, wpPageMigrationWorkflow } = await loadXtiviaWorkflows();
+    const { default: registerXtiviaWorkflows, wpPageMigrationWorkflow } =
+      await loadXtiviaWorkflows();
     const pi = createPiHarness();
 
     expect(findPrivateSkill("wp-migration-site-info")).toBeUndefined();
-    expect(wpPageMigrationWorkflow.steps.find((step: any) => step.id === "collect-site-info")).toMatchObject({
+    expect(
+      wpPageMigrationWorkflow.steps.find((step: any) => step.id === "collect-site-info"),
+    ).toMatchObject({
       command: "/skill:wp-migration-site-info",
       outputs: ["site-info.md"],
     });
@@ -431,7 +434,9 @@ function collectSkillCommandNames(workflows: any[]): string[] {
   return workflows
     .flatMap((workflow) => workflow?.steps ?? [])
     .map((step) => step.command)
-    .filter((command): command is string => typeof command === "string" && command.startsWith("/skill:"))
+    .filter(
+      (command): command is string => typeof command === "string" && command.startsWith("/skill:"),
+    )
     .map((command) => command.slice("/skill:".length).trim().split(/\s+/, 1)[0])
     .sort();
 }

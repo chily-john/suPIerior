@@ -3772,7 +3772,9 @@ describe("/wf:<id>", () => {
       await rm(activeStatePath(dir), { force: true });
       await pi.commands.wf.handler("resume resume-demo", resumeCtx);
 
-      await expect(readActiveWorkflowState(activeStatePath(dir, "resumed-session"))).resolves.toMatchObject({
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "resumed-session")),
+      ).resolves.toMatchObject({
         id: "resume-tracer",
         name: "resume-demo",
         gardenName: "resume-demo",
@@ -3825,7 +3827,9 @@ describe("/wf:<id>", () => {
       });
       await pi.commands.wf.handler("resume resume-step-index --step 2", resumeCtx);
 
-      await expect(readActiveWorkflowState(activeStatePath(dir, "step-index-session"))).resolves.toMatchObject({
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "step-index-session")),
+      ).resolves.toMatchObject({
         id: "resume-step-index-demo",
         gardenName: "resume-step-index",
         currentStepIndex: 2,
@@ -3848,7 +3852,9 @@ describe("/wf:<id>", () => {
       });
       await pi.commands.wf.handler("resume resume-step-index --step 02", paddedResumeCtx);
 
-      await expect(readActiveWorkflowState(activeStatePath(dir, "step-padded-index-session"))).resolves.toMatchObject({
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "step-padded-index-session")),
+      ).resolves.toMatchObject({
         currentStepIndex: 2,
         sessionId: "step-padded-index-session",
       });
@@ -3890,7 +3896,9 @@ describe("/wf:<id>", () => {
       });
       await pi.commands.wf.handler("resume resume-step-id --step route-story-review", resumeCtx);
 
-      await expect(readActiveWorkflowState(activeStatePath(dir, "step-id-session"))).resolves.toMatchObject({
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "step-id-session")),
+      ).resolves.toMatchObject({
         id: "resume-step-id-demo",
         gardenName: "resume-step-id",
         currentStepIndex: 1,
@@ -3900,7 +3908,9 @@ describe("/wf:<id>", () => {
         currentStepIndex: 1,
         sessionId: "step-id-session",
       });
-      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain("Current step 1: route-story-review");
+      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain(
+        "Current step 1: route-story-review",
+      );
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -3931,15 +3941,18 @@ describe("/wf:<id>", () => {
       const invalidCases = [
         {
           args: "resume-step-invalid --step missing-step",
-          expected: "Cannot resume garden resume-step-invalid; step id missing-step is not valid for workflow resume-step-invalid-demo.",
+          expected:
+            "Cannot resume garden resume-step-invalid; step id missing-step is not valid for workflow resume-step-invalid-demo.",
         },
         {
           args: "resume-step-invalid --step 3",
-          expected: "Cannot resume garden resume-step-invalid; step index 3 is not valid for workflow resume-step-invalid-demo.",
+          expected:
+            "Cannot resume garden resume-step-invalid; step index 3 is not valid for workflow resume-step-invalid-demo.",
         },
         {
           args: "resume-step-invalid --step -1",
-          expected: "Cannot resume garden resume-step-invalid; step index -1 is not valid for workflow resume-step-invalid-demo.",
+          expected:
+            "Cannot resume garden resume-step-invalid; step index -1 is not valid for workflow resume-step-invalid-demo.",
         },
         {
           args: "resume-step-invalid --step",
@@ -3959,7 +3972,8 @@ describe("/wf:<id>", () => {
         },
         {
           args: "resume-step-invalid --step duplicate",
-          expected: "Cannot resume garden resume-step-invalid; step id duplicate is ambiguous for workflow resume-step-invalid-demo.",
+          expected:
+            "Cannot resume garden resume-step-invalid; step id duplicate is ambiguous for workflow resume-step-invalid-demo.",
         },
       ];
 
@@ -3971,7 +3985,9 @@ describe("/wf:<id>", () => {
         await pi.commands.wf.handler(`resume ${invalidCase.args}`, invalidCtx);
 
         expect(invalidCtx.notifications.at(-1)).toEqual([invalidCase.expected, "error"]);
-        await expect(access(activeStatePath(dir, `invalid-step-session-${index}`))).rejects.toThrow();
+        await expect(
+          access(activeStatePath(dir, `invalid-step-session-${index}`)),
+        ).rejects.toThrow();
         await expect(readFile(resumePath, "utf8")).resolves.toBe(resumeBytesBefore);
       }
     } finally {
@@ -4028,7 +4044,10 @@ describe("/wf:<id>", () => {
 
       type ResumeCase = {
         name: string;
-        mutate?: (state: Record<string, unknown>, paths: { gardenPath: string; flowerPath: string }) => Record<string, unknown>;
+        mutate?: (
+          state: Record<string, unknown>,
+          paths: { gardenPath: string; flowerPath: string },
+        ) => Record<string, unknown>;
         raw?: string;
         writeIndex?: false | { workflowId: string };
         expected: string;
@@ -4042,28 +4061,33 @@ describe("/wf:<id>", () => {
         {
           name: "unsupported-version",
           mutate: (state) => ({ ...state, version: 2 }),
-          expected: "Cannot resume garden unsupported-version; resume metadata version is unsupported.",
+          expected:
+            "Cannot resume garden unsupported-version; resume metadata version is unsupported.",
         },
         {
           name: "completed-garden",
           mutate: (state) => ({ ...state, status: "completed" }),
-          expected: "Cannot resume garden completed-garden; resume metadata is completed and cannot be resumed.",
+          expected:
+            "Cannot resume garden completed-garden; resume metadata is completed and cannot be resumed.",
         },
         {
           name: "unknown-workflow",
           mutate: (state) => ({ ...state, workflowId: "missing-workflow" }),
           writeIndex: { workflowId: "missing-workflow" },
-          expected: "Cannot resume garden unknown-workflow; workflow id missing-workflow is not registered.",
+          expected:
+            "Cannot resume garden unknown-workflow; workflow id missing-workflow is not registered.",
         },
         {
           name: "bad-step",
           mutate: (state) => ({ ...state, currentStepIndex: 3 }),
-          expected: "Cannot resume garden bad-step; current step index 3 is not valid for workflow resume-guarded.",
+          expected:
+            "Cannot resume garden bad-step; current step index 3 is not valid for workflow resume-guarded.",
         },
         {
           name: "wrong-garden-path",
           mutate: (state) => ({ ...state, gardenPath: join(workflowsRoot, "other-garden") }),
-          expected: "Cannot resume garden wrong-garden-path; resume metadata points at a different garden path.",
+          expected:
+            "Cannot resume garden wrong-garden-path; resume metadata points at a different garden path.",
         },
         {
           name: "escaped-flower-path",
@@ -4071,7 +4095,8 @@ describe("/wf:<id>", () => {
             ...state,
             activeFlowerPath: join(paths.gardenPath, "..", "escaped-flower"),
           }),
-          expected: "Cannot resume garden escaped-flower-path; active flower path escapes the garden.",
+          expected:
+            "Cannot resume garden escaped-flower-path; active flower path escapes the garden.",
         },
         {
           name: "missing-flower-index",
@@ -4081,7 +4106,8 @@ describe("/wf:<id>", () => {
         {
           name: "mismatched-flower-workflow",
           writeIndex: { workflowId: "other-workflow" },
-          expected: "Cannot resume garden mismatched-flower-workflow; active flower belongs to workflow other-workflow, not resume-guarded.",
+          expected:
+            "Cannot resume garden mismatched-flower-workflow; active flower belongs to workflow other-workflow, not resume-guarded.",
         },
       ];
 
@@ -4146,11 +4172,20 @@ describe("/wf:<id>", () => {
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
     const ctx = createCommandContext(dir, { newSession: vi.fn() });
-    const resumePath = join(dir, ".workflower", "workflows", "resume-current-conflict", "resume.json");
+    const resumePath = join(
+      dir,
+      ".workflower",
+      "workflows",
+      "resume-current-conflict",
+      "resume.json",
+    );
     const currentStatePath = activeStatePath(dir);
 
     try {
-      registerWorkflow({ id: "resume-current-conflict-demo", steps: [{ id: "first", command: "/first" }] });
+      registerWorkflow({
+        id: "resume-current-conflict-demo",
+        steps: [{ id: "first", command: "/first" }],
+      });
       registerWorkflower(pi);
 
       await pi.commands["wf:resume-current-conflict-demo"].handler("resume-current-conflict", ctx);
@@ -4201,10 +4236,19 @@ describe("/wf:<id>", () => {
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
     const pi = createPiHarness();
     const ctx = createCommandContext(dir, { newSession: vi.fn() });
-    const resumePath = join(dir, ".workflower", "workflows", "resume-owned-conflict", "resume.json");
+    const resumePath = join(
+      dir,
+      ".workflower",
+      "workflows",
+      "resume-owned-conflict",
+      "resume.json",
+    );
 
     try {
-      registerWorkflow({ id: "resume-owned-conflict-demo", steps: [{ id: "first", command: "/first" }] });
+      registerWorkflow({
+        id: "resume-owned-conflict-demo",
+        steps: [{ id: "first", command: "/first" }],
+      });
       registerWorkflower(pi);
 
       await pi.commands["wf:resume-owned-conflict-demo"].handler("resume-owned-conflict", ctx);
@@ -5327,9 +5371,15 @@ describe("/wf:<id>", () => {
     const resumePath = join(dir, ".workflower", "workflows", "resume-handoff", "resume.json");
 
     try {
-      registerWorkflow({ id: "resume-handoff-source", steps: [{ id: "source", command: "/source" }] });
+      registerWorkflow({
+        id: "resume-handoff-source",
+        steps: [{ id: "source", command: "/source" }],
+      });
       registerWorkflow({ id: "resume-user-target", steps: [{ id: "user", command: "/user" }] });
-      registerWorkflow({ id: "resume-queued-target", steps: [{ id: "queued", command: "/queued" }] });
+      registerWorkflow({
+        id: "resume-queued-target",
+        steps: [{ id: "queued", command: "/queued" }],
+      });
       registerWorkflow({ id: "resume-tool-target", steps: [{ id: "tool", command: "/tool" }] });
       registerWorkflower(pi);
 

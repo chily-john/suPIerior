@@ -176,7 +176,8 @@ async function routeMigrationStoryReview(ctx: WorkflowerCommandContext): Promise
   const manifest = readObject<StoryManifestValue>(state, "wpMigrationStoryManifest");
   const stories = Array.isArray(manifest?.stories) ? (manifest.stories as StoryValue[]) : [];
   const currentIndex = readNumber(state, "wpMigrationCurrentStoryIndex");
-  const currentStory = stories[currentIndex] ?? readObject<StoryValue>(state, "wpMigrationCurrentStory");
+  const currentStory =
+    stories[currentIndex] ?? readObject<StoryValue>(state, "wpMigrationCurrentStory");
   if (!currentStory || typeof currentStory.path !== "string") {
     return stopPrompt(
       "wpMigrationCurrentStory.path is missing from garden state. The story implementation loop cannot route review results without a current story.",
@@ -334,7 +335,9 @@ function readReviewState(state: GardenStateFile, key: string): ReviewState {
     if (score !== undefined) return { review, score, diagnostics };
     diagnostics.push(`${key} exists, but ${key}.score is ${describeValue(review.score)}.`);
   } else if (state.values[key]) {
-    diagnostics.push(`${key} exists, but it is ${describeValue(state.values[key]?.value)} instead of an object.`);
+    diagnostics.push(
+      `${key} exists, but it is ${describeValue(state.values[key]?.value)} instead of an object.`,
+    );
   } else {
     diagnostics.push(`${key} is not set.`);
   }

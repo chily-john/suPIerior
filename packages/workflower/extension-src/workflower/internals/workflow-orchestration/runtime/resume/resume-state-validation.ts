@@ -10,10 +10,13 @@ export type GardenResumeStateValidationResult =
   | { ok: true; state: ResumableGardenResumeState }
   | { ok: false; message: string };
 
-export function validateGardenResumeState(input: unknown, options: {
-  gardenName: string;
-  expectedGardenPath: string;
-}): GardenResumeStateValidationResult {
+export function validateGardenResumeState(
+  input: unknown,
+  options: {
+    gardenName: string;
+    expectedGardenPath: string;
+  },
+): GardenResumeStateValidationResult {
   if (!isRecord(input)) {
     return unsupportedShape(options.gardenName);
   }
