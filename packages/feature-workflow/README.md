@@ -43,6 +43,13 @@ Steps:
 
 Use after an organic conversation with Pi. The workflow preserves the current conversation on start, creates a feature doc first, then enters the same implementation flow as `new-feature`.
 
+Runtime profile:
+
+- defaults to `openai/gpt-5.4-mini` with low thinking for quick workflow movement;
+- keeps feature-doc creation at medium thinking;
+- hands implementation planning to a higher-thinking step in `implementation-doc-loop`;
+- keeps review steps at medium thinking and router steps at minimal thinking.
+
 Steps:
 
 1. `create-feature-doc` — `/skill:feature-doc-create`, writes `feature-doc.md` and saves `featureDocPath`.
@@ -64,6 +71,13 @@ This workflow does not clean up its workdir on completion, so the generated docu
 
 Creates or improves `implementation-doc.md`, reviews it, and routes based on garden state.
 
+Runtime profile:
+
+- workflow default: `openai/gpt-5.4-mini` with low thinking;
+- planning step override: `openai/gpt-5.5` fallback to `openai/gpt-5.4-mini`, with high thinking;
+- review step override: medium thinking;
+- router step override: minimal thinking.
+
 - Passing review score: `>= 4` on a 1-5 scale.
 - Maximum improvement attempts: `5`.
 - Review facts are saved under `implementationDocReview`.
@@ -74,11 +88,24 @@ Creates or improves `implementation-doc.md`, reviews it, and routes based on gar
 
 Splits an accepted implementation doc into topologically ordered story files under `stories/` and saves `storyManifest` plus the first `currentStory` routing state.
 
+Runtime profile:
+
+- workflow default: `openai/gpt-5.4-mini` with low thinking;
+- story-splitting step override: medium thinking;
+- router step override: minimal thinking.
+
 Story files are implementation-ready and written as instructions to a junior developer.
 
 ### `story-implementation-loop`
 
 Implements one story, reviews it, and routes based on garden state.
+
+Runtime profile:
+
+- workflow default: `openai/gpt-5.4-mini` with low thinking;
+- implementation step stays low thinking on the fast model;
+- review step is raised to medium thinking;
+- router step stays minimal.
 
 - Passing review score: `>= 4` on a 1-5 scale.
 - Maximum improvement attempts per story: `3`.

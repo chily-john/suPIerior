@@ -222,13 +222,21 @@ Handoffs do not apply the target workflow's `clearOnStart`; that setting only af
 /wf status
 /wf stop
 /wf list
+/wf resume <garden-name>
+/wf resume <garden-name> --step <step-id|index>
 ```
 
 When no workflow is active in the current Pi session, `/wf status` reports that there is no active workflow. When a workflow is active, status shows the workflow id, garden, garden path, active flower path, and current step id/command. If the saved active state references a workflow id that is no longer registered, status reports that mismatch as a warning while still showing the garden and active flower path.
 
-`/wf stop` clears the current session's `.workflower/tmp/workflows/active/<session-id>.json` state and reports which workflow and garden were stopped. It does not delete garden or flower artifacts under `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/`; users can inspect, reuse, or remove those files manually with `/wf clean <garden-name>`.
+`/wf stop` clears the current session's `.workflower/tmp/workflows/active/<session-id>.json` state and reports which workflow and garden were stopped. It does not delete garden state or flower artifacts under `.workflower/workflows/<garden-name>/`, and it leaves the garden resumable with `/wf resume <garden-name>` when resume metadata is present. Users can inspect, reuse, or remove those files manually with `/wf clean <garden-name>`.
 
 `/wf list` shows all session-scoped active workflow states in the repo by workflow, garden, and active flower path, and marks entries outside the current Pi session as `stale/other session` so abandoned sessions are visible without automatically adopting them.
+
+Use `/wf resume <garden-name>` to restore a stopped or otherwise inactive garden from `.workflower/workflows/<garden-name>/resume.json`. Resume refuses to run when the current session already has an active workflow, when another tracked session still owns the garden, when the saved metadata belongs to a completed garden, or when the workflow definition or active flower metadata cannot be validated. Completed gardens are refused.
+
+Use `/wf resume <garden-name> --step <step-id|index>` only to correct the active step pointer before resuming. Numeric step overrides are zero-based. The `--step` option is a pointer override only: it does not prune future flowers, does not rewind artifacts, and does not mutate garden state. Pass `--step` and its value as separate arguments; `--step=<value>` is not supported.
+
+Older gardens without `resume.json` cannot be resumed by this first implementation. Workflower refuses those gardens rather than migrating or repairing them automatically.
 
 ## Advance to the next step
 
@@ -332,6 +340,7 @@ If you want Pi to create a workflow package for you, install the standalone `@su
 - Active flower workdir: `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/`
 - Flower index: `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/index.json`
 - Active session state: `.workflower/tmp/workflows/active/<session-id>.json`
+- Resume metadata: `.workflower/workflows/<garden-name>/resume.json`
 
 Workflower automatically creates `.workflower/.gitignore` with `*` when it writes runtime state or artifacts so workflow run data stays untracked by default.
 

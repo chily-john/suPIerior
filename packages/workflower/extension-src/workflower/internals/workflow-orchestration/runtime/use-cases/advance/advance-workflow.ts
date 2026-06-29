@@ -6,6 +6,7 @@ import {
 } from "@orchestration/runtime/active-state/active-state-store";
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
 import { updateFlowerPollen } from "@orchestration/runtime/artifacts/flower-index-store";
+import { persistResumeMetadataForActiveState } from "@orchestration/runtime/resume/resume-state-store";
 import { startWorkflowStep } from "@orchestration/runtime/use-cases/start-step/start-workflow-step";
 import { handoffWorkflowInSession } from "../start/handoff-workflow-session";
 import type { CurrentSessionPromptSender } from "../workflow-runtime.types";
@@ -90,6 +91,13 @@ async function advanceWorkflowInternal(
     await writeActiveWorkflowState(activeStatePath, nextState);
   } catch (error) {
     ctx.ui.notify(`Failed to update active workflow state: ${formatError(error)}`, "error");
+    return;
+  }
+
+  try {
+    await persistResumeMetadataForActiveState(nextState);
+  } catch (error) {
+    ctx.ui.notify(`Failed to update resume metadata: ${formatError(error)}`, "error");
     return;
   }
 

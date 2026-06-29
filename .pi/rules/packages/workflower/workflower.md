@@ -7,6 +7,7 @@ triggers:
   - workflower
   - /wf
   - /wf clean
+  - /wf resume
   - /wf:<id>
   - /next
   - workflower_handoff
@@ -25,7 +26,7 @@ triggers:
 
 # Workflower
 
-Enter here when changing named workflow orchestration, workflow registration APIs, `/wf`, `/wf clean`, `/wf:<id>`, `/next`, `workflower_handoff`, `workflower_state_*`, `createWorkflowerRuntime`, or private skill loading behavior, auto-next behavior, session-clearing policy, or workflow artifact/state handling. Workflower persists one active workflow per Pi session under `.workflower/tmp/workflows/active/<session-id>.json`, stores garden state at `.workflower/workflows/<garden-name>/state.json`, and uses `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/` for flower artifacts.
+Enter here when changing named workflow orchestration, workflow registration APIs, `/wf`, `/wf clean`, `/wf resume`, `/wf:<id>`, `/next`, `workflower_handoff`, `workflower_state_*`, `createWorkflowerRuntime`, or private skill loading behavior, auto-next behavior, session-clearing policy, or workflow artifact/state handling. Workflower persists one active workflow per Pi session under `.workflower/tmp/workflows/active/<session-id>.json`, stores garden state at `.workflower/workflows/<garden-name>/state.json`, and uses `.workflower/workflows/<garden-name>/<sequence>-<workflow-id>/` for flower artifacts.
 
 ## Subdirectories
 
@@ -59,6 +60,7 @@ Workflower may use gardening/flower language as product personality, but plain e
 - Garden state is for small JSON-compatible active-garden facts; expose it through `/wf state`, `workflower_state_*`, and `createWorkflowerRuntime(pi, ctx).state`, not as large reports or logs.
 - Keep private skill discovery and registration internal to Workflower; workflow packages opt in through setup options rather than exported skill registries.
 - Multiple active workflows are supported across different Pi sessions; `/next`, `/wf status`, and `/wf stop` operate on the current session's active workflow, while `/wf list` can surface stale/other-session active states and `/wf clean <garden-name>` refuses gardens active in any tracked session.
+- `/wf resume <garden-name> [--step <step-index-or-id>]` restores active state from preserved, non-completed garden resume metadata only when the current session is inactive and no tracked session already owns that garden; step overrides use separate `--step <value>` args, resolve to a valid unique zero-based index or id, and only move the active pointer without pruning artifacts or mutating garden state.
 - Keep external workflow registration through `registerWorkflow` at the package root so contributed workflows share the same global registry as command handlers.
 - Keep deterministic extension integrations on the package-root `createWorkflowerRuntime` facade for active-garden state and handoff.
 - Keep Workflower runtime-only; workflow packages or `workflower-authoring` should provide workflows and companion skills.
@@ -66,5 +68,5 @@ Workflower may use gardening/flower language as product personality, but plain e
 - User-invokable workflow IDs become `/wf:<id>` command names; keep id validation command-safe and duplicate ids rejected.
 - Initial garden names must be safe path segments; active handoffs create the next numbered flower in the current garden.
 - Keep runtime-owned state and artifacts under `.workflower/` and create `.workflower/.gitignore` so run data stays untracked.
-- Workflow completion deletes garden state and artifacts by default; `cleanupOnCompletion: false` preserves that workflow's flower artifacts, and on the active completing workflow also preserves garden state; completion clears session context unless `clearOnCompletion: false` or auto-next completion prevents replacement.
+- Workflow completion deletes garden state, artifacts, and resume metadata by default; `cleanupOnCompletion: false` preserves that workflow's flower artifacts, and on the active completing workflow also preserves garden state and marks resume metadata completed; completion clears session context unless `clearOnCompletion: false` or auto-next completion prevents replacement.
 - Validate changes with package-local `pnpm test`, `pnpm typecheck`, `pnpm lint`, and `pnpm build`.

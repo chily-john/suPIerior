@@ -20,4 +20,4 @@ Enter here when changing tests that prove the package exports and registers the 
 
 - Use dynamic imports from `extension-src` to exercise the same public module shape package consumers use during development.
 - Cover package manifest skill exposure: `pi.skills` stays empty, while workflow-only skills use `pi.workflowerSkills` and load into Workflower's private registry during extension setup.
-- When workflow definitions change, update tests to reflect the full definition including invocation flags, cleanup behavior, optional session flags, output artifacts, routing commands, garden-state expectations, and auto-advance expectations.
+- When workflow definitions change, update tests to reflect the full definition including invocation flags, cleanup behavior, model/thinking profiles, optional session flags, output artifacts, routing commands, garden-state expectations, and auto-advance expectations.

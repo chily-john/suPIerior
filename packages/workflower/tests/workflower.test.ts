@@ -120,6 +120,13 @@ describe("package smoke", () => {
     );
     expect(readme).toContain("queued workflow targets must be user-invocable");
     expect(readme).toContain("Queued pipeline segments are workflow ids only");
+    expect(readme).toContain("/wf resume <garden-name>");
+    expect(readme).toContain("/wf resume <garden-name> --step <step-id|index>");
+    expect(readme).toContain("zero-based");
+    expect(readme).toContain("pointer override");
+    expect(readme).toContain("does not prune");
+    expect(readme).toContain("resume.json");
+    expect(readme).toContain("--step=<value>");
     expect(authoringSkill).toContain("garden state");
     expect(authoringSkill).toContain("deterministic routing");
     expect(authoringSkill).toContain("Use output files for large artifacts");
@@ -1463,7 +1470,7 @@ describe("command registration", () => {
     expect(pi.tools.workflower_state_get).toBeDefined();
     expect(pi.tools.workflower_state_set).toBeDefined();
     expect(pi.tools.workflower_state_list).toBeDefined();
-    expect(pi.commands.wf.description).toMatch(/Inspect and stop the active Workflower workflow/);
+    expect(pi.commands.wf.description).toMatch(/Inspect, resume, and stop Workflower workflows/);
     expect(typeof pi.commands.wf.handler).toBe("function");
     expect(pi.commands["wf:feature"].description).toMatch(/Start Workflower workflow feature/);
     expect(typeof pi.commands["wf:feature"].handler).toBe("function");
@@ -1870,6 +1877,62 @@ describe("/next", () => {
     }
   });
 
+  it("stop leaves a garden resumable and marks metadata paused", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const gardenPath = join(dir, ".workflower", "workflows", "paused-demo");
+    const resumePath = join(gardenPath, "resume.json");
+    const gardenStatePath = resolveGardenStatePath(gardenPath);
+
+    try {
+      registerWorkflow({ id: "pause-resume-demo", steps: [{ id: "first", command: "/first" }] });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:pause-resume-demo"].handler("paused-demo", ctx);
+      await pi.commands.wf.handler("state set review.rating 4", ctx);
+      const activeResumeBeforeStop = await readResumeState(resumePath);
+      const activeFlowerPath = activeResumeBeforeStop.activeFlowerPath;
+
+      await pi.commands.wf.handler("stop", ctx);
+
+      await expect(access(activeStatePath(dir))).rejects.toThrow();
+      await expect(access(activeFlowerPath)).resolves.toBeUndefined();
+      await expect(readFile(gardenStatePath, "utf8").then(JSON.parse)).resolves.toMatchObject({
+        values: { "review.rating": { value: 4 } },
+      });
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        status: "paused",
+        workflowId: "pause-resume-demo",
+        gardenName: "paused-demo",
+        activeFlowerPath,
+      });
+      expect((await readResumeState(resumePath)).updatedAt).not.toBe(
+        activeResumeBeforeStop.updatedAt,
+      );
+
+      const resumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "resumed-session"),
+      });
+      await pi.commands.wf.handler("resume paused-demo", resumeCtx);
+
+      await expect(
+        readActiveWorkflowState(activeStatePath(dir, "resumed-session")),
+      ).resolves.toMatchObject({
+        id: "pause-resume-demo",
+        gardenName: "paused-demo",
+        sessionId: "resumed-session",
+      });
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        status: "active",
+        sessionId: "resumed-session",
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("lists current-session and stale workflow states by garden and flower", async () => {
     const { default: registerWorkflower } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
@@ -1932,7 +1995,7 @@ describe("/next", () => {
     await pi.commands.wf.handler("frobnicate", ctx);
 
     expect(ctx.notifications.at(-1)?.[0]).toMatch(
-      /Unknown wf command: frobnicate\. Available commands: status, stop, list, clean, state\./,
+      /Unknown wf command: frobnicate\. Available commands: status, stop, list, clean, state, resume\./,
     );
     expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });
@@ -2183,6 +2246,86 @@ describe("/next", () => {
       await expect(readActiveWorkflowState(statePath)).resolves.toMatchObject({
         currentStepIndex: 0,
       });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("updates resume metadata on manual next and auto-next", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-movement", "resume.json");
+
+    try {
+      registerWorkflow({
+        id: "resume-movement-demo",
+        steps: [
+          { id: "manual", command: "/manual" },
+          { id: "automatic", command: "/automatic", autoNext: true },
+          { id: "done", command: "/done" },
+        ],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-movement-demo"].handler("resume-movement", ctx);
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-movement-demo",
+        activeFlowerName: "0001-resume-movement-demo",
+        currentStepIndex: 0,
+      });
+
+      resetPiMessages(pi);
+      await pi.commands.next.handler("", ctx);
+
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-movement-demo",
+        activeFlowerName: "0001-resume-movement-demo",
+        currentStepIndex: 1,
+        contextBoundaryEntryId: "leaf-id",
+      });
+
+      resetPiMessages(pi);
+      await pi.handlers.agent_end[0]({ type: "agent_end" }, ctx);
+
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-movement-demo",
+        activeFlowerName: "0001-resume-movement-demo",
+        currentStepIndex: 2,
+        contextBoundaryEntryId: "leaf-id",
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports resume metadata write failures during active pointer movement", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-write-failure", "resume.json");
+
+    try {
+      registerWorkflow({
+        id: "resume-write-failure-demo",
+        steps: [
+          { id: "first", command: "/first" },
+          { id: "second", command: "/second" },
+        ],
+      });
+      registerWorkflower(pi);
+      await pi.commands["wf:resume-write-failure-demo"].handler("resume-write-failure", ctx);
+      resetPiMessages(pi);
+      await rm(resumePath, { force: true });
+      await mkdir(resumePath);
+
+      await pi.commands.next.handler("", ctx);
+
+      expect(ctx.notifications.at(-1)?.[0]).toMatch(/Failed to update resume metadata/);
+      expect(ctx.notifications.at(-1)?.[1]).toBe("error");
+      expect(sentWorkflowerPrompts(pi)).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -2649,6 +2792,69 @@ describe("/next", () => {
       expect(ctx.notifications.at(-1)).toEqual([
         "Workflow garden-single-completion-demo complete.",
         "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("completion removes or terminally marks resume metadata based on cleanup settings", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const defaultResumePath = join(
+      dir,
+      ".workflower",
+      "workflows",
+      "resume-cleanup-default",
+      "resume.json",
+    );
+    const preservedResumePath = join(
+      dir,
+      ".workflower",
+      "workflows",
+      "resume-cleanup-preserved",
+      "resume.json",
+    );
+
+    try {
+      registerWorkflow({
+        id: "resume-cleanup-default-demo",
+        steps: [{ id: "only", command: "/only" }],
+      });
+      registerWorkflow({
+        id: "resume-cleanup-preserved-demo",
+        cleanupOnCompletion: false,
+        steps: [{ id: "only", command: "/only" }],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-cleanup-default-demo"].handler("resume-cleanup-default", ctx);
+      await pi.commands.next.handler("", ctx);
+      await expect(access(defaultResumePath)).rejects.toThrow();
+
+      await pi.commands["wf:resume-cleanup-preserved-demo"].handler(
+        "resume-cleanup-preserved",
+        ctx,
+      );
+      await pi.commands.next.handler("", ctx);
+
+      const completedResume = await readResumeState(preservedResumePath);
+      expect(completedResume).toMatchObject({
+        status: "completed",
+        workflowId: "resume-cleanup-preserved-demo",
+        gardenName: "resume-cleanup-preserved",
+      });
+      expect(completedResume.completedAt).toBeTruthy();
+
+      const resumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "completed-resume-session"),
+      });
+      await pi.commands.wf.handler("resume resume-cleanup-preserved", resumeCtx);
+      expect(resumeCtx.notifications.at(-1)).toEqual([
+        "Cannot resume garden resume-cleanup-preserved; resume metadata is completed and cannot be resumed.",
+        "error",
       ]);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -3517,6 +3723,530 @@ describe("/wf:<id>", () => {
         join(dir, ".workflower", "workflows", "release-notes", "0001-feature", "feature.md"),
       );
       expect(pi.sentUserMessages).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("resumes a preserved garden after the current active state is missing", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+
+    try {
+      registerWorkflow({ id: "resume-tracer", steps: [{ id: "first", command: "/first" }] });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-tracer"].handler("resume-demo", ctx);
+
+      const resumeState = JSON.parse(
+        await readFile(join(dir, ".workflower", "workflows", "resume-demo", "resume.json"), "utf8"),
+      );
+      expect(resumeState).toMatchObject({
+        version: 1,
+        status: "active",
+        sessionId: "session-id",
+        sessionFile: join(dir, "session.jsonl"),
+        workflowId: "resume-tracer",
+        gardenName: "resume-demo",
+        gardenPath: join(dir, ".workflower", "workflows", "resume-demo"),
+        activeFlowerName: "0001-resume-tracer",
+        activeFlowerPath: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "resume-demo",
+          "0001-resume-tracer",
+        ),
+        currentStepIndex: 0,
+        startedAt: expect.any(String),
+        updatedAt: expect.any(String),
+      });
+      expect(resumeState.startedAt).toBeTruthy();
+      expect(resumeState.updatedAt).toBeTruthy();
+
+      const resumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "resumed-session"),
+      });
+      await rm(activeStatePath(dir), { force: true });
+      await pi.commands.wf.handler("resume resume-demo", resumeCtx);
+
+      await expect(readActiveWorkflowState(activeStatePath(dir, "resumed-session"))).resolves.toMatchObject({
+        id: "resume-tracer",
+        name: "resume-demo",
+        gardenName: "resume-demo",
+        currentStepIndex: 0,
+        sessionId: "resumed-session",
+        sessionFile: join(dir, "resumed-session.jsonl"),
+      });
+      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain("Current step 0: first");
+      expect(resumeCtx.notifications).toContainEqual([
+        "Resumed workflow resume-tracer in garden resume-demo at step 0 (first).",
+        "info",
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("resumes at a zero-based step override and preserves later artifacts", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const gardenPath = join(dir, ".workflower", "workflows", "resume-step-index");
+    const resumePath = join(gardenPath, "resume.json");
+    const statePath = join(gardenPath, "state.json");
+    const laterFlowerPath = join(gardenPath, "0002-later-flower");
+    const laterFlowerFile = join(laterFlowerPath, "artifact.md");
+
+    try {
+      registerWorkflow({
+        id: "resume-step-index-demo",
+        steps: [
+          { id: "first", command: "/first" },
+          { id: "second", command: "/second" },
+          { id: "third", command: "/third" },
+        ],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-step-index-demo"].handler("resume-step-index", ctx);
+      await mkdir(laterFlowerPath, { recursive: true });
+      await writeFile(laterFlowerFile, "later artifact bytes\n", "utf8");
+      await writeFile(statePath, '{"story":"unchanged"}\n', "utf8");
+      const laterFlowerBytesBefore = await readFile(laterFlowerFile, "utf8");
+      const stateBytesBefore = await readFile(statePath, "utf8");
+      await rm(activeStatePath(dir), { force: true });
+
+      const resumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "step-index-session"),
+      });
+      await pi.commands.wf.handler("resume resume-step-index --step 2", resumeCtx);
+
+      await expect(readActiveWorkflowState(activeStatePath(dir, "step-index-session"))).resolves.toMatchObject({
+        id: "resume-step-index-demo",
+        gardenName: "resume-step-index",
+        currentStepIndex: 2,
+        sessionId: "step-index-session",
+      });
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-step-index-demo",
+        gardenName: "resume-step-index",
+        currentStepIndex: 2,
+        sessionId: "step-index-session",
+        sessionFile: join(dir, "step-index-session.jsonl"),
+      });
+      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain("Current step 2: third");
+      await expect(readFile(laterFlowerFile, "utf8")).resolves.toBe(laterFlowerBytesBefore);
+      await expect(readFile(statePath, "utf8")).resolves.toBe(stateBytesBefore);
+
+      await rm(activeStatePath(dir, "step-index-session"), { force: true });
+      const paddedResumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "step-padded-index-session"),
+      });
+      await pi.commands.wf.handler("resume resume-step-index --step 02", paddedResumeCtx);
+
+      await expect(readActiveWorkflowState(activeStatePath(dir, "step-padded-index-session"))).resolves.toMatchObject({
+        currentStepIndex: 2,
+        sessionId: "step-padded-index-session",
+      });
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        currentStepIndex: 2,
+        sessionId: "step-padded-index-session",
+      });
+      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain("Current step 2: third");
+      await expect(readFile(laterFlowerFile, "utf8")).resolves.toBe(laterFlowerBytesBefore);
+      await expect(readFile(statePath, "utf8")).resolves.toBe(stateBytesBefore);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves step override by exact step id", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-step-id", "resume.json");
+
+    try {
+      registerWorkflow({
+        id: "resume-step-id-demo",
+        steps: [
+          { id: "draft-story", command: "/draft-story" },
+          { id: "route-story-review", command: "/route-story-review" },
+          { id: "finish", command: "/finish" },
+        ],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-step-id-demo"].handler("resume-step-id", ctx);
+      await rm(activeStatePath(dir), { force: true });
+
+      const resumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "step-id-session"),
+      });
+      await pi.commands.wf.handler("resume resume-step-id --step route-story-review", resumeCtx);
+
+      await expect(readActiveWorkflowState(activeStatePath(dir, "step-id-session"))).resolves.toMatchObject({
+        id: "resume-step-id-demo",
+        gardenName: "resume-step-id",
+        currentStepIndex: 1,
+        sessionId: "step-id-session",
+      });
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        currentStepIndex: 1,
+        sessionId: "step-id-session",
+      });
+      expect(sentWorkflowerPrompts(pi).at(-1)?.prompt).toContain("Current step 1: route-story-review");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects invalid step overrides without mutating state", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-step-invalid", "resume.json");
+
+    try {
+      registerWorkflow({
+        id: "resume-step-invalid-demo",
+        steps: [
+          { id: "first", command: "/first" },
+          { id: "duplicate", command: "/duplicate-one" },
+          { id: "duplicate", command: "/duplicate-two" },
+        ],
+      });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-step-invalid-demo"].handler("resume-step-invalid", ctx);
+      await rm(activeStatePath(dir), { force: true });
+      const resumeBytesBefore = await readFile(resumePath, "utf8");
+
+      const invalidCases = [
+        {
+          args: "resume-step-invalid --step missing-step",
+          expected: "Cannot resume garden resume-step-invalid; step id missing-step is not valid for workflow resume-step-invalid-demo.",
+        },
+        {
+          args: "resume-step-invalid --step 3",
+          expected: "Cannot resume garden resume-step-invalid; step index 3 is not valid for workflow resume-step-invalid-demo.",
+        },
+        {
+          args: "resume-step-invalid --step -1",
+          expected: "Cannot resume garden resume-step-invalid; step index -1 is not valid for workflow resume-step-invalid-demo.",
+        },
+        {
+          args: "resume-step-invalid --step",
+          expected: "Usage: /wf resume <garden-name> [--step <step-index-or-id>]",
+        },
+        {
+          args: "resume-step-invalid --step=1",
+          expected: "Usage: /wf resume <garden-name> [--step <step-index-or-id>]",
+        },
+        {
+          args: "resume-step-invalid --step 1 extra",
+          expected: "Usage: /wf resume <garden-name> [--step <step-index-or-id>]",
+        },
+        {
+          args: "resume-step-invalid extra",
+          expected: "Usage: /wf resume <garden-name> [--step <step-index-or-id>]",
+        },
+        {
+          args: "resume-step-invalid --step duplicate",
+          expected: "Cannot resume garden resume-step-invalid; step id duplicate is ambiguous for workflow resume-step-invalid-demo.",
+        },
+      ];
+
+      for (const [index, invalidCase] of invalidCases.entries()) {
+        const invalidCtx = createCommandContext(dir, {
+          sessionManager: createSessionManager(dir, `invalid-step-session-${index}`),
+        });
+
+        await pi.commands.wf.handler(`resume ${invalidCase.args}`, invalidCtx);
+
+        expect(invalidCtx.notifications.at(-1)).toEqual([invalidCase.expected, "error"]);
+        await expect(access(activeStatePath(dir, `invalid-step-session-${index}`))).rejects.toThrow();
+        await expect(readFile(resumePath, "utf8")).resolves.toBe(resumeBytesBefore);
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses unsafe or missing resume metadata without writing active state", async () => {
+    const { default: registerWorkflower } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+
+    try {
+      registerWorkflower(pi);
+
+      await pi.commands.wf.handler("resume ../bad", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Invalid garden-name: garden-name must be a safe path segment.",
+        "error",
+      ]);
+      await expect(access(activeStatePath(dir))).rejects.toThrow();
+
+      await mkdir(join(dir, ".workflower", "workflows", "old-garden"), { recursive: true });
+      await pi.commands.wf.handler("resume old-garden", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Cannot resume garden old-garden; resume metadata is missing. Older gardens without durable metadata cannot be resumed.",
+        "error",
+      ]);
+      await expect(access(activeStatePath(dir))).rejects.toThrow();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses malformed, completed, stale, or path-escaping resume metadata", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir);
+    const workflowsRoot = join(dir, ".workflower", "workflows");
+
+    try {
+      registerWorkflow({
+        id: "resume-guarded",
+        steps: [
+          { id: "first", command: "/first" },
+          { id: "second", command: "/second" },
+        ],
+      });
+      registerWorkflower(pi);
+
+      type ResumeCase = {
+        name: string;
+        mutate?: (state: Record<string, unknown>, paths: { gardenPath: string; flowerPath: string }) => Record<string, unknown>;
+        raw?: string;
+        writeIndex?: false | { workflowId: string };
+        expected: string;
+      };
+      const cases: ResumeCase[] = [
+        {
+          name: "malformed-json",
+          raw: "{ not-json",
+          expected: "Cannot resume garden malformed-json; resume metadata is malformed.",
+        },
+        {
+          name: "unsupported-version",
+          mutate: (state) => ({ ...state, version: 2 }),
+          expected: "Cannot resume garden unsupported-version; resume metadata version is unsupported.",
+        },
+        {
+          name: "completed-garden",
+          mutate: (state) => ({ ...state, status: "completed" }),
+          expected: "Cannot resume garden completed-garden; resume metadata is completed and cannot be resumed.",
+        },
+        {
+          name: "unknown-workflow",
+          mutate: (state) => ({ ...state, workflowId: "missing-workflow" }),
+          writeIndex: { workflowId: "missing-workflow" },
+          expected: "Cannot resume garden unknown-workflow; workflow id missing-workflow is not registered.",
+        },
+        {
+          name: "bad-step",
+          mutate: (state) => ({ ...state, currentStepIndex: 3 }),
+          expected: "Cannot resume garden bad-step; current step index 3 is not valid for workflow resume-guarded.",
+        },
+        {
+          name: "wrong-garden-path",
+          mutate: (state) => ({ ...state, gardenPath: join(workflowsRoot, "other-garden") }),
+          expected: "Cannot resume garden wrong-garden-path; resume metadata points at a different garden path.",
+        },
+        {
+          name: "escaped-flower-path",
+          mutate: (state, paths) => ({
+            ...state,
+            activeFlowerPath: join(paths.gardenPath, "..", "escaped-flower"),
+          }),
+          expected: "Cannot resume garden escaped-flower-path; active flower path escapes the garden.",
+        },
+        {
+          name: "missing-flower-index",
+          writeIndex: false,
+          expected: "Cannot resume garden missing-flower-index; active flower index is missing.",
+        },
+        {
+          name: "mismatched-flower-workflow",
+          writeIndex: { workflowId: "other-workflow" },
+          expected: "Cannot resume garden mismatched-flower-workflow; active flower belongs to workflow other-workflow, not resume-guarded.",
+        },
+      ];
+
+      for (const resumeCase of cases) {
+        const gardenPath = join(workflowsRoot, resumeCase.name);
+        const flowerPath = join(gardenPath, "0001-resume-guarded");
+        await mkdir(flowerPath, { recursive: true });
+        const baseState: Record<string, unknown> = {
+          version: 1,
+          status: "active",
+          sessionId: "previous-session",
+          sessionFile: join(dir, "previous-session.jsonl"),
+          workflowId: "resume-guarded",
+          gardenName: resumeCase.name,
+          gardenPath,
+          activeFlowerName: "0001-resume-guarded",
+          activeFlowerPath: flowerPath,
+          currentStepIndex: 0,
+          startedAt: "2026-01-02T03:04:05.000Z",
+          updatedAt: "2026-01-02T03:04:05.000Z",
+        };
+        const resumePath = join(gardenPath, "resume.json");
+        const resumeBytesBefore =
+          resumeCase.raw ??
+          `${JSON.stringify(
+            resumeCase.mutate?.(baseState, { gardenPath, flowerPath }) ?? baseState,
+            null,
+            2,
+          )}\n`;
+        await writeFile(resumePath, resumeBytesBefore, "utf8");
+        if (resumeCase.writeIndex !== false) {
+          await writeFile(
+            join(flowerPath, "index.json"),
+            `${JSON.stringify(
+              {
+                status: "active",
+                workflowId: resumeCase.writeIndex?.workflowId ?? "resume-guarded",
+                flowerPath,
+                pollen: [],
+                pollenPinned: false,
+              },
+              null,
+              2,
+            )}\n`,
+            "utf8",
+          );
+        }
+
+        await pi.commands.wf.handler(`resume ${resumeCase.name}`, ctx);
+
+        expect(ctx.notifications.at(-1)).toEqual([resumeCase.expected, "error"]);
+        await expect(access(activeStatePath(dir))).rejects.toThrow();
+        await expect(readFile(resumePath, "utf8")).resolves.toBe(resumeBytesBefore);
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses resume when this session already has an active workflow", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-current-conflict", "resume.json");
+    const currentStatePath = activeStatePath(dir);
+
+    try {
+      registerWorkflow({ id: "resume-current-conflict-demo", steps: [{ id: "first", command: "/first" }] });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-current-conflict-demo"].handler("resume-current-conflict", ctx);
+      const resumeBytesBefore = await readFile(resumePath, "utf8");
+      await writeActiveWorkflowState(currentStatePath, {
+        sessionId: "session-id",
+        sessionFile: join(dir, "session.jsonl"),
+        id: "resume-current-conflict-demo",
+        name: "already-active",
+        gardenName: "already-active",
+        gardenPath: join(dir, ".workflower", "workflows", "already-active"),
+        activeFlowerName: "0001-resume-current-conflict-demo",
+        activeFlowerPath: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "already-active",
+          "0001-resume-current-conflict-demo",
+        ),
+        workdir: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "already-active",
+          "0001-resume-current-conflict-demo",
+        ),
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+      const activeBytesBefore = await readFile(currentStatePath, "utf8");
+
+      await pi.commands.wf.handler("resume resume-current-conflict", ctx);
+
+      expect(ctx.notifications.at(-1)).toEqual([
+        "Refusing to resume garden resume-current-conflict; this session already has an active workflow.",
+        "error",
+      ]);
+      await expect(readFile(currentStatePath, "utf8")).resolves.toBe(activeBytesBefore);
+      await expect(readFile(resumePath, "utf8")).resolves.toBe(resumeBytesBefore);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses resume when another tracked session owns the garden", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, { newSession: vi.fn() });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-owned-conflict", "resume.json");
+
+    try {
+      registerWorkflow({ id: "resume-owned-conflict-demo", steps: [{ id: "first", command: "/first" }] });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-owned-conflict-demo"].handler("resume-owned-conflict", ctx);
+      const resumeBytesBefore = await readFile(resumePath, "utf8");
+      await rm(activeStatePath(dir), { force: true });
+      await writeActiveWorkflowState(activeStatePath(dir, "other-session"), {
+        sessionId: "other-session",
+        sessionFile: join(dir, "other-session.jsonl"),
+        id: "resume-owned-conflict-demo",
+        name: "resume-owned-conflict",
+        gardenPath: join(dir, ".workflower", "workflows", "resume-owned-conflict"),
+        activeFlowerName: "0001-resume-owned-conflict-demo",
+        activeFlowerPath: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "resume-owned-conflict",
+          "0001-resume-owned-conflict-demo",
+        ),
+        workdir: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "resume-owned-conflict",
+          "0001-resume-owned-conflict-demo",
+        ),
+        currentStepIndex: 0,
+        startedAt: "2026-01-02T03:04:05.000Z",
+        updatedAt: "2026-01-02T03:04:05.000Z",
+      });
+
+      const resumeCtx = createCommandContext(dir, {
+        sessionManager: createSessionManager(dir, "resumed-session"),
+      });
+      await pi.commands.wf.handler("resume resume-owned-conflict", resumeCtx);
+
+      expect(resumeCtx.notifications.at(-1)).toEqual([
+        "Refusing to resume garden resume-owned-conflict; it is already active in session other-session.",
+        "error",
+      ]);
+      await expect(access(activeStatePath(dir, "resumed-session"))).rejects.toThrow();
+      await expect(readFile(resumePath, "utf8")).resolves.toBe(resumeBytesBefore);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -4586,6 +5316,80 @@ describe("/wf:<id>", () => {
     }
   });
 
+  it("updates resume metadata on user, queued, and model-tool handoffs", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const dir = await mkdtemp(join(tmpdir(), "workflower-"));
+    const pi = createPiHarness();
+    const ctx = createCommandContext(dir, {
+      newSession: vi.fn(),
+      model: { provider: "test-provider", id: "test-model" },
+    });
+    const resumePath = join(dir, ".workflower", "workflows", "resume-handoff", "resume.json");
+
+    try {
+      registerWorkflow({ id: "resume-handoff-source", steps: [{ id: "source", command: "/source" }] });
+      registerWorkflow({ id: "resume-user-target", steps: [{ id: "user", command: "/user" }] });
+      registerWorkflow({ id: "resume-queued-target", steps: [{ id: "queued", command: "/queued" }] });
+      registerWorkflow({ id: "resume-tool-target", steps: [{ id: "tool", command: "/tool" }] });
+      registerWorkflower(pi);
+
+      await pi.commands["wf:resume-handoff-source"].handler(
+        "resume-handoff | resume-queued-target",
+        ctx,
+      );
+
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-handoff-source",
+        activeFlowerName: "0001-resume-handoff-source",
+        currentStepIndex: 0,
+        queuedWorkflowIds: ["resume-queued-target"],
+        contextBoundaryEntryId: "leaf-id",
+        runtimeDefaults: { model: "test-provider/test-model", thinkingLevel: "medium" },
+      });
+
+      await pi.commands["wf:resume-user-target"].handler("", ctx);
+
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-user-target",
+        activeFlowerName: "0002-resume-user-target",
+        activeFlowerPath: join(
+          dir,
+          ".workflower",
+          "workflows",
+          "resume-handoff",
+          "0002-resume-user-target",
+        ),
+        currentStepIndex: 0,
+        queuedWorkflowIds: ["resume-queued-target"],
+        contextBoundaryEntryId: "leaf-id",
+        runtimeDefaults: { model: "test-provider/test-model", thinkingLevel: "medium" },
+      });
+
+      await pi.commands.next.handler("", ctx);
+
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-queued-target",
+        activeFlowerName: "0003-resume-queued-target",
+        currentStepIndex: 0,
+        contextBoundaryEntryId: "leaf-id",
+        runtimeDefaults: { model: "test-provider/test-model", thinkingLevel: "medium" },
+      });
+      expect((await readResumeState(resumePath)).queuedWorkflowIds).toBeUndefined();
+
+      await executeHandoffTool(pi, "resume-tool-target", ctx);
+
+      await expect(readResumeState(resumePath)).resolves.toMatchObject({
+        workflowId: "resume-tool-target",
+        activeFlowerName: "0004-resume-tool-target",
+        currentStepIndex: 0,
+        contextBoundaryEntryId: "leaf-id",
+        runtimeDefaults: { model: "test-provider/test-model", thinkingLevel: "medium" },
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects a user-hidden queued workflow during active CLI handoff before mutating state", async () => {
     const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
     const dir = await mkdtemp(join(tmpdir(), "workflower-"));
@@ -4843,6 +5647,10 @@ function sentWorkflowerPrompts(pi: any): Array<{
 function resetPiMessages(pi: any): void {
   pi.sentUserMessages = [];
   pi.sentMessages = [];
+}
+
+async function readResumeState(path: string): Promise<any> {
+  return JSON.parse(await readFile(path, "utf8"));
 }
 
 async function executeHandoffTool(pi: any, workflowId: string, ctx: any): Promise<any> {

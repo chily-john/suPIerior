@@ -8,9 +8,11 @@ import {
 } from "@orchestration/runtime/artifacts/flower-index-store";
 import {
   removeEmptyWorkflowGarden,
+  removeGardenResumeFile,
   removeGardenStateFile,
   removeWorkflowWorkdir,
 } from "@orchestration/runtime/artifacts/remove-artifacts";
+import { persistResumeMetadataForActiveState } from "@orchestration/runtime/resume/resume-state-store";
 import type { AdvanceWorkflowOptions, WorkflowAdvanceContext } from "./advance.types";
 
 export async function completeWorkflow(
@@ -99,6 +101,13 @@ async function cleanupCompletedGarden(
 
   if (activeWorkflow.cleanupOnCompletion !== false) {
     await removeGardenStateFile(ctx.cwd, gardenPath);
+    await removeGardenResumeFile(ctx.cwd, gardenPath);
+  } else {
+    const completedAt = new Date().toISOString();
+    await persistResumeMetadataForActiveState(
+      { ...state, updatedAt: completedAt },
+      { status: "completed", updatedAt: completedAt, completedAt },
+    );
   }
   await removeEmptyWorkflowGarden(ctx.cwd, gardenPath);
 }

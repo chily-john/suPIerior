@@ -3,6 +3,7 @@ import {
   deleteActiveWorkflowState,
   readActiveWorkflowState,
 } from "@orchestration/runtime/active-state/active-state-store";
+import { persistResumeMetadataForActiveState } from "@orchestration/runtime/resume/resume-state-store";
 import type { WorkflowLifecycleCommandContext } from "./manage-active.types";
 
 export async function stopWorkflow(ctx: WorkflowLifecycleCommandContext): Promise<void> {
@@ -14,6 +15,17 @@ export async function stopWorkflow(ctx: WorkflowLifecycleCommandContext): Promis
   }
 
   const gardenName = state.gardenName ?? state.name;
+  const pausedAt = nextTimestampAfter(state.updatedAt);
+
+  try {
+    await persistResumeMetadataForActiveState(
+      { ...state, updatedAt: pausedAt },
+      { status: "paused", updatedAt: pausedAt },
+    );
+  } catch (error) {
+    ctx.ui.notify(`Failed to pause resume metadata: ${formatError(error)}`, "error");
+    return;
+  }
 
   await deleteActiveWorkflowState(activeStatePath);
   ctx.ui.notify(
@@ -33,4 +45,17 @@ async function readActiveStateIfPresent(path: string) {
 
 function isMissingFileError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+function nextTimestampAfter(previousTimestamp: string): string {
+  const now = new Date();
+  const previous = new Date(previousTimestamp);
+  if (!Number.isNaN(previous.getTime()) && now <= previous) {
+    return new Date(previous.getTime() + 1).toISOString();
+  }
+  return now.toISOString();
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

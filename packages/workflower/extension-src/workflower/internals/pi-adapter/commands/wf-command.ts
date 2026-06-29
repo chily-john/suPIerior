@@ -1,25 +1,30 @@
-import { readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createWorkflowerRuntime } from "@package-api/create-workflower-runtime";
+import {
+  applyWorkflowStepRuntimeSettings,
+  captureWorkflowRuntimeDefaults,
+  restoreWorkflowRuntimeDefaults,
+} from "@pi-adapter/apply-workflow-step-runtime-settings";
 import type { JsonValue } from "@package-api/garden-state.types";
 import type { WorkflowerRuntimeContext } from "@package-api/workflower-runtime.types";
-import { resolveActiveStatePath } from "@orchestration/runtime/active-state/active-state-paths";
-import { readActiveWorkflowState } from "@orchestration/runtime/active-state/active-state-store";
+import { findActiveWorkflowInGarden } from "@orchestration/runtime/active-state/find-active-workflow-in-garden";
 import { removeWorkflowWorkdir } from "@orchestration/runtime/artifacts/remove-artifacts";
 import { isSafeWorkflowName as isSafeGardenName } from "@orchestration/runtime/artifacts/workflow-name-validation";
 import { listWorkflowStates } from "@orchestration/runtime/use-cases/manage-active/list-active";
 import { showWorkflowStatus } from "@orchestration/runtime/use-cases/manage-active/show-status";
 import { stopWorkflow } from "@orchestration/runtime/use-cases/manage-active/stop-active";
+import { resumeWorkflow } from "@orchestration/runtime/use-cases/resume/resume-workflow";
 import { resolveWorkflowsRoot } from "@orchestration/runtime/workflower-home";
+import { sendWorkflowerPrompt } from "../send-workflower-prompt";
 
-const WF_COMMANDS = "Available commands: status, stop, list, clean, state.";
+const WF_COMMANDS = "Available commands: status, stop, list, clean, state, resume.";
 const WF_STATE_USAGE =
   'Usage: /wf state list | /wf state get <key> | /wf state set <key> <json-value>. Examples: /wf state set review.rating 4, /wf state set review.summary "Needs tests".';
 
 export function registerWfCommand(pi: ExtensionAPI): void {
   pi.registerCommand("wf", {
-    description: "Inspect and stop the active Workflower workflow",
+    description: "Inspect, resume, and stop Workflower workflows",
     handler: async (args, ctx) => {
       const trimmedArgs = args.trim();
 
@@ -40,6 +45,19 @@ export function registerWfCommand(pi: ExtensionAPI): void {
 
       if (trimmedArgs === "clean" || trimmedArgs.startsWith("clean ")) {
         await cleanWorkflowGarden(ctx, trimmedArgs.slice("clean".length).trim());
+        return;
+      }
+
+      if (trimmedArgs === "resume" || trimmedArgs.startsWith("resume ")) {
+        await resumeWorkflow(trimmedArgs.slice("resume".length).trim(), ctx, {
+          captureRuntimeDefaults: () => captureWorkflowRuntimeDefaults(pi, ctx),
+          applyStepRuntimeSettings: (settings) =>
+            applyWorkflowStepRuntimeSettings(pi, ctx, settings),
+          restoreRuntimeDefaults: (runtimeDefaults) =>
+            restoreWorkflowRuntimeDefaults(pi, ctx, runtimeDefaults),
+          sendUserMessage: (prompt) => pi.sendUserMessage(prompt),
+          sendWorkflowPrompt: (input) => sendWorkflowerPrompt(pi, input),
+        });
         return;
       }
 
@@ -68,7 +86,7 @@ async function cleanWorkflowGarden(
     return;
   }
 
-  const activeWorkflow = await findActiveWorkflowInGarden(ctx, gardenName);
+  const activeWorkflow = await findActiveWorkflowInGarden(ctx.cwd, gardenName);
   if (activeWorkflow) {
     ctx.ui.notify(
       `Refusing to clean active garden ${gardenName}; workflow ${activeWorkflow.id} is still active in session ${activeWorkflow.sessionId}.`,
@@ -83,16 +101,6 @@ async function cleanWorkflowGarden(
   } catch (error) {
     ctx.ui.notify(`Failed to clean garden ${gardenName}: ${formatError(error)}`, "error");
   }
-}
-
-async function findActiveWorkflowInGarden(ctx: WorkflowerRuntimeContext, gardenName: string) {
-  const activeDir = dirname(resolveActiveStatePath(ctx.cwd, ctx.sessionManager.getSessionId()));
-  for (const entry of await readdir(activeDir).catch(() => [])) {
-    if (!entry.endsWith(".json")) continue;
-    const state = await readActiveWorkflowState(join(activeDir, entry)).catch(() => undefined);
-    if ((state?.gardenName ?? state?.name) === gardenName) return state;
-  }
-  return undefined;
 }
 
 async function handleStateCommand(

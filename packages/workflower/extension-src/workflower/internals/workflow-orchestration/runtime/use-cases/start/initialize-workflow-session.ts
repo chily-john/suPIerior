@@ -8,6 +8,10 @@ import { writeActiveWorkflowState } from "@orchestration/runtime/active-state/ac
 import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/active-state.types";
 import { resolveWorkflowPaths } from "@orchestration/runtime/artifacts/artifact-paths";
 import { writeInitialFlowerIndex } from "@orchestration/runtime/artifacts/flower-index-store";
+import {
+  activeWorkflowStateToGardenResumeState,
+  writeGardenResumeState,
+} from "@orchestration/runtime/resume/resume-state-store";
 import { ensureWorkflowerHome } from "@orchestration/runtime/workflower-home";
 import type { WorkflowCommandContext } from "./start.types";
 
@@ -62,6 +66,7 @@ export async function initializeWorkflowInSession(
     await ensureWorkflowerHome(ctx.cwd);
     await mkdir(paths.flowerPath, { recursive: true });
     await writeInitialFlowerIndex({ flowerPath: paths.flowerPath, workflowId: workflow.id });
+    await writeGardenResumeState(paths.gardenPath, activeWorkflowStateToGardenResumeState(state));
     await writeActiveWorkflowState(activeStatePath, state);
     return state;
   } catch (error) {

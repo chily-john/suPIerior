@@ -16,6 +16,7 @@ triggers:
   - workflow lifecycle
   - /wf:<id>
   - /wf clean
+  - /wf resume
   - workflower_handoff
   - workflower_state_set
   - createWorkflowerRuntime
@@ -51,13 +52,13 @@ The public module is both the Pi extension entrypoint and the shared API externa
 - Keep workflow session-clearing behavior declarative through workflow and step flags such as `clearOnStart`, `clearOnNext`, and `clearOnCompletion`.
 - Preserve the active `contextBoundaryEntryId` when handing off to another workflow.
 - Apply workflow/step `model` and `thinkingLevel` runtime settings through the Pi adapter before sending a start, next, or auto-next step prompt; resolve step settings before workflow defaults and captured garden-start defaults, unavailable model candidates warn without blocking the step, and completion restores captured runtime defaults.
-- Keep active garden state small, finite JSON-compatible, keyed by safe state keys, and scoped to `.workflower/workflows/<garden-name>/state.json`; tools, `/wf state`, and runtime state methods should require an active workflow and final completion deletes the garden state file unless the active workflow sets `cleanupOnCompletion: false`.
+- Keep active garden state small, finite JSON-compatible, keyed by safe state keys, and scoped to `.workflower/workflows/<garden-name>/state.json`; keep durable resume metadata at `.workflower/workflows/<garden-name>/resume.json` refreshed on start, stop, resume, advance, and handoff; `/wf resume` should restore only valid non-completed metadata for inactive gardens, and `--step` overrides are pointer-only; tools, `/wf state`, and runtime state methods should require an active workflow, and final completion deletes garden state and resume metadata unless the active workflow sets `cleanupOnCompletion: false`.
 - Load Workflower private skills only when setup receives a package `packageUrl`, and only from that package's `pi.workflowerSkills` `SKILL.md` files with frontmatter descriptions; resolve names from frontmatter `name` or the skill directory.
 - Resolve exact `/skill:<name>` workflow step commands against registered private skills before private command lookup; inject the `SKILL.md` body in kickoff prompts and leave unknown skills as raw commands.
 - Send kickoff prompts through `sendWorkflowPrompt` when available, falling back to `sendUserMessage`; keep display metadata compact through `createWorkflowPromptDisplay`/`createStepPromptDisplay`, with workflow labels including the id and optional name while step labels use the step id.
 - Keep Workflower private step commands registered through package-root `registerWorkflowerCommand`; do not register them as Pi commands, render returned `prompt` content in kickoff prompts, suppress command text for `none`, and leave unknown workflow step invocations as raw commands.
 - Keep Pi adapter registration idempotent per `ExtensionAPI`, including `workflower_handoff` and `workflower_state_*`, and dispose generated workflow command listeners on `session_shutdown`.
 - Respect `userInvocable: false` in generated command registration and input blocking; respect `modelInvocable: false` in `workflower_handoff`.
-- Keep the Pi command surface to `/wf`, generated `/wf:<id>`, and `/next`; keep state inspection under `/wf state`, inactive garden removal under `/wf clean`, and use `workflower_handoff` for model-driven workflow branching instead of helper commands.
+- Keep the Pi command surface to `/wf`, generated `/wf:<id>`, and `/next`; keep state inspection under `/wf state`, preserved garden restoration and step overrides under `/wf resume`, inactive garden removal under `/wf clean`, and use `workflower_handoff` for model-driven workflow branching instead of helper commands.
 - Keep `workflower_handoff` turn-scoped: block repeat tool handoffs in one agent turn and suppress only the source step's pending auto-next.
 - Do not make workflow-specific behavior part of internal runtime layers; Workflower supplies runtime registration and command orchestration.

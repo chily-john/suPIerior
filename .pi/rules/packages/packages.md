@@ -17,6 +17,7 @@ triggers:
   - packages/ruleplementor
   - packages/workflower
   - packages/workflower-authoring
+  - packages/xtivia-workflows
 ---
 
 # Packages
@@ -35,3 +36,4 @@ Enter here when deciding which workspace package owns a change. Keep `.pi/rules`
 | `tui-tools/`         | Changing reusable Pi TUI question primitives for guided workflow packages.                                                    |
 | `workflower/`        | Changing named Pi workflow orchestration, workflow registry APIs, `/wf`, `/wf:<id>`, and `/next` commands, or workflow state/artifacts. |
 | `workflower-authoring/` | Changing the standalone skill package that helps agents scaffold Workflower workflow packages. |
+| `xtivia-workflows/` | Changing XTIVIA Workflower workflows for WordPress-to-Next.js page migrations, source capture, migration planning, story implementation, or final verification. |

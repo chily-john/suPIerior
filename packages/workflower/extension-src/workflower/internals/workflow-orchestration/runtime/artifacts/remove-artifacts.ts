@@ -29,6 +29,17 @@ export async function removeGardenStateFile(cwd: string, gardenPath: string): Pr
   }
 }
 
+export async function removeGardenResumeFile(cwd: string, gardenPath: string): Promise<void> {
+  assertWorkflowArtifactPath(cwd, gardenPath, "workflow garden resume metadata");
+
+  try {
+    await unlink(resolve(join(gardenPath, "resume.json")));
+  } catch (error) {
+    if (isMissingFileError(error)) return;
+    throw error;
+  }
+}
+
 function assertWorkflowArtifactPath(cwd: string, path: string, label: string): void {
   const workflowsRoot = resolve(resolveWorkflowsRoot(cwd));
   const target = resolve(path);

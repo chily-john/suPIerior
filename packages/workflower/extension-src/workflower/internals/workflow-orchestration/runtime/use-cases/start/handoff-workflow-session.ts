@@ -8,6 +8,7 @@ import {
   markFlowerHandedOff,
   writeInitialFlowerIndex,
 } from "@orchestration/runtime/artifacts/flower-index-store";
+import { persistResumeMetadataForActiveState } from "@orchestration/runtime/resume/resume-state-store";
 import { ensureWorkflowerHome } from "@orchestration/runtime/workflower-home";
 import type { WorkflowNotificationUi } from "../workflow-runtime.types";
 
@@ -64,6 +65,12 @@ export async function handoffWorkflowInSession(
     await mkdir(flowerPath, { recursive: true });
     await writeInitialFlowerIndex({ flowerPath, workflowId: workflow.id });
     await writeActiveWorkflowState(activeStatePath, state);
+    try {
+      await persistResumeMetadataForActiveState(state);
+    } catch (error) {
+      ctx.ui.notify(`Failed to update resume metadata: ${formatError(error)}`, "error");
+      return undefined;
+    }
     return { state, incomingPollen };
   } catch (error) {
     ctx.ui.notify(`Failed to hand off workflow: ${formatError(error)}`, "error");

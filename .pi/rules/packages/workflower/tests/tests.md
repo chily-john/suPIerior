@@ -2,11 +2,12 @@
 kind: rules
 paths:
   - "packages/workflower/tests/**/*"
-summary: Workflower Vitest coverage for registry, commands, handoff/state tools, auto-next events, active/garden state, private skills/commands, prompts, and workflow lifecycle behavior.
+summary: Workflower Vitest coverage for registry, commands, handoff/state tools, auto-next events, active/garden/resume state, private skills/commands, prompts, and workflow lifecycle behavior.
 triggers:
   - workflower tests
   - /wf test
   - /wf clean test
+  - /wf resume test
   - /wf:<id> test
   - /next test
   - workflower_handoff test
@@ -35,6 +36,7 @@ Enter here when changing tests for Workflower's public package API, command beha
 - Keep tests explicit about whether session replacement should happen; many lifecycle rules depend on `clearOn*` flags.
 - Cover tool-driven handoffs with active-state, context-boundary, pollen, turn-guard, auto-next, and follow-up prompt assertions.
 - Cover garden state foundations, `/wf state`, `workflower_state_*`, runtime facade methods, producer metadata, and completion cleanup when changing state behavior.
+- Cover `/wf resume` with preserved, paused, completed, and invalid resume metadata; metadata refresh across stop, next, auto-next, and handoff; valid/invalid step overrides; write/update failures; restored active state, resumed session ids, re-sent step prompts, and active-garden conflict refusal when changing resume behavior.
 - Cover private skill loading, registration, command expansion, and kickoff prompt injection when changing private skill behavior.
 - Cover private command registration, duplicate handling, private-skill precedence, `prompt`/`none` rendering, and step-command resolution when changing `registerWorkflowerCommand` behavior.
 - Cover `userInvocable` and `modelInvocable` behavior across generated commands, hidden input blocking, status visibility, and handoff permissions.
