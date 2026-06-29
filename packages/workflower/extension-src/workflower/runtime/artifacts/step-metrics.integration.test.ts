@@ -13,12 +13,16 @@ vi.mock("./step-metrics-store", async () => {
 });
 
 // Helper to create a test workflow directory structure
-async function setupTestWorkflow(workflowerRoot: string, gardenName: string, flowerName: string): Promise<string> {
+async function setupTestWorkflow(
+  workflowerRoot: string,
+  gardenName: string,
+  flowerName: string,
+): Promise<string> {
   const flowerPath = resolve(workflowerRoot, "workflows", gardenName, flowerName, "index.json");
   const workflowsDir = resolve(workflowerRoot, "workflows", gardenName, flowerName);
-  
+
   await fs.mkdir(workflowsDir, { recursive: true });
-  
+
   // Create a minimal workflow definition
   const workflowDef = {
     id: "test-workflow",
@@ -28,9 +32,9 @@ async function setupTestWorkflow(workflowerRoot: string, gardenName: string, flo
       { id: "step-1", workflowId: "test-workflow" },
     ],
   };
-  
+
   await fs.writeFile(flowerPath, JSON.stringify(workflowDef, null, 2));
-  
+
   return flowerPath;
 }
 
@@ -48,16 +52,23 @@ async function readMetricsFile(flowerPath: string): Promise<StepMetrics[] | null
   const normalizedPath = flowerPath.replace(/\\/g, "/");
   const parts = normalizedPath.split("/");
   const workflowsIndex = parts.indexOf("workflows");
-  
+
   if (workflowsIndex === -1) {
     return null;
   }
-  
+
   const garden = parts[workflowsIndex + 1];
   const flower = parts[workflowsIndex + 2];
   const basePath = parts.slice(0, workflowsIndex).join("/");
-  const metricsFile = resolve(basePath, ".workflower", "past-runs-data", garden, flower, "metrics.json");
-  
+  const metricsFile = resolve(
+    basePath,
+    ".workflower",
+    "past-runs-data",
+    garden,
+    flower,
+    "metrics.json",
+  );
+
   try {
     const content = await fs.readFile(metricsFile, "utf-8");
     return JSON.parse(content);
@@ -86,11 +97,8 @@ describe("end-to-end metrics", () => {
   });
 
   it("should capture metrics for a complete workflow", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -99,7 +107,7 @@ describe("end-to-end metrics", () => {
     const workflow = { id: "test-workflow", model: "test-provider/test-model" as const, steps: [] };
     const step0 = { id: "step-0", command: "test command 0" };
     const step1 = { id: "step-1", command: "test command 1" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "test-workflow",
       name: "Test Workflow",
@@ -121,9 +129,7 @@ describe("end-to-end metrics", () => {
         inputTokens: 100,
         outputTokens: 50,
       },
-      content: [
-        { type: "text", text: "Step 0 response" },
-      ],
+      content: [{ type: "text", text: "Step 0 response" }],
     };
 
     await completeStepMetrics(flowerPath, 0, assistantMessageStep0, testWorkflowerRoot);
@@ -187,17 +193,14 @@ describe("end-to-end metrics", () => {
   });
 
   it("should capture metrics for a simple 1-step workflow", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     clearAllPendingMetrics();
 
     const workflow = { id: "simple-workflow", steps: [] };
     const step = { id: "single-step", command: "test command" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "simple-workflow",
       name: "Simple Workflow",
@@ -233,11 +236,8 @@ describe("end-to-end metrics", () => {
   });
 
   it("should capture metrics for multi-step workflow", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     clearAllPendingMetrics();
 
@@ -248,7 +248,7 @@ describe("end-to-end metrics", () => {
       { id: "step-2", command: "test command 2" },
       { id: "step-3", command: "test command 3" },
     ];
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "multi-step-workflow",
       name: "Multi-step Workflow",
@@ -261,8 +261,16 @@ describe("end-to-end metrics", () => {
 
     // Execute all 4 steps
     for (let i = 0; i < 4; i++) {
-      await startStepMetrics(flowerPath, i, steps[i].id, workflow, steps[i], state, testWorkflowerRoot);
-      
+      await startStepMetrics(
+        flowerPath,
+        i,
+        steps[i].id,
+        workflow,
+        steps[i],
+        state,
+        testWorkflowerRoot,
+      );
+
       const assistantMessage = {
         role: "assistant",
         stopReason: "end_turn",
@@ -281,7 +289,7 @@ describe("end-to-end metrics", () => {
     expect(metrics).not.toBeNull();
     expect(Array.isArray(metrics)).toBe(true);
     expect(metrics).toHaveLength(4);
-    
+
     // Verify each step has correct index
     for (let i = 0; i < 4; i++) {
       expect(metrics![i].stepIndex).toBe(i);
@@ -292,18 +300,14 @@ describe("end-to-end metrics", () => {
   });
 
   it("should capture metrics with errors and retries", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      recordStepError,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, recordStepError, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     clearAllPendingMetrics();
 
     const workflow = { id: "error-workflow", steps: [] };
     const step = { id: "error-step", command: "test command" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "error-workflow",
       name: "Error Workflow",
@@ -338,24 +342,21 @@ describe("end-to-end metrics", () => {
     expect(metrics).not.toBeNull();
     expect(Array.isArray(metrics)).toBe(true);
     expect(metrics).toHaveLength(1);
-    
+
     const stepMetrics = metrics![0];
     expect(stepMetrics.errorCount).toBe(3);
     expect(stepMetrics.lastErrorMessage).toBe("Third error");
   });
 
   it("should capture metrics with tool calls", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     clearAllPendingMetrics();
 
     const workflow = { id: "tool-workflow", steps: [] };
     const step = { id: "tool-step", command: "test command" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "tool-workflow",
       name: "Tool Workflow",
@@ -394,18 +395,15 @@ describe("end-to-end metrics", () => {
     expect(metrics).not.toBeNull();
     expect(Array.isArray(metrics)).toBe(true);
     expect(metrics).toHaveLength(1);
-    
+
     const stepMetrics = metrics![0];
     expect(stepMetrics.toolCallCount).toBe(6); // 3 tool_call + 3 tool_result
     expect(stepMetrics.toolNames).toEqual(["read", "read", "write", "write", "bash", "bash"]);
   });
 
   it("should not create metrics when config enable is false", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     clearAllPendingMetrics();
 
@@ -415,7 +413,7 @@ describe("end-to-end metrics", () => {
 
     const workflow = { id: "disabled-workflow", steps: [] };
     const step = { id: "disabled-step", command: "test command" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "disabled-workflow",
       name: "Disabled Workflow",
@@ -426,7 +424,15 @@ describe("end-to-end metrics", () => {
       runtimeDefaults: {},
     };
 
-    await startStepMetrics(flowerPath, 0, "disabled-step", workflow, step, state, testWorkflowerRoot);
+    await startStepMetrics(
+      flowerPath,
+      0,
+      "disabled-step",
+      workflow,
+      step,
+      state,
+      testWorkflowerRoot,
+    );
 
     const assistantMessage = {
       role: "assistant",
@@ -447,17 +453,14 @@ describe("end-to-end metrics", () => {
   });
 
   it("should persist metrics after workflow completion", async () => {
-    const {
-      startStepMetrics,
-      completeStepMetrics,
-      clearAllPendingMetrics,
-    } = await import("./step-metrics-hook");
+    const { startStepMetrics, completeStepMetrics, clearAllPendingMetrics } =
+      await import("./step-metrics-hook");
 
     clearAllPendingMetrics();
 
     const workflow = { id: "persist-workflow", steps: [] };
     const step = { id: "persist-step", command: "test command" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "persist-workflow",
       name: "Persist Workflow",
@@ -468,7 +471,15 @@ describe("end-to-end metrics", () => {
       runtimeDefaults: {},
     };
 
-    await startStepMetrics(flowerPath, 0, "persist-step", workflow, step, state, testWorkflowerRoot);
+    await startStepMetrics(
+      flowerPath,
+      0,
+      "persist-step",
+      workflow,
+      step,
+      state,
+      testWorkflowerRoot,
+    );
 
     const assistantMessage = {
       role: "assistant",
@@ -508,7 +519,7 @@ describe("end-to-end metrics", () => {
 
     const workflow = { id: "timing-workflow", steps: [] };
     const step = { id: "timing-step", command: "test command" };
-    const state = { 
+    const state = {
       sessionId: "test-session",
       id: "timing-workflow",
       name: "Timing Workflow",
@@ -525,13 +536,13 @@ describe("end-to-end metrics", () => {
     const pending = getPendingMetricsForFlower(flowerPath);
     const partial = pending.get(0);
     const startedAt = new Date("2024-01-01T00:00:00.000Z");
-    
+
     if (partial) {
       pending.set(0, { ...partial, startedAt: startedAt.toISOString() });
     }
 
     // Wait a small amount to ensure duration > 0
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     const assistantMessage = {
       role: "assistant",
@@ -550,7 +561,7 @@ describe("end-to-end metrics", () => {
     expect(metrics).not.toBeNull();
     expect(Array.isArray(metrics)).toBe(true);
     expect(metrics).toHaveLength(1);
-    
+
     const stepMetrics = metrics![0];
     expect(stepMetrics.startedAt).toBe("2024-01-01T00:00:00.000Z");
     expect(stepMetrics.completedAt).toBeDefined();

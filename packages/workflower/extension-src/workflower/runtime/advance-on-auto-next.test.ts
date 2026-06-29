@@ -15,11 +15,8 @@ describe("metrics hook on agent end", () => {
 
   it("should write metrics to disk", async () => {
     // Import the hook functions
-    const {
-      completeStepMetrics,
-      clearAllPendingMetrics,
-      getPendingMetricsForFlower,
-    } = await import("@/runtime/artifacts/step-metrics-hook");
+    const { completeStepMetrics, clearAllPendingMetrics, getPendingMetricsForFlower } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -89,9 +86,8 @@ describe("metrics hook on agent end", () => {
   });
 
   it("should be a no-op when metrics are disabled", async () => {
-    const { completeStepMetrics, clearAllPendingMetrics } = await import(
-      "@/runtime/artifacts/step-metrics-hook"
-    );
+    const { completeStepMetrics, clearAllPendingMetrics } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -123,9 +119,8 @@ describe("metrics hook on agent end", () => {
   });
 
   it("should be a no-op when no pending metrics exist", async () => {
-    const { completeStepMetrics, clearAllPendingMetrics } = await import(
-      "@/runtime/artifacts/step-metrics-hook"
-    );
+    const { completeStepMetrics, clearAllPendingMetrics } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -153,11 +148,8 @@ describe("metrics hook on agent end", () => {
   });
 
   it("should handle missing usage data", async () => {
-    const {
-      completeStepMetrics,
-      clearAllPendingMetrics,
-      getPendingMetricsForFlower,
-    } = await import("@/runtime/artifacts/step-metrics-hook");
+    const { completeStepMetrics, clearAllPendingMetrics, getPendingMetricsForFlower } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -206,11 +198,8 @@ describe("metrics hook on agent end", () => {
   });
 
   it("should extract tool names from tool_call and tool_result blocks", async () => {
-    const {
-      completeStepMetrics,
-      clearAllPendingMetrics,
-      getPendingMetricsForFlower,
-    } = await import("@/runtime/artifacts/step-metrics-hook");
+    const { completeStepMetrics, clearAllPendingMetrics, getPendingMetricsForFlower } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -274,11 +263,8 @@ describe("error tracking", () => {
   });
 
   it("should increment errorCount on retry", async () => {
-    const {
-      getPendingMetricsForFlower,
-      clearAllPendingMetrics,
-      startStepMetrics,
-    } = await import("@/runtime/artifacts/step-metrics-hook");
+    const { getPendingMetricsForFlower, clearAllPendingMetrics, startStepMetrics } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();
@@ -387,11 +373,8 @@ describe("error tracking", () => {
   });
 
   it("should be a no-op when no pending metrics exist", async () => {
-    const {
-      getPendingMetricsForFlower,
-      clearAllPendingMetrics,
-      recordStepError,
-    } = await import("@/runtime/artifacts/step-metrics-hook");
+    const { getPendingMetricsForFlower, clearAllPendingMetrics, recordStepError } =
+      await import("@/runtime/artifacts/step-metrics-hook");
 
     // Clear any previous state
     clearAllPendingMetrics();

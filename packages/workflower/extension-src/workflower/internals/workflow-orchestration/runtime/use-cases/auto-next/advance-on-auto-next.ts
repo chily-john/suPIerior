@@ -9,7 +9,11 @@ import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/ac
 import { advanceWorkflowFromAutoNext } from "../advance/advance-workflow";
 import { startWorkflowStep } from "../start-step/start-workflow-step";
 import type { CurrentSessionPromptSender, WorkflowNotificationUi } from "../workflow-runtime.types";
-import { completeStepMetrics, getPendingMetrics, recordStepError } from "@/runtime/artifacts/step-metrics-hook";
+import {
+  completeStepMetrics,
+  getPendingMetrics,
+  recordStepError,
+} from "@/runtime/artifacts/step-metrics-hook";
 
 type AutoNextContext = {
   cwd: string;

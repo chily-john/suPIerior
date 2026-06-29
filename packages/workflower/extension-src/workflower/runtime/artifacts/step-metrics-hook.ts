@@ -237,20 +237,21 @@ export async function completeStepMetrics(
 
   // Extract tool names from message content
   const toolNames: string[] = [];
-  const toolCallCount = assistantMessage.content?.reduce((count: number, block: any) => {
-    if (block.type === "tool_call") {
-      toolNames.push(block.name);
-      return count + 1;
-    }
-    if (block.type === "tool_result") {
-      // Extract tool name from tool_result if available
-      if (block.name) {
+  const toolCallCount =
+    assistantMessage.content?.reduce((count: number, block: any) => {
+      if (block.type === "tool_call") {
         toolNames.push(block.name);
+        return count + 1;
       }
-      return count + 1;
-    }
-    return count;
-  }, 0) ?? 0;
+      if (block.type === "tool_result") {
+        // Extract tool name from tool_result if available
+        if (block.name) {
+          toolNames.push(block.name);
+        }
+        return count + 1;
+      }
+      return count;
+    }, 0) ?? 0;
 
   // Calculate duration
   const startedAt = new Date(partial.startedAt!);
