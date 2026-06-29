@@ -14,6 +14,7 @@ triggers:
   - workflow-orchestration
   - pi-adapter
   - step-metrics-store
+  - step-metrics-hook
   - workflow lifecycle
   - /wf:<id>
   - /wf clean
@@ -66,6 +67,7 @@ The public module is both the Pi extension entrypoint and the shared API externa
 - Preserve the active `contextBoundaryEntryId` when handing off to another workflow.
 - Apply workflow/step `model` and `thinkingLevel` runtime settings through the Pi adapter before sending a start, next, or auto-next step prompt; resolve step settings before workflow defaults and captured garden-start defaults, unavailable model candidates warn without blocking the step, and completion restores captured runtime defaults.
 - Keep active garden state small, finite JSON-compatible, keyed by safe state keys, and scoped to `.workflower/workflows/<garden-name>/state.json`; keep durable resume metadata at `.workflower/workflows/<garden-name>/resume.json` refreshed on start, stop, resume, advance, and handoff; `/wf resume` should restore only valid non-completed metadata for inactive gardens, and `--step` overrides are pointer-only; tools, `/wf state`, and runtime state methods should require an active workflow, and final completion deletes garden state and resume metadata unless the active workflow sets `cleanupOnCompletion: false`.
+- Collect step execution metrics when enabled, tracking token usage, tool calls, duration, and error counts.
 - Load Workflower private skills only when setup receives a package `packageUrl`, and only from that package's `pi.workflowerSkills` `SKILL.md` files with frontmatter descriptions; resolve names from frontmatter `name` or the skill directory.
 - Resolve exact `/skill:<name>` workflow step commands against registered private skills before private command lookup; inject the `SKILL.md` body in kickoff prompts and leave unknown skills as raw commands.
 - Send kickoff prompts through `sendWorkflowPrompt` when available, falling back to `sendUserMessage`; keep display metadata compact through `createWorkflowPromptDisplay`/`createStepPromptDisplay`, with workflow labels including the id and optional name while step labels use the step id.

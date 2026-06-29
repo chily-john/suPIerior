@@ -167,3 +167,115 @@ export function clearPendingMetricsForFlower(flowerPath: string): void {
 export function clearAllPendingMetrics(): void {
   pendingMetrics.clear();
 }
+
+/**
+ * Records an error for a step by incrementing errorCount and capturing lastErrorMessage.
+ * This is a no-op if metrics are disabled or no pending metrics exist.
+ *
+ * @param flowerPath - Absolute path to the flower's index.json file
+ * @param stepIndex - Index of the step in the workflow
+ * @param error - The error that occurred
+ * @param workflowerRoot - The root directory of the Workflower workflow
+ */
+export async function recordStepError(
+  flowerPath: string,
+  stepIndex: number,
+  error: Error,
+  workflowerRoot: string,
+): Promise<void> {
+  const config = await readConfig(workflowerRoot);
+  if (!config.metricsEnabled) {
+    return;
+  }
+
+  const pending = ensurePendingMetricsForFlower(flowerPath);
+  const partial = pending.get(stepIndex);
+
+  if (!partial) {
+    return;
+  }
+
+  pending.set(stepIndex, {
+    ...partial,
+    errorCount: (partial.errorCount ?? 0) + 1,
+    lastErrorMessage: error.message,
+  });
+}
+
+/**
+ * Completes metrics collection for a step at agent end.
+ * Extracts token usage, tool calls, calculates duration, and writes to disk.
+ * This is a no-op if metrics are disabled or no pending metrics exist.
+ *
+ * @param flowerPath - Absolute path to the flower's index.json file
+ * @param stepIndex - Index of the step in the workflow
+ * @param assistantMessage - The assistant message from the agent_end event
+ * @param workflowerRoot - The root directory of the Workflower workflow
+ */
+export async function completeStepMetrics(
+  flowerPath: string,
+  stepIndex: number,
+  assistantMessage: any,
+  workflowerRoot: string,
+): Promise<void> {
+  const config = await readConfig(workflowerRoot);
+  if (!config.metricsEnabled) {
+    return;
+  }
+
+  const pending = ensurePendingMetricsForFlower(flowerPath);
+  const partial = pending.get(stepIndex);
+
+  if (!partial) {
+    // No pending metrics for this step - metrics were disabled at start
+    return;
+  }
+
+  // Extract token usage
+  const inputTokens = assistantMessage.usage?.inputTokens ?? null;
+  const outputTokens = assistantMessage.usage?.outputTokens ?? null;
+
+  // Extract tool names from message content
+  const toolNames: string[] = [];
+  const toolCallCount = assistantMessage.content?.reduce((count: number, block: any) => {
+    if (block.type === "tool_call") {
+      toolNames.push(block.name);
+      return count + 1;
+    }
+    if (block.type === "tool_result") {
+      // Extract tool name from tool_result if available
+      if (block.name) {
+        toolNames.push(block.name);
+      }
+      return count + 1;
+    }
+    return count;
+  }, 0) ?? 0;
+
+  // Calculate duration
+  const startedAt = new Date(partial.startedAt!);
+  const completedAt = new Date();
+  const durationMs = completedAt.getTime() - startedAt.getTime();
+
+  const { appendStepMetrics } = await import("./step-metrics-store");
+
+  const completeMetrics: StepMetrics = {
+    ...(partial as any),
+    completedAt: completedAt.toISOString(),
+    durationMs,
+    inputTokens,
+    outputTokens,
+    toolCallCount,
+    toolNames,
+  };
+
+  try {
+    await appendStepMetrics(flowerPath, completeMetrics);
+  } catch (error) {
+    // Silently fail - metrics collection should not block step completion
+    // In production, this could be logged
+    return;
+  }
+
+  pending.delete(stepIndex);
+}

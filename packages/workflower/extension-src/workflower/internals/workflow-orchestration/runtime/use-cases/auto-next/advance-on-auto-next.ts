@@ -9,6 +9,7 @@ import type { ActiveWorkflowState } from "@orchestration/runtime/active-state/ac
 import { advanceWorkflowFromAutoNext } from "../advance/advance-workflow";
 import { startWorkflowStep } from "../start-step/start-workflow-step";
 import type { CurrentSessionPromptSender, WorkflowNotificationUi } from "../workflow-runtime.types";
+import { completeStepMetrics, getPendingMetrics, recordStepError } from "@/runtime/artifacts/step-metrics-hook";
 
 type AutoNextContext = {
   cwd: string;
@@ -62,6 +63,17 @@ export async function advanceOnAutoNext(
   const currentStep = workflow?.steps[state.currentStepIndex];
   if (!workflow) return;
 
+  // Hook: Complete metrics collection for this step at agent end
+  const lastAssistantMessage = findLastAssistantMessage(options.agentEndEvent?.messages ?? []);
+  if (lastAssistantMessage && state.activeFlowerPath) {
+    await completeStepMetrics(
+      state.activeFlowerPath,
+      state.currentStepIndex,
+      lastAssistantMessage,
+      ctx.cwd,
+    );
+  }
+
   const stepAutoNext = currentStep?.autoNext;
   const workflowAutoNext = workflow.autoNext;
   const shouldAutoNext = stepAutoNext ?? workflowAutoNext ?? false;
@@ -92,6 +104,21 @@ async function retryAutoNextStep(
       : 0;
   const attempts = previousAttempts + 1;
   const updatedAt = new Date().toISOString();
+
+  // Record the error in metrics if enabled
+  if (state.activeFlowerPath) {
+    try {
+      await recordStepError(
+        state.activeFlowerPath,
+        state.currentStepIndex,
+        new Error(outcome.message),
+        ctx.cwd,
+      );
+    } catch {
+      // Silently fail - error tracking should not block retry logic
+    }
+  }
+
   const retryState: ActiveWorkflowState = {
     ...state,
     currentStepIndex: state.currentStepIndex,
