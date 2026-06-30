@@ -22,7 +22,7 @@ import { handleConfigCommand } from "@/commands/config";
 const WF_COMMANDS = "Available commands: status, stop, list, clean, state, resume, config.";
 const WF_STATE_USAGE =
   'Usage: /wf state list | /wf state get <key> | /wf state set <key> <json-value>. Examples: /wf state set review.rating 4, /wf state set review.summary "Needs tests".';
-const WF_CONFIG_USAGE = 'Usage: /wf config';
+const WF_CONFIG_USAGE = "Usage: /wf config";
 
 export function registerWfCommand(pi: ExtensionAPI): void {
   pi.registerCommand("wf", {

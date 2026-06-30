@@ -11,14 +11,14 @@ export interface ModelResolution {
   finalLevel: string | null;
 }
 
-export const LEVEL_ORDER = ['tiny', 'small', 'medium', 'large', 'xl'] as const;
+export const LEVEL_ORDER = ["tiny", "small", "medium", "large", "xl"] as const;
 
 export function isLevelName(name: string): boolean {
-  return LEVEL_ORDER.includes(name as typeof LEVEL_ORDER[number]);
+  return LEVEL_ORDER.includes(name as (typeof LEVEL_ORDER)[number]);
 }
 
 export function getLevelIndex(level: string): number | null {
-  const index = LEVEL_ORDER.indexOf(level as typeof LEVEL_ORDER[number]);
+  const index = LEVEL_ORDER.indexOf(level as (typeof LEVEL_ORDER)[number]);
   return index >= 0 ? index : null;
 }
 
@@ -53,7 +53,11 @@ export function resolveModel(level: string | null, config: ModelConfig | null): 
   return models[0];
 }
 
-export function resolveModelWithFallback(level: string | null, config: ModelConfig | null, visited: Set<string> = new Set()): string | null {
+export function resolveModelWithFallback(
+  level: string | null,
+  config: ModelConfig | null,
+  visited: Set<string> = new Set(),
+): string | null {
   // Prevent infinite loops
   if (level !== null && visited.has(level)) {
     return null;
@@ -61,30 +65,30 @@ export function resolveModelWithFallback(level: string | null, config: ModelConf
   if (level !== null) {
     visited.add(level);
   }
-  
+
   // Step 1: Call resolveModel first
   const result = resolveModel(level, config);
-  
+
   // Step 2: If result is not null, return it
   if (result !== null) {
     return result;
   }
-  
+
   // Step 3: If result is null and config is null, return null
   if (config === null) {
     return null;
   }
-  
+
   // Step 4: Determine fallback strategy from config.fallbackStrategy (default to 'down' if not set)
-  const fallbackStrategy = config.fallbackStrategy || 'down';
-  
+  const fallbackStrategy = config.fallbackStrategy || "down";
+
   // Step 5: For "down" strategy
-  if (fallbackStrategy === 'down') {
-    const currentIndex = getLevelIndex(level || '');
+  if (fallbackStrategy === "down") {
+    const currentIndex = getLevelIndex(level || "");
     if (currentIndex === null) {
       return null;
     }
-    
+
     // Iterate downward through LEVEL_ORDER (from current index - 1 to 0)
     for (let i = currentIndex - 1; i >= 0; i--) {
       const fallbackLevel = LEVEL_ORDER[i];
@@ -95,14 +99,14 @@ export function resolveModelWithFallback(level: string | null, config: ModelConf
     }
     return null;
   }
-  
+
   // Step 6: For "up" strategy
-  if (fallbackStrategy === 'up') {
-    const currentIndex = getLevelIndex(level || '');
+  if (fallbackStrategy === "up") {
+    const currentIndex = getLevelIndex(level || "");
     if (currentIndex === null) {
       return null;
     }
-    
+
     // Iterate upward through LEVEL_ORDER (from current index + 1 to end)
     for (let i = currentIndex + 1; i < LEVEL_ORDER.length; i++) {
       const fallbackLevel = LEVEL_ORDER[i];
@@ -113,24 +117,24 @@ export function resolveModelWithFallback(level: string | null, config: ModelConf
     }
     return null;
   }
-  
+
   // Step 7: For "default" strategy
-  if (fallbackStrategy === 'default') {
+  if (fallbackStrategy === "default") {
     const defaultModel = config.defaultModel;
-    
+
     if (defaultModel === undefined || defaultModel === null) {
       return null;
     }
-    
+
     // If defaultModel is a level name, resolve it with its own fallback
     if (isLevelName(defaultModel)) {
       return resolveModelWithFallback(defaultModel, config, new Set(visited));
     }
-    
+
     // If defaultModel is a model ID, return it directly
     return defaultModel;
   }
-  
+
   // Step 8: Return null if all attempts fail
   return null;
 }
@@ -142,7 +146,15 @@ export function resolveModelWithFallbackAndMetadata(
 ): { result: string | null; resolution: ModelResolution } {
   // Prevent infinite loops
   if (level !== null && visited.has(level)) {
-    return { result: null, resolution: { requestedLevel: level, resolvedModel: null, usedFallback: false, finalLevel: null } };
+    return {
+      result: null,
+      resolution: {
+        requestedLevel: level,
+        resolvedModel: null,
+        usedFallback: false,
+        finalLevel: null,
+      },
+    };
   }
   if (level !== null) {
     visited.add(level);
@@ -157,29 +169,42 @@ export function resolveModelWithFallbackAndMetadata(
 
   // Step 2: If result is not null, return it
   if (result !== null) {
-    return { result, resolution: { requestedLevel, resolvedModel: result, usedFallback: false, finalLevel } };
+    return {
+      result,
+      resolution: { requestedLevel, resolvedModel: result, usedFallback: false, finalLevel },
+    };
   }
 
   // Step 3: If result is null and config is null, return null
   if (config === null) {
-    return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: false, finalLevel: null } };
+    return {
+      result: null,
+      resolution: { requestedLevel, resolvedModel: null, usedFallback: false, finalLevel: null },
+    };
   }
 
   // Step 4: Determine fallback strategy from config.fallbackStrategy (default to 'down' if not set)
-  const fallbackStrategy = config.fallbackStrategy || 'down';
+  const fallbackStrategy = config.fallbackStrategy || "down";
   usedFallback = true;
 
   // Step 5: For "down" strategy
-  if (fallbackStrategy === 'down') {
-    const currentIndex = getLevelIndex(level || '');
+  if (fallbackStrategy === "down") {
+    const currentIndex = getLevelIndex(level || "");
     if (currentIndex === null) {
-      return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null } };
+      return {
+        result: null,
+        resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null },
+      };
     }
 
     // Iterate downward through LEVEL_ORDER (from current index - 1 to 0)
     for (let i = currentIndex - 1; i >= 0; i--) {
       const fallbackLevel = LEVEL_ORDER[i];
-      const fallbackResult = resolveModelWithFallbackAndMetadata(fallbackLevel, config, new Set(visited));
+      const fallbackResult = resolveModelWithFallbackAndMetadata(
+        fallbackLevel,
+        config,
+        new Set(visited),
+      );
       if (fallbackResult.result !== null) {
         return {
           result: fallbackResult.result,
@@ -187,25 +212,35 @@ export function resolveModelWithFallbackAndMetadata(
             requestedLevel,
             resolvedModel: fallbackResult.result,
             usedFallback: true,
-            finalLevel: fallbackLevel
-          }
+            finalLevel: fallbackLevel,
+          },
         };
       }
     }
-    return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null } };
+    return {
+      result: null,
+      resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null },
+    };
   }
 
   // Step 6: For "up" strategy
-  if (fallbackStrategy === 'up') {
-    const currentIndex = getLevelIndex(level || '');
+  if (fallbackStrategy === "up") {
+    const currentIndex = getLevelIndex(level || "");
     if (currentIndex === null) {
-      return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null } };
+      return {
+        result: null,
+        resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null },
+      };
     }
 
     // Iterate upward through LEVEL_ORDER (from current index + 1 to end)
     for (let i = currentIndex + 1; i < LEVEL_ORDER.length; i++) {
       const fallbackLevel = LEVEL_ORDER[i];
-      const fallbackResult = resolveModelWithFallbackAndMetadata(fallbackLevel, config, new Set(visited));
+      const fallbackResult = resolveModelWithFallbackAndMetadata(
+        fallbackLevel,
+        config,
+        new Set(visited),
+      );
       if (fallbackResult.result !== null) {
         return {
           result: fallbackResult.result,
@@ -213,33 +248,43 @@ export function resolveModelWithFallbackAndMetadata(
             requestedLevel,
             resolvedModel: fallbackResult.result,
             usedFallback: true,
-            finalLevel: fallbackLevel
-          }
+            finalLevel: fallbackLevel,
+          },
         };
       }
     }
-    return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null } };
+    return {
+      result: null,
+      resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null },
+    };
   }
 
   // Step 7: For "default" strategy
-  if (fallbackStrategy === 'default') {
+  if (fallbackStrategy === "default") {
     const defaultModel = config.defaultModel;
 
     if (defaultModel === undefined || defaultModel === null) {
-      return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null } };
+      return {
+        result: null,
+        resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null },
+      };
     }
 
     // If defaultModel is a level name, resolve it with its own fallback
     if (isLevelName(defaultModel)) {
-      const fallbackResult = resolveModelWithFallbackAndMetadata(defaultModel, config, new Set(visited));
+      const fallbackResult = resolveModelWithFallbackAndMetadata(
+        defaultModel,
+        config,
+        new Set(visited),
+      );
       return {
         result: fallbackResult.result,
         resolution: {
           requestedLevel,
           resolvedModel: fallbackResult.result,
           usedFallback: true,
-          finalLevel: defaultModel
-        }
+          finalLevel: defaultModel,
+        },
       };
     }
 
@@ -250,11 +295,14 @@ export function resolveModelWithFallbackAndMetadata(
         requestedLevel,
         resolvedModel: defaultModel,
         usedFallback: true,
-        finalLevel: null
-      }
+        finalLevel: null,
+      },
     };
   }
 
   // Step 8: Return null if all attempts fail
-  return { result: null, resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null } };
+  return {
+    result: null,
+    resolution: { requestedLevel, resolvedModel: null, usedFallback: true, finalLevel: null },
+  };
 }

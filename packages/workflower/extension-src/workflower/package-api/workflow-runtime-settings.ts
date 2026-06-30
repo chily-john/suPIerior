@@ -7,7 +7,13 @@ import type {
 } from "./workflow-definition.types";
 import type { WorkflowStepRuntimeSettings } from "@orchestration/runtime/use-cases/workflow-runtime.types";
 import { readConfig } from "../model-config";
-import { isLevelName, resolveModelWithFallback, LEVEL_ORDER, resolveModelWithFallbackAndMetadata, type ModelResolution } from "../model-resolver";
+import {
+  isLevelName,
+  resolveModelWithFallback,
+  LEVEL_ORDER,
+  resolveModelWithFallbackAndMetadata,
+  type ModelResolution,
+} from "../model-resolver";
 import type { ModelConfig } from "../model-resolver";
 
 export type RuntimeSettingsContext = Pick<ExtensionContext, "modelRegistry" | "ui"> &
@@ -39,14 +45,14 @@ export async function applyWorkflowStepRuntimeSettings(
     workflowModel: settings.workflow.model,
     runtimeDefaultsModel: settings.runtimeDefaults?.model,
   });
-  
+
   // Show notification if model was resolved and notification hasn't been shown for this workflow yet
   if (resolutionMetadata && ctx.ui) {
     const notificationKey = `${settings.workflow.id}`;
     if (!workflowModelNotificationShown.has(notificationKey)) {
       workflowModelNotificationShown.add(notificationKey);
       const message = formatModelResolutionNotification(resolutionMetadata);
-      ctx.ui.notify(message, 'info');
+      ctx.ui.notify(message, "info");
     }
   }
 
@@ -82,23 +88,27 @@ export async function restoreWorkflowRuntimeDefaults(
 async function applyWorkflowModelCandidates(
   pi: ExtensionAPI,
   ctx: RuntimeSettingsContext,
-  modelSettings: { stepModel?: WorkflowModelSetting; workflowModel?: WorkflowModelSetting; runtimeDefaultsModel?: string },
+  modelSettings: {
+    stepModel?: WorkflowModelSetting;
+    workflowModel?: WorkflowModelSetting;
+    runtimeDefaultsModel?: string;
+  },
 ): Promise<ModelResolution | null> {
   const config = readConfig();
   const candidates = collectModelCandidatesFromSettings(modelSettings);
-  
+
   if (candidates.length === 0) return null;
 
   const failures: string[] = [];
-  
+
   // Track the first successful resolution metadata
   let firstResolution: ModelResolution | null = null;
-  
+
   for (const candidate of candidates) {
     // Check if this candidate is a level name and resolve it with metadata
     let resolvedModelId: string | null = null;
     let resolution: ModelResolution | null = null;
-    
+
     if (isLevelName(candidate.reference)) {
       const result = resolveModelWithFallbackAndMetadata(candidate.reference, config);
       resolvedModelId = result.result;
@@ -142,13 +152,13 @@ async function applyWorkflowModelCandidates(
     `No workflow model candidate available; using current/default model. Tried: ${failures.join(", ")}.`,
     "warning",
   );
-  
+
   return null;
 }
 
 function collectModelCandidates(settings: WorkflowStepRuntimeSettings): string[] {
   const config = readConfig();
-  
+
   return [
     ...resolveModelReferences(settings.step.model, config),
     ...resolveModelReferences(settings.workflow.model, config),
@@ -161,21 +171,27 @@ function collectModelCandidates(settings: WorkflowStepRuntimeSettings): string[]
  * (before resolution) for tracking metadata.
  * Non-level names for stepModel and workflowModel are filtered out (story 007 breaking change).
  */
-function collectModelCandidatesFromSettings(modelSettings: { stepModel?: WorkflowModelSetting; workflowModel?: WorkflowModelSetting; runtimeDefaultsModel?: string }): { reference: string; isLevel: boolean }[] {
+function collectModelCandidatesFromSettings(modelSettings: {
+  stepModel?: WorkflowModelSetting;
+  workflowModel?: WorkflowModelSetting;
+  runtimeDefaultsModel?: string;
+}): { reference: string; isLevel: boolean }[] {
   const config = readConfig();
   const candidates: { reference: string; isLevel: boolean }[] = [];
-  
+
   // Helper to add candidates from a model setting, filtering out non-level names
   const addCandidates = (modelSetting: WorkflowModelSetting | undefined, source: string) => {
     if (!modelSetting) return;
-    
-    if (typeof modelSetting === 'string') {
+
+    if (typeof modelSetting === "string") {
       const isLevel = isLevelName(modelSetting);
       // Only add level names; non-level names are ignored (story 007)
       if (isLevel) {
         candidates.push({ reference: modelSetting, isLevel });
-      } else if (process.env.WORKFLOWER_DEBUG === 'true') {
-        console.warn(`[workflower] Ignoring non-level ${source} model string: "${modelSetting}". Valid levels are: ${LEVEL_ORDER.join(', ')}`);
+      } else if (process.env.WORKFLOWER_DEBUG === "true") {
+        console.warn(
+          `[workflower] Ignoring non-level ${source} model string: "${modelSetting}". Valid levels are: ${LEVEL_ORDER.join(", ")}`,
+        );
       }
     } else {
       // modelSetting is WorkflowModelFallbacks (readonly array)
@@ -184,20 +200,22 @@ function collectModelCandidatesFromSettings(modelSettings: { stepModel?: Workflo
         // Only add level names; non-level names are ignored (story 007)
         if (isLevel) {
           candidates.push({ reference: ref, isLevel });
-        } else if (process.env.WORKFLOWER_DEBUG === 'true') {
-          console.warn(`[workflower] Ignoring non-level ${source} model string: "${ref}". Valid levels are: ${LEVEL_ORDER.join(', ')}`);
+        } else if (process.env.WORKFLOWER_DEBUG === "true") {
+          console.warn(
+            `[workflower] Ignoring non-level ${source} model string: "${ref}". Valid levels are: ${LEVEL_ORDER.join(", ")}`,
+          );
         }
       }
     }
   };
-  
-  addCandidates(modelSettings.stepModel, 'step');
-  addCandidates(modelSettings.workflowModel, 'workflow');
+
+  addCandidates(modelSettings.stepModel, "step");
+  addCandidates(modelSettings.workflowModel, "workflow");
   if (modelSettings.runtimeDefaultsModel) {
     // runtimeDefaultsModel is always a direct model ID, not a level name
     candidates.push({ reference: modelSettings.runtimeDefaultsModel, isLevel: false });
   }
-  
+
   return candidates;
 }
 
@@ -213,12 +231,12 @@ function resolveModelReferences(
   config: ModelConfig | null,
 ): string[] {
   if (!modelSetting) return [];
-  
+
   if (typeof modelSetting === "string") {
     const resolved = resolveSingleModelReference(modelSetting, config);
     return resolved !== null ? [resolved] : [];
   }
-  
+
   // Handle array of model settings (fallback candidates)
   return modelSetting
     .map((ref) => resolveSingleModelReference(ref, config))
@@ -231,10 +249,7 @@ function resolveModelReferences(
  * If it's not a level name, returns null (to be ignored/fallback).
  * If resolution fails for a level name, returns the original level name.
  */
-function resolveSingleModelReference(
-  reference: string,
-  config: ModelConfig | null,
-): string | null {
+function resolveSingleModelReference(reference: string, config: ModelConfig | null): string | null {
   // Check if the reference is a level name
   if (isLevelName(reference)) {
     const resolved = resolveModelWithFallback(reference, config);
@@ -243,13 +258,15 @@ function resolveSingleModelReference(
     // This allows level names to be used even if config doesn't have them
     return resolved !== null ? resolved : reference;
   }
-  
+
   // Not a level name - treat as undefined (breaking change from story 007)
   // Log for debugging if enabled
-  if (process.env.WORKFLOWER_DEBUG === 'true') {
-    console.warn(`[workflower] Ignoring non-level model string: "${reference}". Valid levels are: ${LEVEL_ORDER.join(', ')}`);
+  if (process.env.WORKFLOWER_DEBUG === "true") {
+    console.warn(
+      `[workflower] Ignoring non-level model string: "${reference}". Valid levels are: ${LEVEL_ORDER.join(", ")}`,
+    );
   }
-  
+
   // Return null so it can be filtered out
   return null;
 }
@@ -260,17 +277,17 @@ function resolveSingleModelReference(
  */
 function formatModelResolutionNotification(resolution: ModelResolution): string {
   const { requestedLevel, resolvedModel, usedFallback, finalLevel } = resolution;
-  const verbose = process.env.WORKFLOWER_MODEL_RESOLUTION_VERBOSE === 'true';
-  
+  const verbose = process.env.WORKFLOWER_MODEL_RESOLUTION_VERBOSE === "true";
+
   if (!resolvedModel) {
-    return 'Using default model';
+    return "Using default model";
   }
-  
+
   // If no level was requested (direct model ID)
   if (requestedLevel === null) {
     return `Using model: ${resolvedModel} (default)`;
   }
-  
+
   // If fallback was used
   if (usedFallback) {
     if (verbose && finalLevel) {
@@ -278,7 +295,7 @@ function formatModelResolutionNotification(resolution: ModelResolution): string 
     }
     return `Using model: ${resolvedModel} (requested: ${requestedLevel}, fallback: true)`;
   }
-  
+
   // Normal case: requested level was resolved directly
   return `Using model: ${resolvedModel} (requested: ${requestedLevel})`;
 }
@@ -311,5 +328,9 @@ function resolveModelReference(reference: string): { provider: string; modelId: 
 }
 
 // Export helper functions for testing
-export { collectModelCandidates, normalizeModelReferences, resolveModelReferences as resolveModelReferencesInternal };
+export {
+  collectModelCandidates,
+  normalizeModelReferences,
+  resolveModelReferences as resolveModelReferencesInternal,
+};
 export type { ModelResolution };

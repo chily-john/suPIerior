@@ -23,16 +23,16 @@ describe("config command", () => {
   let uiMock: UiMock;
 
   beforeEach(async () => {
-    testDir = join(tmpdir() ?? '/tmp', `workflower-config-test-${Date.now()}`);
+    testDir = join(tmpdir() ?? "/tmp", `workflower-config-test-${Date.now()}`);
     await mkdir(testDir, {
       recursive: true,
     });
-    
+
     // Create .workflower directory
     await mkdir(join(testDir, ".workflower"), { recursive: true });
-    
+
     notifyCalls = [];
-    
+
     uiMock = {
       notify: (message: string, level?: "info" | "warning" | "error") => {
         notifyCalls.push([message, level]);
@@ -41,7 +41,7 @@ describe("config command", () => {
       input: vi.fn().mockResolvedValue(undefined),
       confirm: vi.fn().mockResolvedValue(false),
     };
-    
+
     mockCtx = {
       cwd: testDir,
       ui: uiMock,
@@ -72,8 +72,8 @@ describe("config command", () => {
 
       // Assert
       expect(notifyCalls.length).toBeGreaterThan(0);
-      const displayMessage = notifyCalls.find((call) => call[1] === 'info')?.[0];
-      
+      const displayMessage = notifyCalls.find((call) => call[1] === "info")?.[0];
+
       expect(displayMessage).toBeDefined();
       expect(displayMessage).toContain("Current Workflower Configuration");
       expect(displayMessage).toContain("tiny: [model-tiny-1]");
@@ -88,8 +88,8 @@ describe("config command", () => {
 
       // Assert
       expect(notifyCalls.length).toBeGreaterThan(0);
-      const displayMessage = notifyCalls.find((call) => call[1] === 'info')?.[0];
-      
+      const displayMessage = notifyCalls.find((call) => call[1] === "info")?.[0];
+
       expect(displayMessage).toBeDefined();
       expect(displayMessage).toContain("No configuration found");
     });
@@ -100,7 +100,7 @@ describe("config command", () => {
       // This test verifies that we can use the validateConfig function
       // which was implemented in Story 001
       const { validateConfig } = await import("../model-config");
-      
+
       const config = {
         modelLevels: {
           tiny: ["model-1"],
@@ -108,7 +108,7 @@ describe("config command", () => {
         defaultModel: "tiny",
         fallbackStrategy: "up",
       };
-      
+
       const result = validateConfig(config);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
@@ -129,7 +129,8 @@ describe("config command", () => {
       await writeFile(configPath, JSON.stringify(initialConfig, null, 2), "utf-8");
 
       // Mock user selecting "Edit default model", entering new value, then "Save configuration"
-      uiMock.select = vi.fn()
+      uiMock.select = vi
+        .fn()
         .mockResolvedValueOnce("Edit default model") // First menu selection
         .mockResolvedValueOnce("Save configuration"); // Save after edit
       uiMock.input = vi.fn().mockResolvedValueOnce("new-model"); // New default model value
@@ -143,11 +144,11 @@ describe("config command", () => {
       // Check that input was called for defaultModel
       expect(uiMock.input).toHaveBeenCalledWith(
         expect.stringContaining("default model"),
-        expect.anything()
+        expect.anything(),
       );
       // Check that save was attempted (notification about save)
-      const saveNotifications = notifyCalls.filter(call => 
-        call[0].includes("saved") || call[0].includes("Saved")
+      const saveNotifications = notifyCalls.filter(
+        (call) => call[0].includes("saved") || call[0].includes("Saved"),
       );
       expect(saveNotifications.length).toBeGreaterThan(0);
     });
@@ -165,7 +166,8 @@ describe("config command", () => {
       await writeFile(configPath, JSON.stringify(initialConfig, null, 2), "utf-8");
 
       // Mock user selecting "Edit fallback strategy", selecting "up", then saving
-      uiMock.select = vi.fn()
+      uiMock.select = vi
+        .fn()
         .mockResolvedValueOnce("Edit fallback strategy") // First menu selection
         .mockResolvedValueOnce("up") // Select "up" from options
         .mockResolvedValueOnce("Back to main menu"); // Return to main menu
@@ -177,14 +179,14 @@ describe("config command", () => {
       // Assert
       expect(uiMock.select).toHaveBeenCalledWith(
         expect.stringContaining("fallback strategy"),
-        expect.arrayContaining(["up", "down", "default"])
+        expect.arrayContaining(["up", "down", "default"]),
       );
     });
 
     it("should create config file if it does not exist when saving", async () => {
       // Arrange - no config file exists
       const configPath = join(testDir, ".workflower", "config.json");
-      
+
       // Mock user going directly to save
       uiMock.select = vi.fn().mockResolvedValueOnce("Save configuration");
       uiMock.confirm = vi.fn().mockResolvedValueOnce(true); // Confirm save
@@ -216,10 +218,10 @@ describe("config command", () => {
       await handleConfigCommand("", mockCtx);
 
       // Assert - should show validation error and not save
-      const errorNotifications = notifyCalls.filter(call => call[1] === "error");
+      const errorNotifications = notifyCalls.filter((call) => call[1] === "error");
       expect(errorNotifications.length).toBeGreaterThan(0);
-      expect(errorNotifications.some(n => n[0].includes("Validation"))).toBe(true);
-      
+      expect(errorNotifications.some((n) => n[0].includes("Validation"))).toBe(true);
+
       // Verify file was not changed (still has invalid config)
       const savedConfig = JSON.parse(await readFile(configPath, "utf-8"));
       expect(savedConfig.modelLevels.invalidLevel).toBeDefined();
@@ -238,7 +240,8 @@ describe("config command", () => {
       await writeFile(configPath, JSON.stringify(initialConfig, null, 2), "utf-8");
 
       // Mock user selecting "Edit model levels", then "tiny", then "Add model", entering new model, then back, then save
-      uiMock.select = vi.fn()
+      uiMock.select = vi
+        .fn()
         .mockResolvedValueOnce("Edit model levels") // Main menu
         .mockResolvedValueOnce("tiny") // Select level
         .mockResolvedValueOnce("Add model") // Level submenu
