@@ -7,7 +7,7 @@ export const statefulGrillingFinalizeWorkflow: WorkflowDefinition = {
   clearOnStart: true,
   clearOnCompletion: false,
   cleanupOnCompletion: false,
-  model: ["openai/gpt-5.4-mini"],
+  model: "medium",
   thinkingLevel: "medium",
   steps: [
     {

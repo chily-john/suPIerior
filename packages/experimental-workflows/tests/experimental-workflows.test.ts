@@ -64,7 +64,7 @@ describe("experimental-workflows package", () => {
       clearOnStart: true,
       clearOnCompletion: false,
       cleanupOnCompletion: true,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
       steps: [
         {
@@ -87,7 +87,7 @@ describe("experimental-workflows package", () => {
       clearOnStart: true,
       clearOnCompletion: false,
       cleanupOnCompletion: true,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
       steps: [
         {
@@ -110,7 +110,7 @@ describe("experimental-workflows package", () => {
       clearOnStart: true,
       clearOnCompletion: false,
       cleanupOnCompletion: true,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "medium",
       steps: [
         {
@@ -138,7 +138,7 @@ describe("experimental-workflows package", () => {
       clearOnStart: true,
       clearOnCompletion: false,
       cleanupOnCompletion: false,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "medium",
       steps: [
         {

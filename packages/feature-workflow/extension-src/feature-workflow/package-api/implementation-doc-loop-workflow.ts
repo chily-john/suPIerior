@@ -6,14 +6,14 @@ export const implementationDocLoopWorkflow: WorkflowDefinition = {
   modelInvocable: true,
   clearOnStart: true,
   cleanupOnCompletion: false,
-  model: ["openai/gpt-5.4-mini"],
+  model: "medium",
   thinkingLevel: "low",
   pollen: "implementation-doc.md",
   steps: [
     {
       id: "create-or-improve-implementation-doc",
       command: "/skill:implementation-doc-create",
-      model: ["openai/gpt-5.5", "openai/gpt-5.4-mini"],
+      model: "large",
       thinkingLevel: "high",
       outputs: ["implementation-doc.md"],
       autoNext: true,

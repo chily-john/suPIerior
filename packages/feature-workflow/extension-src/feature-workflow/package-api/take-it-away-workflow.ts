@@ -4,7 +4,7 @@ export const takeItAwayWorkflow: WorkflowDefinition = {
   id: "take-it-away",
   clearOnStart: false,
   cleanupOnCompletion: false,
-  model: ["openai/gpt-5.4-mini"],
+  model: "medium",
   thinkingLevel: "low",
   pollen: "feature-doc.md",
   steps: [

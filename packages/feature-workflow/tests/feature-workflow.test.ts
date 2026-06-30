@@ -45,7 +45,7 @@ describe("feature-workflow package", () => {
       id: "new-feature",
       clearOnStart: true,
       cleanupOnCompletion: false,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
       pollen: "feature-doc.md",
     });
@@ -72,7 +72,7 @@ describe("feature-workflow package", () => {
       id: "take-it-away",
       clearOnStart: false,
       cleanupOnCompletion: false,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
       pollen: "feature-doc.md",
     });
@@ -85,7 +85,7 @@ describe("feature-workflow package", () => {
       id: "feature-doc",
       clearOnStart: false,
       cleanupOnCompletion: false,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "medium",
       pollen: "feature-doc.md",
     });
@@ -101,7 +101,7 @@ describe("feature-workflow package", () => {
       id: "implementation-doc-loop",
       userInvocable: false,
       modelInvocable: true,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
       pollen: "implementation-doc.md",
     });
@@ -112,7 +112,7 @@ describe("feature-workflow package", () => {
     ]);
     expect(implementationDocLoopWorkflow.steps[0]).toMatchObject({
       command: "/skill:implementation-doc-create",
-      model: ["openai/gpt-5.5", "openai/gpt-5.4-mini"],
+      model: "large",
       thinkingLevel: "high",
     });
     expect(implementationDocLoopWorkflow.steps[1]).toMatchObject({
@@ -128,7 +128,7 @@ describe("feature-workflow package", () => {
       id: "implementation-stories-split",
       userInvocable: false,
       modelInvocable: true,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
     });
     expect(implementationStoriesSplitWorkflow.steps[0]).toMatchObject({
@@ -143,12 +143,12 @@ describe("feature-workflow package", () => {
       id: "story-implementation-loop",
       userInvocable: false,
       modelInvocable: true,
-      model: ["openai/gpt-5.4-mini"],
+      model: "medium",
       thinkingLevel: "low",
     });
     expect(storyImplementationLoopWorkflow.steps[0]).toMatchObject({
       command: "/skill:story-implement",
-      thinkingLevel: "low",
+      thinkingLevel: "medium",
     });
     expect(storyImplementationLoopWorkflow.steps[1]).toMatchObject({
       command: "/skill:story-implementation-review",

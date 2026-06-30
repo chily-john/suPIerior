@@ -121,7 +121,7 @@ describe("step-executor - model resolution integration", () => {
       );
     });
 
-    it("non-level name model field is ignored and falls back to defaults", () => {
+    it("non-level name model field is included as direct model reference", () => {
       const mockConfig: ModelConfig = {
         modelLevels: {
           medium: ["model-medium-1"],
@@ -153,12 +153,12 @@ describe("step-executor - model resolution integration", () => {
 
       const candidates = collectModelCandidates(settings);
 
-      // Non-level name should be ignored, falling back to runtime defaults
-      expect(candidates).not.toContain("anthropic/claude-3");
+      // Direct model reference should be included
+      expect(candidates).toContain("anthropic/claude-3");
       expect(candidates).toContain("openai/gpt-4");
     });
 
-    it("non-level model string is ignored and falls back to user model", () => {
+    it("non-level model string is included as direct model reference", () => {
       const mockConfig: ModelConfig = {
         modelLevels: {
           medium: ["model-medium-1"],
@@ -190,8 +190,8 @@ describe("step-executor - model resolution integration", () => {
 
       const candidates = collectModelCandidates(settings);
 
-      // Non-level model string should be ignored, falling back to user model
-      expect(candidates).not.toContain("provider/model-old");
+      // Direct model reference should be included
+      expect(candidates).toContain("provider/model-old");
       expect(candidates).toContain("openai/gpt-4");
     });
 

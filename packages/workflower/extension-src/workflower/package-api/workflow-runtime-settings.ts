@@ -169,7 +169,7 @@ function collectModelCandidates(settings: WorkflowStepRuntimeSettings): string[]
 /**
  * Collects model candidates from settings with their original reference strings
  * (before resolution) for tracking metadata.
- * Non-level names for stepModel and workflowModel are filtered out (story 007 breaking change).
+ * Supports both level names and direct model references.
  */
 function collectModelCandidatesFromSettings(modelSettings: {
   stepModel?: WorkflowModelSetting;
@@ -179,32 +179,18 @@ function collectModelCandidatesFromSettings(modelSettings: {
   const config = readConfig();
   const candidates: { reference: string; isLevel: boolean }[] = [];
 
-  // Helper to add candidates from a model setting, filtering out non-level names
+  // Helper to add candidates from a model setting
   const addCandidates = (modelSetting: WorkflowModelSetting | undefined, source: string) => {
     if (!modelSetting) return;
 
     if (typeof modelSetting === "string") {
       const isLevel = isLevelName(modelSetting);
-      // Only add level names; non-level names are ignored (story 007)
-      if (isLevel) {
-        candidates.push({ reference: modelSetting, isLevel });
-      } else if (process.env.WORKFLOWER_DEBUG === "true") {
-        console.warn(
-          `[workflower] Ignoring non-level ${source} model string: "${modelSetting}". Valid levels are: ${LEVEL_ORDER.join(", ")}`,
-        );
-      }
+      candidates.push({ reference: modelSetting, isLevel });
     } else {
       // modelSetting is WorkflowModelFallbacks (readonly array)
       for (const ref of modelSetting as readonly string[]) {
         const isLevel = isLevelName(ref);
-        // Only add level names; non-level names are ignored (story 007)
-        if (isLevel) {
-          candidates.push({ reference: ref, isLevel });
-        } else if (process.env.WORKFLOWER_DEBUG === "true") {
-          console.warn(
-            `[workflower] Ignoring non-level ${source} model string: "${ref}". Valid levels are: ${LEVEL_ORDER.join(", ")}`,
-          );
-        }
+        candidates.push({ reference: ref, isLevel });
       }
     }
   };
@@ -246,7 +232,7 @@ function resolveModelReferences(
 /**
  * Resolves a single model reference.
  * If it's a level name, resolves it using the config.
- * If it's not a level name, returns null (to be ignored/fallback).
+ * If it's not a level name, returns it as-is (direct model reference).
  * If resolution fails for a level name, returns the original level name.
  */
 function resolveSingleModelReference(reference: string, config: ModelConfig | null): string | null {
@@ -259,16 +245,8 @@ function resolveSingleModelReference(reference: string, config: ModelConfig | nu
     return resolved !== null ? resolved : reference;
   }
 
-  // Not a level name - treat as undefined (breaking change from story 007)
-  // Log for debugging if enabled
-  if (process.env.WORKFLOWER_DEBUG === "true") {
-    console.warn(
-      `[workflower] Ignoring non-level model string: "${reference}". Valid levels are: ${LEVEL_ORDER.join(", ")}`,
-    );
-  }
-
-  // Return null so it can be filtered out
-  return null;
+  // Not a level name - treat as direct model reference
+  return reference;
 }
 
 /**

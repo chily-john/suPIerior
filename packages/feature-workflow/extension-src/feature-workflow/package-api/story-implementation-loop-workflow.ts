@@ -6,7 +6,7 @@ export const storyImplementationLoopWorkflow: WorkflowDefinition = {
   modelInvocable: true,
   clearOnStart: true,
   cleanupOnCompletion: false,
-  model: ["openai/gpt-5.4-mini"],
+  model: "medium",
   thinkingLevel: "low",
   steps: [
     {

@@ -4,7 +4,7 @@ export const newFeatureWorkflow: WorkflowDefinition = {
   id: "new-feature",
   clearOnStart: true,
   cleanupOnCompletion: false,
-  model: ["openai/gpt-5.4-mini"],
+  model: "medium",
   thinkingLevel: "low",
   pollen: "feature-doc.md",
   steps: [

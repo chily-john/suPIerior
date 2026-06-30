@@ -7,7 +7,7 @@ export const counterLoopWorkflow: WorkflowDefinition = {
   clearOnStart: true,
   clearOnCompletion: false,
   cleanupOnCompletion: true,
-  model: ["openai/gpt-5.4-mini"],
+  model: "medium",
   thinkingLevel: "low",
   steps: [
     {
