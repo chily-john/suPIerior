@@ -256,5 +256,56 @@ describe("config command", () => {
       // Assert - should have called input for model name
       expect(uiMock.input).toHaveBeenCalledWith("Enter model name:");
     });
+
+    it("should allow toggling metricsEnabled", async () => {
+      // Arrange
+      const configPath = join(testDir, ".workflower", "config.json");
+      const initialConfig = {
+        modelLevels: {},
+        defaultModel: "",
+        fallbackStrategy: "default",
+        metricsEnabled: false,
+      };
+      await writeFile(configPath, JSON.stringify(initialConfig, null, 2), "utf-8");
+
+      // Mock user selecting "Toggle metrics tracking", then saving
+      uiMock.select = vi
+        .fn()
+        .mockResolvedValueOnce("Toggle metrics tracking") // First menu selection
+        .mockResolvedValueOnce("Save configuration"); // Save after toggle
+
+      // Act
+      await handleConfigCommand("", mockCtx);
+
+      // Assert - should have toggled metricsEnabled to true
+      const savedConfig = JSON.parse(await readFile(configPath, "utf-8"));
+      expect(savedConfig.metricsEnabled).toBe(true);
+
+      // Should show notification about the change
+      const toggleNotifications = notifyCalls.filter(
+        (call) => call[0].includes("Metrics tracking") && call[0].includes("true"),
+      );
+      expect(toggleNotifications.length).toBeGreaterThan(0);
+    });
+
+    it("should display metricsEnabled in config", async () => {
+      // Arrange
+      const configPath = join(testDir, ".workflower", "config.json");
+      const initialConfig = {
+        modelLevels: {},
+        defaultModel: "",
+        fallbackStrategy: "default",
+        metricsEnabled: true,
+      };
+      await writeFile(configPath, JSON.stringify(initialConfig, null, 2), "utf-8");
+
+      // Act
+      await handleConfigCommand("", mockCtx);
+
+      // Assert - should display metricsEnabled in the config
+      const displayMessage = notifyCalls.find((call) => call[1] === "info")?.[0];
+      expect(displayMessage).toBeDefined();
+      expect(displayMessage).toContain("Metrics Enabled: true");
+    });
   });
 });

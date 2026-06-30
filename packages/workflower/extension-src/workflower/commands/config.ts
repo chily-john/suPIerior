@@ -80,6 +80,10 @@ function displayConfig(config: ModelConfig | null): string {
     lines.push(`Fallback Strategy: ${config.fallbackStrategy}`);
   }
 
+  if (config.metricsEnabled !== undefined) {
+    lines.push(`Metrics Enabled: ${config.metricsEnabled}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -91,6 +95,7 @@ function createEmptyConfig(): ModelConfig {
     modelLevels: {},
     defaultModel: "",
     fallbackStrategy: "default",
+    metricsEnabled: true,
   };
 }
 
@@ -153,6 +158,7 @@ export async function handleConfigCommand(args: string, ctx: ConfigCommandContex
       "Edit model levels",
       "Edit default model",
       "Edit fallback strategy",
+      "Toggle metrics tracking",
       "Save configuration",
       "Cancel",
     ];
@@ -179,6 +185,11 @@ export async function handleConfigCommand(args: string, ctx: ConfigCommandContex
 
       case "Edit fallback strategy":
         currentConfig = await editFallbackStrategy(currentConfig, ctx);
+        ctx.ui.notify(displayConfig(currentConfig), "info");
+        break;
+
+      case "Toggle metrics tracking":
+        currentConfig = await editMetricsEnabled(currentConfig, ctx);
         ctx.ui.notify(displayConfig(currentConfig), "info");
         break;
 
@@ -212,76 +223,19 @@ async function editModelLevels(
     newConfig.modelLevels = {};
   }
 
-  const levelOptions = [
-    ...Object.keys(newConfig.modelLevels),
-    "Add new level",
-    "Remove a level",
-    "Back to main menu",
-  ];
+  // Show all predefined levels for editing
+  const levelOptions = [...LEVEL_ORDER, "Back to main menu"];
 
-  const selection = await ctx.ui.select("Edit model levels:", levelOptions);
+  const selection = await ctx.ui.select("Select level to edit:", levelOptions);
 
-  if (!selection) {
+  if (!selection || selection === "Back to main menu") {
     return config;
   }
 
-  if (selection === "Add new level") {
-    const levelName = await ctx.ui.input("Enter new level name:", "tiny");
-    if (!levelName) {
-      ctx.ui.notify("Level name is required.", "warning");
-      return config;
-    }
-
-    // Validate level name
-    if (!LEVEL_ORDER.includes(levelName as (typeof LEVEL_ORDER)[number])) {
-      ctx.ui.notify(`Invalid level name. Must be one of: ${LEVEL_ORDER.join(", ")}`, "error");
-      return config;
-    }
-
-    // Check if level already exists
-    if (newConfig.modelLevels[levelName]) {
-      ctx.ui.notify(`Level '${levelName}' already exists.`, "warning");
-      return config;
-    }
-
-    // Create new level with empty array
-    newConfig.modelLevels[levelName] = [];
-    ctx.ui.notify(`Added level '${levelName}'.`, "info");
-
-    // Offer to add models to the new level
-    const addModel = await ctx.ui.confirm(
-      "Add models to this level?",
-      `Add models to level '${levelName}'`,
-    );
-
-    if (addModel) {
-      newConfig.modelLevels[levelName] = await editLevelModels(levelName, [], ctx);
-    }
-
-    return newConfig;
-  }
-
-  if (selection === "Remove a level") {
-    const levelsToRemove = Object.keys(newConfig.modelLevels);
-    if (levelsToRemove.length === 0) {
-      ctx.ui.notify("No levels to remove.", "warning");
-      return config;
-    }
-
-    const levelToRemove = await ctx.ui.select("Select level to remove:", levelsToRemove);
-    if (levelToRemove) {
-      delete newConfig.modelLevels[levelToRemove];
-      ctx.ui.notify(`Removed level '${levelToRemove}'.`, "info");
-    }
-    return newConfig;
-  }
-
-  // User selected an existing level
-  if (levelOptions.includes(selection)) {
-    const level = selection;
-    const currentModels = newConfig.modelLevels[level] || [];
-    newConfig.modelLevels[level] = await editLevelModels(level, currentModels, ctx);
-  }
+  // User selected a predefined level
+  const level = selection as (typeof LEVEL_ORDER)[number];
+  const currentModels = newConfig.modelLevels[level] || [];
+  newConfig.modelLevels[level] = await editLevelModels(level, currentModels, ctx);
 
   return newConfig;
 }
@@ -369,6 +323,24 @@ async function editFallbackStrategy(
     newConfig.fallbackStrategy = newStrategy;
     ctx.ui.notify(`Fallback strategy set to '${newStrategy}'.`, "info");
   }
+
+  return newConfig;
+}
+
+/**
+ * Toggle metrics enabled interactively
+ */
+async function editMetricsEnabled(
+  config: ModelConfig,
+  ctx: ConfigCommandContext,
+): Promise<ModelConfig> {
+  const newConfig = { ...config };
+
+  const currentValue = newConfig.metricsEnabled ?? true;
+  const newValue = !currentValue;
+
+  newConfig.metricsEnabled = newValue;
+  ctx.ui.notify(`Metrics tracking set to ${newValue}.`, "info");
 
   return newConfig;
 }

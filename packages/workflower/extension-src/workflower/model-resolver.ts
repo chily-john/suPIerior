@@ -2,6 +2,7 @@ export interface ModelConfig {
   modelLevels?: Record<string, string[]>;
   defaultModel?: string;
   fallbackStrategy?: string;
+  metricsEnabled?: boolean;
 }
 
 export interface ModelResolution {

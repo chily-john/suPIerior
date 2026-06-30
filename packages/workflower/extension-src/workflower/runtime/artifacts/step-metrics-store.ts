@@ -1,18 +1,24 @@
-import type { WorkflowerConfig, StepMetrics } from "./step-metrics.types";
+import type { StepMetrics, WorkflowerConfig } from "./step-metrics.types";
+import type { ModelConfig } from "@/model-config";
 import { promises as fs } from "fs";
-import { resolve, dirname } from "path";
+import { resolve } from "path";
 
 const CONFIG_FILE_NAME = "config.json";
-
-const DEFAULT_CONFIG: WorkflowerConfig = {
-  metricsEnabled: false,
-};
+const DEFAULT_WORKFLOWER_DIR = ".workflower";
 
 let cachedConfig: WorkflowerConfig | null = null;
 
 /**
- * Reads the Workflower configuration from the config file.
- * Returns safe defaults if the file doesn't exist, is corrupted, or has an invalid schema.
+ * Gets the config path for a given workflower root directory.
+ */
+function getConfigPath(workflowerRoot: string): string {
+  const workflowerDir = process.env.WORKFLOWER_DIR || DEFAULT_WORKFLOWER_DIR;
+  return resolve(workflowerRoot, workflowerDir, CONFIG_FILE_NAME);
+}
+
+/**
+ * Reads the metricsEnabled setting from the Workflower configuration.
+ * Returns safe defaults if the config doesn't exist or has an invalid schema.
  * Results are cached after the first read to avoid repeated file system operations.
  *
  * @param workflowerRoot - The root directory of the Workflower workflow
@@ -23,24 +29,24 @@ export async function readConfig(workflowerRoot: string): Promise<WorkflowerConf
     return cachedConfig;
   }
 
-  const configPath = resolve(workflowerRoot, CONFIG_FILE_NAME);
-
+  const configPath = getConfigPath(workflowerRoot);
+  
+  let config: ModelConfig | null = null;
   try {
-    const content = await fs.readFile(configPath, "utf-8");
-    const parsed = JSON.parse(content);
-
-    // Validate schema
-    if (typeof parsed?.metricsEnabled !== "boolean") {
-      return DEFAULT_CONFIG;
-    }
-
-    cachedConfig = {
-      metricsEnabled: parsed.metricsEnabled,
-    };
-    return cachedConfig;
+    const fileContent = await fs.readFile(configPath, "utf-8");
+    config = JSON.parse(fileContent) as ModelConfig;
   } catch {
-    return DEFAULT_CONFIG;
+    // File doesn't exist or can't be read - use default
   }
+
+  // If config is null or metricsEnabled is not a boolean, use default
+  if (!config || typeof config.metricsEnabled !== "boolean") {
+    cachedConfig = { metricsEnabled: true };
+    return cachedConfig;
+  }
+
+  cachedConfig = { metricsEnabled: config.metricsEnabled } as WorkflowerConfig;
+  return cachedConfig;
 }
 
 /**

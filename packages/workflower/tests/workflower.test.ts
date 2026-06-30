@@ -69,6 +69,10 @@ beforeAll(async () => {
   }
 }, 30_000);
 
+beforeEach(() => {
+  resetWorkflowerRuntimeRegistrationForTests();
+});
+
 describe("package smoke", () => {
   it("loads a Pi extension entry point and public workflow API", async () => {
     const workflower = await loadWorkflower();
@@ -1579,7 +1583,9 @@ describe("command registration", () => {
 
     pi.handlers.session_shutdown[0]({ type: "session_shutdown" }, createCommandContext("/repo"));
     pi.commands = {};
+    pi.tools = {};
     pi.registeredCommands = [];
+    pi.registeredTools = [];
     pi.handlers = {};
 
     registerWorkflower(pi);
@@ -1598,7 +1604,9 @@ describe("command registration", () => {
     registerWorkflower(pi);
     pi.handlers.session_shutdown[0]({ type: "session_shutdown" }, createCommandContext("/repo"));
     pi.commands = {};
+    pi.tools = {};
     pi.registeredCommands = [];
+    pi.registeredTools = [];
     pi.handlers = {};
 
     registerWorkflow({
@@ -1626,6 +1634,33 @@ describe("command registration", () => {
     expect(pi.registeredCommands.filter((name) => name === "next")).toHaveLength(1);
     expect(pi.handlers.agent_end).toHaveLength(1);
     expect(pi.handlers.context).toHaveLength(1);
+  });
+
+  it("skips duplicate runtime setup when package-specific ExtensionAPI wrappers share Pi tools", async () => {
+    const { default: registerWorkflower, registerWorkflow } = await loadWorkflower();
+    const firstPackagePi = createPiHarness();
+    const secondPackagePi = createPiHarness();
+
+    secondPackagePi.commands = firstPackagePi.commands;
+    secondPackagePi.tools = firstPackagePi.tools;
+    secondPackagePi.handlers = firstPackagePi.handlers;
+
+    registerWorkflow({ id: "shared-package-a", steps: [{ id: "first", command: "/a" }] });
+    registerWorkflower(firstPackagePi);
+    registerWorkflow({ id: "shared-package-b", steps: [{ id: "first", command: "/b" }] });
+    registerWorkflower(secondPackagePi);
+
+    expect(firstPackagePi.commands["wf:shared-package-a"]).toBeDefined();
+    expect(firstPackagePi.commands["wf:shared-package-b"]).toBeDefined();
+    expect(firstPackagePi.registeredTools).toEqual([
+      "workflower_handoff",
+      "workflower_state_set",
+      "workflower_state_get",
+      "workflower_state_list",
+    ]);
+    expect(secondPackagePi.registeredTools).toEqual([]);
+    expect(firstPackagePi.registeredCommands.filter((name) => name === "wf")).toHaveLength(1);
+    expect(secondPackagePi.registeredCommands).toEqual([]);
   });
 });
 
@@ -6114,6 +6149,17 @@ function createSessionManager(
     getBranch: () => [],
     ...overrides,
   };
+}
+
+function resetWorkflowerRuntimeRegistrationForTests(): void {
+  const runtimeGlobal = global as {
+    __workflowerCoreRegistered?: boolean;
+    __workflowerCoreCommandsRegistered?: WeakSet<unknown>;
+    __workflowerRuntimeDisposers?: WeakMap<unknown, Array<() => void>>;
+  };
+  runtimeGlobal.__workflowerCoreRegistered = false;
+  runtimeGlobal.__workflowerCoreCommandsRegistered = new WeakSet();
+  runtimeGlobal.__workflowerRuntimeDisposers = new WeakMap();
 }
 
 function createPiHarness(): {

@@ -11,17 +11,21 @@ import { registerWorkflowerPromptRenderer } from "./rendering/register-workflowe
 import { registerGardenStateTools } from "./tools/register-garden-state-tools";
 import { registerHandoffTool } from "./tools/register-handoff-tool";
 
-type WorkflowerRuntimeGlobal = typeof globalThis & {
-  __supieriorWorkflowerRegisteredApis?: WeakSet<ExtensionAPI>;
-  __supieriorWorkflowerRuntimeDisposers?: WeakMap<ExtensionAPI, Array<() => void>>;
+// Use global to share state across all Workflower extensions in the same process.
+// Pi can load each package through a distinct ExtensionAPI wrapper while those wrappers
+// still write to the same command/tool registry.
+const globalState = global as {
+  __workflowerCoreRegistered?: boolean;
+  __workflowerRuntimeDisposers?: WeakMap<ExtensionAPI, Array<() => void>>;
+  __workflowerCoreCommandsRegistered?: WeakSet<ExtensionAPI>;
 };
 
-const runtimeGlobal = globalThis as WorkflowerRuntimeGlobal;
-const registeredApis = (runtimeGlobal.__supieriorWorkflowerRegisteredApis ??=
-  new WeakSet<ExtensionAPI>());
-const runtimeDisposers = (runtimeGlobal.__supieriorWorkflowerRuntimeDisposers ??= new WeakMap<
+const runtimeDisposers = (globalState.__workflowerRuntimeDisposers ??= new WeakMap<
   ExtensionAPI,
   Array<() => void>
+>());
+const coreCommandsRegistered = (globalState.__workflowerCoreCommandsRegistered ??= new WeakSet<
+  ExtensionAPI
 >());
 
 export type WorkflowerSetupOptions = {
@@ -35,25 +39,39 @@ export function registerExtension(pi: ExtensionAPI, options: WorkflowerSetupOpti
     result.diagnostics.push(...registerPrivateSkills(result.skills));
   }
 
-  if (registeredApis.has(pi)) return;
-  registeredApis.add(pi);
-
   const disposers: Array<() => void> = [];
-  runtimeDisposers.set(pi, disposers);
 
-  pi.on("session_shutdown", () => {
-    for (const dispose of runtimeDisposers.get(pi) ?? []) dispose();
-    runtimeDisposers.delete(pi);
-    registeredApis.delete(pi);
-  });
+  // Track disposers for this Pi instance
+  if (!runtimeDisposers.has(pi)) {
+    runtimeDisposers.set(pi, disposers);
 
-  registerHandoffTool(pi);
-  registerGardenStateTools(pi);
-  registerWorkflowerPromptRenderer(pi);
-  registerScopedContextOnContextRequest(pi);
-  registerAutoNextOnAgentEnd(pi);
-  registerBlockHiddenWorkflowInput(pi);
-  registerWfCommand(pi);
-  disposers.push(registerGeneratedStartCommands(pi));
-  registerNextCommand(pi);
+    pi.on("session_shutdown", () => {
+      for (const dispose of runtimeDisposers.get(pi) ?? []) dispose();
+      runtimeDisposers.delete(pi);
+      coreCommandsRegistered.delete(pi);
+      globalState.__workflowerCoreRegistered = false;
+    });
+  } else {
+    // Reuse existing disposers array for this Pi instance
+    runtimeDisposers.get(pi)?.push(...disposers);
+  }
+
+  // Register core commands/events/tools only once for the shared Pi runtime. When multiple
+  // workflow packages are loaded, later packages still contribute workflows/skills, while the
+  // first Workflower runtime listener registers generated /wf:<id> commands for them.
+  if (!coreCommandsRegistered.has(pi) && globalState.__workflowerCoreRegistered !== true) {
+    coreCommandsRegistered.add(pi);
+    globalState.__workflowerCoreRegistered = true;
+
+    registerHandoffTool(pi);
+    registerGardenStateTools(pi);
+    registerWorkflowerPromptRenderer(pi);
+    registerScopedContextOnContextRequest(pi);
+    registerAutoNextOnAgentEnd(pi);
+    registerBlockHiddenWorkflowInput(pi);
+    registerWfCommand(pi);
+    registerNextCommand(pi);
+
+    disposers.push(registerGeneratedStartCommands(pi));
+  }
 }

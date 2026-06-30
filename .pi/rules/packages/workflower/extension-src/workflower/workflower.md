@@ -5,6 +5,7 @@ paths:
 summary: Workflower public module, package API, garden state, internal orchestration runtime, Pi adapter, private skills/commands, and bundled workflows.
 triggers:
   - Workflower API
+  - registerExtension
   - registerWorkflowCommand
   - registerWorkflow
   - registerWorkflowerCommand
@@ -20,6 +21,9 @@ triggers:
   - getConfigPath
   - readConfig
   - validateConfig
+  - metricsEnabled
+  - ConfigCommandContext
+  - handleConfigCommand
   - model-resolver
   - resolveModel
   - resolveModelWithFallback
@@ -30,6 +34,10 @@ triggers:
   - WorkflowModelLevel
   - step-metrics-store
   - step-metrics-hook
+  - resetConfigCache
+  - ensureMetricsDir
+  - appendStepMetrics
+  - editMetricsEnabled
   - workflow lifecycle
   - /wf:<id>
   - /wf clean
@@ -96,7 +104,7 @@ The public module is both the Pi extension entrypoint and the shared API externa
 - Resolve exact `/skill:<name>` workflow step commands against registered private skills before private command lookup; inject the `SKILL.md` body in kickoff prompts and leave unknown skills as raw commands.
 - Send kickoff prompts through `sendWorkflowPrompt` when available, falling back to `sendUserMessage`; keep display metadata compact through `createWorkflowPromptDisplay`/`createStepPromptDisplay`, with workflow labels including the id and optional name while step labels use the step id.
 - Keep Workflower private step commands registered through package-root `registerWorkflowerCommand`; do not register them as Pi commands, render returned `prompt` content in kickoff prompts, suppress command text for `none`, and leave unknown workflow step invocations as raw commands.
-- Keep Pi adapter registration idempotent per `ExtensionAPI`, including `workflower_handoff` and `workflower_state_*`, and dispose generated workflow command listeners on `session_shutdown`.
+- Keep Pi adapter registration idempotent: register core commands/events/tools once for a shared Pi runtime, including distinct `ExtensionAPI` wrappers sharing command/tool registries; let later packages contribute workflows/skills, and dispose generated workflow command listeners on `session_shutdown`.
 - Respect `userInvocable: false` in generated command registration and input blocking; respect `modelInvocable: false` in `workflower_handoff`.
 - Keep the Pi command surface to `/wf`, generated `/wf:<id>`, and `/next`; keep state inspection under `/wf state`, preserved garden restoration and step overrides under `/wf resume`, inactive garden removal under `/wf clean`, model configuration under `/wf config`, and use `workflower_handoff` for model-driven workflow branching instead of helper commands.
 - Keep `workflower_handoff` turn-scoped: block repeat tool handoffs in one agent turn and suppress only the source step's pending auto-next.

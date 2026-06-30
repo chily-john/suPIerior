@@ -20,7 +20,7 @@ describe("readConfig", () => {
 
   it("should return default config when file does not exist", async () => {
     const config = await readConfig(testWorkflowerRoot);
-    expect(config.metricsEnabled).toBe(false);
+    expect(config.metricsEnabled).toBe(true);
   });
 
   it("should return parsed config when file exists and is valid JSON", async () => {
@@ -34,7 +34,7 @@ describe("readConfig", () => {
     vi.spyOn(fs, "readFile").mockResolvedValueOnce("invalid json");
 
     const config = await readConfig(testWorkflowerRoot);
-    expect(config.metricsEnabled).toBe(false);
+    expect(config.metricsEnabled).toBe(true);
   });
 
   it("should return default config when file has invalid schema", async () => {
@@ -43,7 +43,7 @@ describe("readConfig", () => {
     );
 
     const config = await readConfig(testWorkflowerRoot);
-    expect(config.metricsEnabled).toBe(false);
+    expect(config.metricsEnabled).toBe(true);
   });
 
   it("should cache the config after first read", async () => {

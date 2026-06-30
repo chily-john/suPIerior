@@ -47,5 +47,5 @@ Enter here when changing tests for Workflower's public package API, command beha
 - Cover `/wf:<id>` pipeline syntax with queued active state persistence, active handoff queuing, final-step queued handoff, and invalid queued workflow rejection.
 - Cover workflow/step runtime settings with selected fallback, current/default-model warning, and captured default restore assertions.
 - Cover workflow prompt custom-message display metadata, model prompt content, and plain-message fallback when changing kickoff prompt delivery.
-- When changing registry behavior, verify the package root remains the shared public module for external workflow registration and generated start commands.
+- When changing registry behavior, verify the package root remains the shared public module for external workflow registration and generated start commands, and that package-specific `ExtensionAPI` wrappers sharing Pi registries do not duplicate core runtime setup.
 - Cover session name setting to garden name at workflow kickoff when changing session management behavior.

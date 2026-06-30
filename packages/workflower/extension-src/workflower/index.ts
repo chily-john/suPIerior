@@ -2,6 +2,10 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerExtension, type WorkflowerSetupOptions } from "@pi-adapter/register-extension";
 
 export default function setupWorkflower(pi: ExtensionAPI, options?: WorkflowerSetupOptions): void {
+  // Delegate to registerExtension which has proper guards for:
+  // - Per-instance command registration (prevents duplicate commands on same Pi instance)
+  // - Global tool registration (prevents duplicate tools across all extensions)
+  // - Session shutdown cleanup (allows re-registration after session ends)
   registerExtension(pi, options);
 }
 

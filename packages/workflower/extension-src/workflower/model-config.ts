@@ -10,6 +10,7 @@ export interface ModelConfig {
   modelLevels?: Record<string, string[]>;
   defaultModel?: string;
   fallbackStrategy?: string;
+  metricsEnabled?: boolean;
 }
 
 export interface ValidationResult {
@@ -91,6 +92,12 @@ export function validateConfig(config: unknown): ValidationResult {
       )
     ) {
       errors.push(`fallbackStrategy must be one of: ${VALID_FALLBACK_STRATEGIES.join(", ")}`);
+    }
+  }
+
+  if (cfg.metricsEnabled !== undefined) {
+    if (typeof cfg.metricsEnabled !== "boolean") {
+      errors.push("metricsEnabled must be a boolean");
     }
   }
 
