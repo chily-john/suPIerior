@@ -24,6 +24,7 @@ triggers:
   - workflow lifecycle test
   - advance-workflow test
   - footer status test
+  - model resolution notification test
 ---
 
 # Tests

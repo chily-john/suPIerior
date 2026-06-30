@@ -11,6 +11,7 @@ export type { WorkflowerSetupOptions };
 export type {
   WorkflowDefinition,
   WorkflowModelFallbacks,
+  WorkflowModelLevel,
   WorkflowModelProvider,
   WorkflowModelReference,
   WorkflowModelSetting,

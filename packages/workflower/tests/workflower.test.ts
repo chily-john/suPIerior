@@ -1997,7 +1997,7 @@ describe("/next", () => {
     await pi.commands.wf.handler("frobnicate", ctx);
 
     expect(ctx.notifications.at(-1)?.[0]).toMatch(
-      /Unknown wf command: frobnicate\. Available commands: status, stop, list, clean, state, resume\./,
+      /Unknown wf command: frobnicate\. Available commands: status, stop, list, clean, state, resume, config\./,
     );
     expect(ctx.notifications.at(-1)?.[1]).toBe("error");
   });

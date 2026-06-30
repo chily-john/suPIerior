@@ -38,11 +38,15 @@ export type WorkflowModelReference = `${WorkflowModelProvider}/${string}`;
 /** Ordered model candidates. Item 0 is preferred; later items are fallbacks. */
 export type WorkflowModelFallbacks = readonly [WorkflowModelReference, ...WorkflowModelReference[]];
 
-export type WorkflowModelSetting = WorkflowModelReference | WorkflowModelFallbacks;
+/** Level names for model resolution */
+export type WorkflowModelLevel = 'tiny' | 'small' | 'medium' | 'large' | 'xl';
+
+/** A model setting can be a level name, a model reference, or an array of model references */
+export type WorkflowModelSetting = WorkflowModelLevel | WorkflowModelReference | WorkflowModelFallbacks;
 export type WorkflowStepModel = WorkflowModelSetting;
 
 export type WorkflowRuntimeDefaults = {
-  model?: WorkflowModelReference;
+  model?: WorkflowModelReference | WorkflowModelLevel;
   thinkingLevel?: WorkflowThinkingLevel;
 };
 
